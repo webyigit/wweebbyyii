@@ -1,7 +1,7 @@
 ---
 title: UN 사무총장, 세계에 AI 안전 협력 촉구... "하향 경쟁은 막아야"
-category: "AI거버넌스 > AI규제정책"
-status: draft
+category: "동향"
+status: published
 date: 2026-09-17
 keywords: AI안전, UN, Guterres, 글로벌거버넌스, AI규제
 ---

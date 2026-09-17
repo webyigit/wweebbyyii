@@ -1,6 +1,6 @@
 ---
 title: 소니·워너, Anthropic 상대로 저작권 소송... "수만 곡 불법 학습" 주장
-category: "AI법률 > AI저작권"
+category: "동향"
 status: draft
 date: 2026-09-17
 keywords: 저작권소송, Anthropic, Claude, 음악저작권, 음악산업

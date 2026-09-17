@@ -11,15 +11,18 @@
 """
 
 import argparse
+import html
 import json
 import re
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -43,10 +46,11 @@ CONFIG_PATH = BASE_DIR / "config.json"
 # (naver.com 접근이 안 되는 환경에서 작성했기 때문에 최초 실행 시 검증 필수)
 SELECTORS = {
     "iframe": "mainFrame",
-    # 확인됨: .se-title-text 자체는 wrapper div라 클릭은 되지만 타이핑은 안 먹는다.
-    # 실제 타이핑 대상은 그 안의 <p class="se-text-paragraph"> 자식.
+    # 확인됨(스크린샷 검증): 안의 <p class="se-text-paragraph">는 비어있을 때 크기가
+    # 0이라 클릭이 아예 안 먹는다. wrapper(.se-title-text)를 클릭해야 하고,
+    # 입력은 ActionChains.send_keys 로 해야 실제로 제목에 들어간다.
     "title_candidates": [
-        ".se-section-documentTitle .se-text-paragraph",
+        ".se-section-documentTitle .se-title-text",
     ],
     # 아래는 모두 확인됨(2026-09-17, debug_dom_iframe_1/2.html). 해시된 CSS 클래스
     # (예: publish_btn__v_kS9) 대신 배포가 바뀌어도 안 변할 가능성이 높은
@@ -98,6 +102,27 @@ def mark_published(path: Path):
     text = path.read_text(encoding="utf-8")
     text = re.sub(r"(?m)^status:\s*draft\s*$", "status: published", text)
     path.write_text(text, encoding="utf-8")
+
+
+def is_post_live(blog_id: str, title: str, timeout: int = 30) -> bool:
+    """RSS 피드로 실제 공개 발행 여부를 확인한다.
+
+    Selenium으로 SPA의 화면 전환/URL 변화를 감지하는 방식이 SmartEditor의
+    내부 라우팅 방식과 안 맞아 계속 오탐/오검출이 났다. RSS는 공개된 글만
+    올라오는 별도 엔드포인트라 훨씬 확실하고 브라우저 상태와도 무관하다.
+    """
+    url = f"https://rss.blog.naver.com/{blog_id}.xml"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = resp.read().decode("utf-8", errors="ignore")
+            if title in data or html.escape(title) in data:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(3)
+    return False
 
 
 def build_driver(profile_dir: Path, config: dict) -> webdriver.Chrome:
@@ -198,36 +223,38 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         pass  # 팝업이 없으면 그냥 진행
 
     # 제목 입력
-    # 주의: SmartEditor의 <p class="se-text-paragraph">는 내용이 비어있을 때
-    # 사실상 크기가 0이라 Selenium의 일반 click()/send_keys()가
-    # "element not interactable"로 실패한다. JS로 클릭해 포커스를 준 다음,
-    # 실제로 포커스된 노드(active_element)에 입력하는 방식으로 우회한다.
+    # 주의: SmartEditor는 hidden clipboard-helper iframe이 실제 DOM/JS 포커스를
+    # 계속 가로채서, driver.switch_to.active_element 나 document.activeElement 로
+    # 얻은 엘리먼트에 send_keys 해도 다른 곳(본문)에 입력되는 버그가 있었다.
+    # (스크린샷으로 실제 확인함: 제목이 비어있고 본문에 제목+본문이 같이 들어감)
+    # 해결: 제목 wrapper(.se-title-text, 크기가 있어 네이티브 클릭 가능)를 실제
+    # 마우스 클릭으로 클릭해 에디터 내부 상태(논리적 포커스)를 옮긴 다음,
+    # ActionChains로 키를 보내면 에디터가 올바른 위치로 라우팅한다.
     try:
         title_el = None
         for css in SELECTORS["title_candidates"]:
             try:
                 title_el = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, css))
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, css))
                 )
                 break
             except TimeoutException:
                 continue
         if title_el is None:
             raise NoSuchElementException("title element not found")
-        driver.execute_script("arguments[0].click();", title_el)
-        active = driver.switch_to.active_element
-        active.send_keys(meta["title"])
-        active.send_keys(Keys.RETURN)
+        title_el.click()
+        time.sleep(0.3)
+        ActionChains(driver).send_keys(meta["title"]).perform()
+        ActionChains(driver).send_keys(Keys.RETURN).perform()
     except Exception:  # noqa: BLE001
         dump_debug(driver, "제목 입력")
         raise
 
     # 본문 입력 (제목에서 Enter 치면 보통 본문으로 포커스가 넘어간다)
     try:
-        body_el = driver.switch_to.active_element
         for line in meta["_body"].split("\n"):
-            body_el.send_keys(line)
-            body_el.send_keys(Keys.RETURN)
+            ActionChains(driver).send_keys(line).perform()
+            ActionChains(driver).send_keys(Keys.RETURN).perform()
     except Exception:  # noqa: BLE001
         dump_debug(driver, "본문 입력")
         raise
@@ -316,35 +343,21 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         raise
 
     # 클릭 직후 바로 브라우저를 닫으면 실제 발행 요청이 끝나기 전에 끊길 수 있다.
-    # SmartEditor는 mainFrame(iframe) 안에서 SPA 라우팅으로 동작해서 최상위
-    # 프레임의 URL은 안 바뀐다. iframe 자신의 window.location.href 가
-    # PostWriteForm.naver 에서 벗어나는지로 실제 발행 여부를 확인한다.
-    # (확인됨: 블로그 목록 페이지(PostList.naver)는 iframe이 10개나 있고 사이드바에
-    # 카테고리 이름이 그대로 노출돼 있어 제목 텍스트 매칭으로는 오탐이 났다.)
-    published = False
-    for _ in range(20):
-        time.sleep(1)
-        try:
-            alert = driver.switch_to.alert
-            print(f"[알림창] 브라우저 alert 발견: {alert.text!r} -> 확인 처리")
-            alert.accept()
-            time.sleep(1)
-            continue
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            current = driver.execute_script("return window.location.href;")
-        except Exception:  # noqa: BLE001
-            current = ""
-        if "PostWriteForm" not in current:
-            published = True
-            break
+    # 혹시 뜰 수 있는 네이티브 alert 먼저 처리.
+    try:
+        alert = driver.switch_to.alert
+        print(f"[알림창] 브라우저 alert 발견: {alert.text!r} -> 확인 처리")
+        alert.accept()
+    except Exception:  # noqa: BLE001
+        pass
 
-    if not published:
-        dump_debug(driver, "발행 후 반영 확인")
-        print(f"[디버그] 마지막으로 확인된 iframe URL: {current!r}")
+    # SmartEditor의 화면 전환/URL 변화로 발행 여부를 감지하는 방식은 SPA
+    # 내부 라우팅과 안 맞아 계속 오탐이 났다. 대신 공개된 글만 올라오는
+    # RSS 피드로 실제 반영 여부를 확인한다 (브라우저 상태와 무관해 확실하다).
+    if not is_post_live(blog_id, meta["title"], timeout=30):
+        dump_debug(driver, "발행 후 RSS 확인")
         print(
-            f"[경고] 발행 버튼은 눌렀지만 화면이 넘어가는 것을 확인하지 못했습니다.\n"
+            f"[경고] 발행 버튼은 눌렀지만 RSS 피드에서 '{meta['title']}' 을(를) 30초 내에 찾지 못했습니다.\n"
             "        브라우저/블로그에서 직접 확인해주세요 (초안 상태는 draft로 유지합니다)."
         )
         return False

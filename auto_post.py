@@ -19,6 +19,7 @@ from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -27,6 +28,12 @@ from selenium.common.exceptions import (
     NoSuchElementException,
     TimeoutException,
 )
+from webdriver_manager.chrome import ChromeDriverManager
+
+# Windows Smart App Control이 selenium이 자체 실행하는 selenium-manager.exe를
+# 차단하는 환경이 있어(평판 낮은 소형 바이너리), 구글이 정식 서명한
+# chromedriver를 webdriver-manager로 받아 명시적으로 지정해 우회한다.
+DEFAULT_CHROME_BINARY = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
 BASE_DIR = Path(__file__).resolve().parent
 POSTS_DIR = BASE_DIR / "posts"
@@ -90,14 +97,17 @@ def mark_published(path: Path):
     path.write_text(text, encoding="utf-8")
 
 
-def build_driver(profile_dir: Path) -> webdriver.Chrome:
+def build_driver(profile_dir: Path, config: dict) -> webdriver.Chrome:
     options = Options()
+    options.binary_location = config.get("chrome_binary", DEFAULT_CHROME_BINARY)
     options.add_argument(f"--user-data-dir={profile_dir}")
     options.add_argument("--profile-directory=Default")
     options.add_argument("--start-maximized")
     # 자동화 표시(Chrome이 자동화 제어중이라는 배너 등) 최소화
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    return webdriver.Chrome(options=options)
+    driver_path = ChromeDriverManager().install()
+    service = Service(executable_path=driver_path)
+    return webdriver.Chrome(service=service, options=options)
 
 
 def ensure_logged_in(driver, profile_is_fresh: bool):
@@ -237,7 +247,7 @@ def main():
     if not args.inspect and draft_path is None:
         sys.exit("[대상 없음] posts/ 폴더에 status: draft 인 파일이 없습니다.")
 
-    driver = build_driver(profile_dir)
+    driver = build_driver(profile_dir, config)
     try:
         ensure_logged_in(driver, profile_is_fresh)
 

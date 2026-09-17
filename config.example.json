@@ -1,6 +1,7 @@
 {
   "blog_id": "wweebbyyii",
   "chrome_profile_dir": "./chrome_profile",
+  "chrome_binary": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "dry_run": true,
   "category_map": {
     "AI에이전트 > 에이전틱AI": "AI에이전트",

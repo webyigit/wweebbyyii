@@ -44,13 +44,17 @@ CONFIG_PATH = BASE_DIR / "config.json"
 SELECTORS = {
     "iframe": "mainFrame",
     "title_candidates": [
-        ".se-documentTitle .se-text-paragraph",
+        ".se-section-documentTitle .se-title-text",
         ".se-title-text",
     ],
     "body_candidates": [
-        ".se-main-container .se-text-paragraph",
+        ".se-component-content .se-text-paragraph",
     ],
-    "publish_open_btn": "button.publish_btn__m9KHH, .btn_publish, [class*='publish_btn']",
+    # 확인됨(2026-09-17, debug_dom_iframe.html): 상단 우측 "발행" 버튼을 여는 버튼.
+    # 해시된 CSS 클래스(publish_btn__v_kS9)는 배포마다 바뀔 수 있어
+    # 안정적인 data-click-area 속성을 사용한다.
+    "publish_open_btn": "button[data-click-area='tpb.publish']",
+    # 아래는 아직 미확인 - 발행 레이어를 연 상태에서 --inspect 로 다시 캡처해서 확정해야 함
     "publish_confirm_btn": "button[data-testid='seOnePublishBtn'], .layer_publish button[class*='confirm'], .layer_publish button[class*='publish']",
     "continue_writing_cancel": "button.se-popup-button-cancel, .se-popup-dim-white button",
 }
@@ -261,8 +265,26 @@ def main():
         if args.inspect:
             driver.get(f"https://blog.naver.com/{config['blog_id']}?Redirect=Write&")
             time.sleep(3)
-            dump_debug(driver, "inspect 모드")
-            input("확인 후 Enter 를 누르면 브라우저를 닫습니다...")
+            n = 0
+            while True:
+                n += 1
+                try:
+                    driver.switch_to.default_content()
+                    WebDriverWait(driver, 15).until(
+                        EC.frame_to_be_available_and_switch_to_it((By.ID, SELECTORS["iframe"]))
+                    )
+                    time.sleep(0.5)
+                    out = BASE_DIR / f"debug_dom_iframe_{n}.html"
+                    out.write_text(driver.page_source, encoding="utf-8")
+                    print(f"[디버그] {n}번째 캡처 -> {out}")
+                except TimeoutException:
+                    print("[디버그] iframe(mainFrame) 진입 실패")
+                cmd = input(
+                    "브라우저에서 화면을 클릭/조작한 뒤 Enter 를 누르면 다시 캡처합니다. "
+                    "끝내려면 q + Enter: "
+                )
+                if cmd.strip().lower() == "q":
+                    break
             return
 
         meta = parse_draft(draft_path)

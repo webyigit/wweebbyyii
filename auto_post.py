@@ -252,8 +252,30 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
 
     # 본문 입력 (제목에서 Enter 치면 보통 본문으로 포커스가 넘어간다)
     try:
-        for line in meta["_body"].split("\n"):
-            ActionChains(driver).send_keys(line).perform()
+        body_lines = meta["_body"].split("\n")
+        for line in body_lines:
+            # 포맷팅 패턴 처리
+            # **텍스트** → 굵은글씨
+            if "**" in line:
+                parts = line.split("**")
+                for i, part in enumerate(parts):
+                    if i > 0 and i % 2 == 1:  # ** 사이의 텍스트
+                        ActionChains(driver).key_down(Keys.CONTROL).send_keys("b").key_up(Keys.CONTROL).perform()
+                        ActionChains(driver).send_keys(part).perform()
+                        ActionChains(driver).key_down(Keys.CONTROL).send_keys("b").key_up(Keys.CONTROL).perform()
+                    else:
+                        ActionChains(driver).send_keys(part).perform()
+            # ##제목## → 제목 스타일 (스타일 드롭다운에서 "제목" 선택)
+            elif line.startswith("##") and line.endswith("##"):
+                heading_text = line[2:-2].strip()
+                # 스타일 드롭다운 열기 (Ctrl+Alt+1 for H1 in SmartEditor)
+                ActionChains(driver).key_down(Keys.CONTROL).key_down(Keys.ALT).send_keys("1").key_up(Keys.ALT).key_up(Keys.CONTROL).perform()
+                time.sleep(0.2)
+                ActionChains(driver).send_keys(heading_text).perform()
+            else:
+                # 일반 텍스트
+                ActionChains(driver).send_keys(line).perform()
+
             ActionChains(driver).send_keys(Keys.RETURN).perform()
     except Exception:  # noqa: BLE001
         dump_debug(driver, "본문 입력")
@@ -324,7 +346,13 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
 
     # 실제 공개 발행은 되돌리기 어려운 동작이므로, dry_run=false 여도 한 번 더
     # 사람이 직접 확인하게 한다.
-    answer = input(f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행할까요? (예/아니오): ")
+    # headless 모드에서는 stdin이 없을 수 있으므로, 자동으로 진행한다.
+    if config.get("headless", False):
+        print(f"\n[자동 발행] '{meta['title']}' (headless 모드 활성화)")
+        answer = "yes"
+    else:
+        answer = input(f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행할까요? (예/아니오): ")
+
     if answer.strip() not in ("예", "y", "Y", "yes", "Yes"):
         print("[취소] 발행을 취소했습니다.")
         return False

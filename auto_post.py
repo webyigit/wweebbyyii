@@ -252,31 +252,26 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
 
     # 본문 입력 (제목에서 Enter 치면 보통 본문으로 포커스가 넘어간다)
     try:
-        body_lines = meta["_body"].split("\n")
-        for line in body_lines:
-            # 포맷팅 패턴 처리
-            # **텍스트** → 굵은글씨
-            if "**" in line:
-                parts = line.split("**")
-                for i, part in enumerate(parts):
-                    if i > 0 and i % 2 == 1:  # ** 사이의 텍스트
-                        ActionChains(driver).key_down(Keys.CONTROL).send_keys("b").key_up(Keys.CONTROL).perform()
-                        ActionChains(driver).send_keys(part).perform()
-                        ActionChains(driver).key_down(Keys.CONTROL).send_keys("b").key_up(Keys.CONTROL).perform()
-                    else:
-                        ActionChains(driver).send_keys(part).perform()
-            # ##제목## → 제목 스타일 (스타일 드롭다운에서 "제목" 선택)
-            elif line.startswith("##") and line.endswith("##"):
-                heading_text = line[2:-2].strip()
-                # 스타일 드롭다운 열기 (Ctrl+Alt+1 for H1 in SmartEditor)
-                ActionChains(driver).key_down(Keys.CONTROL).key_down(Keys.ALT).send_keys("1").key_up(Keys.ALT).key_up(Keys.CONTROL).perform()
-                time.sleep(0.2)
-                ActionChains(driver).send_keys(heading_text).perform()
-            else:
-                # 일반 텍스트
-                ActionChains(driver).send_keys(line).perform()
+        import markdown
+        from html.parser import HTMLParser
 
-            ActionChains(driver).send_keys(Keys.RETURN).perform()
+        body_text = meta["_body"]
+
+        # 마크다운을 HTML로 변환
+        html_content = markdown.markdown(body_text, extensions=['tables', 'fenced_code'])
+
+        # HTML을 SmartEditor에 붙여넣기 (Ctrl+V로 HTML 자동 인식)
+        # 먼저 HTML을 클립보드에 복사
+        import subprocess
+        # Windows 클립보드에 HTML 복사
+        process = subprocess.Popen(['clip'], stdin=subprocess.PIPE)
+        process.communicate(html_content.encode('utf-8'))
+
+        time.sleep(0.3)
+        # Ctrl+V로 붙여넣기
+        ActionChains(driver).key_down(Keys.CONTROL).send_keys("v").key_up(Keys.CONTROL).perform()
+        time.sleep(1)
+
     except Exception:  # noqa: BLE001
         dump_debug(driver, "본문 입력")
         raise

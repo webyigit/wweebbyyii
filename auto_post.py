@@ -43,12 +43,10 @@ CONFIG_PATH = BASE_DIR / "config.json"
 # (naver.com 접근이 안 되는 환경에서 작성했기 때문에 최초 실행 시 검증 필수)
 SELECTORS = {
     "iframe": "mainFrame",
+    # 확인됨: .se-title-text 자체는 wrapper div라 클릭은 되지만 타이핑은 안 먹는다.
+    # 실제 타이핑 대상은 그 안의 <p class="se-text-paragraph"> 자식.
     "title_candidates": [
-        ".se-section-documentTitle .se-title-text",
-        ".se-title-text",
-    ],
-    "body_candidates": [
-        ".se-component-content .se-text-paragraph",
+        ".se-section-documentTitle .se-text-paragraph",
     ],
     # 아래는 모두 확인됨(2026-09-17, debug_dom_iframe_1/2.html). 해시된 CSS 클래스
     # (예: publish_btn__v_kS9) 대신 배포가 바뀌어도 안 변할 가능성이 높은
@@ -162,13 +160,6 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
     driver.get(f"https://blog.naver.com/{blog_id}?Redirect=Write&")
     time.sleep(3)
 
-    # 이어쓰기 팝업이 뜨면 취소(새 글로 시작)
-    try:
-        try_click(driver, SELECTORS["continue_writing_cancel"], timeout=3)
-        time.sleep(1)
-    except Exception:  # noqa: BLE001
-        pass  # 팝업이 없으면 그냥 진행
-
     try:
         WebDriverWait(driver, 15).until(
             EC.frame_to_be_available_and_switch_to_it((By.ID, SELECTORS["iframe"]))
@@ -177,39 +168,42 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         dump_debug(driver, "iframe 진입")
         raise
 
+    # "작성 중인 글이 있습니다. 이어서 작성하시겠습니까?" 팝업이 뜨면 취소(새 글로 시작).
+    # 이 팝업도 mainFrame iframe 안에 있으므로 iframe 진입 이후에 처리해야 한다.
+    try:
+        try_click(driver, SELECTORS["continue_writing_cancel"], timeout=3)
+        time.sleep(1)
+    except Exception:  # noqa: BLE001
+        pass  # 팝업이 없으면 그냥 진행
+
     # 제목 입력
+    # 주의: SmartEditor의 <p class="se-text-paragraph">는 내용이 비어있을 때
+    # 사실상 크기가 0이라 Selenium의 일반 click()/send_keys()가
+    # "element not interactable"로 실패한다. JS로 클릭해 포커스를 준 다음,
+    # 실제로 포커스된 노드(active_element)에 입력하는 방식으로 우회한다.
     try:
         title_el = None
         for css in SELECTORS["title_candidates"]:
             try:
                 title_el = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, css))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, css))
                 )
                 break
             except TimeoutException:
                 continue
         if title_el is None:
             raise NoSuchElementException("title element not found")
-        title_el.click()
-        title_el.send_keys(meta["title"])
+        driver.execute_script("arguments[0].click();", title_el)
+        active = driver.switch_to.active_element
+        active.send_keys(meta["title"])
+        active.send_keys(Keys.RETURN)
     except Exception:  # noqa: BLE001
         dump_debug(driver, "제목 입력")
         raise
 
-    # 본문 입력 (제목에서 Enter 치면 본문으로 포커스 이동하는 경우가 많음)
+    # 본문 입력 (제목에서 Enter 치면 보통 본문으로 포커스가 넘어간다)
     try:
-        title_el.send_keys(Keys.RETURN)
-        body_el = None
-        for css in SELECTORS["body_candidates"]:
-            try:
-                body_el = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, css))
-                )
-                break
-            except TimeoutException:
-                continue
-        if body_el is None:
-            body_el = driver.switch_to.active_element
+        body_el = driver.switch_to.active_element
         for line in meta["_body"].split("\n"):
             body_el.send_keys(line)
             body_el.send_keys(Keys.RETURN)
@@ -217,8 +211,7 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         dump_debug(driver, "본문 입력")
         raise
 
-    driver.switch_to.default_content()
-
+    # 발행 버튼도 mainFrame iframe 안에 있으므로 default_content()로 빠져나가면 안 된다.
     # 발행 레이어 열기
     try:
         try_click(driver, SELECTORS["publish_open_btn"], timeout=10)
@@ -234,12 +227,17 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         try:
             try_click(driver, SELECTORS["category_open_btn"], timeout=5)
             time.sleep(0.5)
+            # 실제 클릭 대상은 텍스트가 든 <span>이 아니라 그걸 감싸는 <label role="button">.
+            # (확인됨: debug_dom.html, option_list_layer 안의 li > span.option > input + label > span.text)
             item = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, f"//*[normalize-space(text())='{leaf}']")
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        f"//span[normalize-space(text())='{leaf}']/ancestor::label",
+                    )
                 )
             )
-            item.click()
+            driver.execute_script("arguments[0].click();", item)
             time.sleep(0.3)
         except Exception:  # noqa: BLE001
             dump_debug(driver, f"카테고리 선택 ('{leaf}')")

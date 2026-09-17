@@ -11,12 +11,15 @@
     --ink-soft:   #4A4455;
     --muted:      #6E6680;
     --line:       #E3DDEA;
-    --line-soft:  #EDE8F2;
     --line5:      #7C4E9F;
     --on-accent:  #FFFFFF;
     --line5-ink:  #6B3F8C;
     --line9:      #9A7F35;
     --air:        #3A6FB0;
+    --naver:      #1F7A3D;
+    --naver-soft: #E4F2E9;
+    --ct:         #C4392F;
+    --ct-soft:    #FBE8E6;
     --shadow:     0 1px 2px rgba(28,26,34,.05), 0 8px 24px -16px rgba(28,26,34,.28);
 
     --font-display: "Gowun Batang", "Nanum Myeongjo", serif;
@@ -26,37 +29,43 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --paper:     #161419;
-      --surface:   #1F1C25;
-      --surface-2: #272330;
-      --ink:       #EEEAF3;
-      --ink-soft:  #CFC8DA;
-      --muted:     #9F97AE;
-      --line:      #332E3D;
-      --line-soft: #2A2633;
-      --line5:     #B78FD4;
-      --on-accent: #17131C;
-      --line5-ink: #C9A9E0;
-      --line9:     #CDAF5E;
-      --air:       #7FAAE0;
-      --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+      --paper:      #161419;
+      --surface:    #1F1C25;
+      --surface-2:  #272330;
+      --ink:        #EEEAF3;
+      --ink-soft:   #CFC8DA;
+      --muted:      #9F97AE;
+      --line:       #332E3D;
+      --line5:      #B78FD4;
+      --on-accent:  #17131C;
+      --line5-ink:  #C9A9E0;
+      --line9:      #CDAF5E;
+      --air:        #7FAAE0;
+      --naver:      #5FC183;
+      --naver-soft: #1B2E22;
+      --ct:         #F08A80;
+      --ct-soft:    #35201E;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
     }
   }
   :root[data-theme="dark"] {
-    --paper:     #161419;
-    --surface:   #1F1C25;
-    --surface-2: #272330;
-    --ink:       #EEEAF3;
-    --ink-soft:  #CFC8DA;
-    --muted:     #9F97AE;
-    --line:      #332E3D;
-    --line-soft: #2A2633;
-    --line5:     #B78FD4;
-    --on-accent: #17131C;
-    --line5-ink: #C9A9E0;
-    --line9:     #CDAF5E;
-    --air:       #7FAAE0;
-    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+    --paper:      #161419;
+    --surface:    #1F1C25;
+    --surface-2:  #272330;
+    --ink:        #EEEAF3;
+    --ink-soft:   #CFC8DA;
+    --muted:      #9F97AE;
+    --line:       #332E3D;
+    --line5:      #B78FD4;
+    --on-accent:  #17131C;
+    --line5-ink:  #C9A9E0;
+    --line9:      #CDAF5E;
+    --air:        #7FAAE0;
+    --naver:      #5FC183;
+    --naver-soft: #1B2E22;
+    --ct:         #F08A80;
+    --ct-soft:    #35201E;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
   }
 
   * { box-sizing: border-box; }
@@ -213,7 +222,8 @@
   .chip:focus-visible,
   .search input:focus-visible,
   .card a:focus-visible,
-  .sort button:focus-visible {
+  .sort button:focus-visible,
+  .toggle:focus-visible {
     outline: 2px solid var(--line5);
     outline-offset: 2px;
   }
@@ -258,10 +268,35 @@
     font-size: 13.5px;
     color: var(--ink);
     padding: 8px 0;
-    width: 150px;
+    width: 148px;
   }
   .search input::placeholder { color: var(--muted); }
   .search input:focus { outline: none; }
+
+  .toggle {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 11px;
+    cursor: pointer;
+  }
+  .toggle[aria-pressed="true"] {
+    color: var(--ct);
+    border-color: var(--ct);
+    background: var(--ct-soft);
+  }
+  .toggle .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; flex: none; opacity: .8;
+  }
 
   .sort { display: flex; gap: 2px; background: var(--surface-2); border-radius: 7px; padding: 3px; }
   .sort button {
@@ -286,7 +321,7 @@
 
   .list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
     gap: 12px;
     padding-bottom: 8px;
   }
@@ -332,6 +367,21 @@
     white-space: nowrap;
   }
 
+  .resv {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    color: var(--ct);
+    background: var(--ct-soft);
+    border-radius: 4px;
+    padding: 3px 7px;
+  }
+
   .note {
     margin: 0;
     font-size: 13.5px;
@@ -340,38 +390,63 @@
     line-height: 1.62;
   }
 
-  .where {
+  .meta {
     display: flex;
-    align-items: baseline;
-    gap: 7px;
-    font-size: 12.5px;
-    color: var(--muted);
+    flex-direction: column;
+    gap: 5px;
     border-top: 1px dashed var(--line);
     padding-top: 10px;
     margin-top: auto;
   }
-  .where .k {
+  .meta-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .meta-row .k {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 9.5px;
     letter-spacing: .1em;
     text-transform: uppercase;
     flex: none;
+    width: 30px;
+    opacity: .85;
   }
+  .meta-row .v { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .meta-row a { color: var(--muted); text-decoration: none; }
+  .meta-row a:hover { color: var(--ink); text-decoration: underline; }
 
   .links { display: flex; gap: 7px; }
-  .card a {
+  .card a.btn {
     flex: 1;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     font-size: 12.5px;
     font-weight: 500;
     text-decoration: none;
-    color: var(--ink-soft);
-    background: var(--surface-2);
     border-radius: 6px;
     padding: 7px 8px;
     transition: background .14s ease, color .14s ease;
   }
-  .card a:hover { background: var(--line5); color: var(--on-accent); }
+  .card a.btn .sq {
+    width: 12px; height: 12px; border-radius: 2.5px;
+    display: grid; place-items: center;
+    font-size: 8px; font-weight: 700; line-height: 1;
+    color: #fff; flex: none;
+  }
+  .btn-naver { color: var(--naver); background: var(--naver-soft); }
+  .btn-naver .sq { background: var(--naver); }
+  .btn-naver:hover { background: var(--naver); color: #fff; }
+  .btn-naver:hover .sq { background: rgba(255,255,255,.28); }
+
+  .btn-ct { color: var(--ct); background: var(--ct-soft); }
+  .btn-ct .sq { background: var(--ct); }
+  .btn-ct:hover { background: var(--ct); color: #fff; }
+  .btn-ct:hover .sq { background: rgba(255,255,255,.28); }
 
   /* 스켈레톤 (목록 리로딩) */
 
@@ -428,7 +503,25 @@
     margin: 0 0 9px;
   }
   .note-block p { margin: 0 0 9px; }
-  .note-block a { color: var(--line5-ink); }
+
+  .src {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px;
+  }
+  .src span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 5px;
+    padding: 4px 9px;
+  }
+  .src .s-naver { color: var(--naver); background: var(--naver-soft); }
+  .src .s-ct { color: var(--ct); background: var(--ct-soft); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -436,7 +529,7 @@
 
   @media (max-width: 480px) {
     .wrap { padding-inline: 16px; }
-    .search input { width: 110px; }
+    .search input { width: 104px; }
     .list { grid-template-columns: 1fr; }
   }
 </style>
@@ -446,8 +539,8 @@
     <p class="eyebrow">서울 강서구 · 마곡지구</p>
     <h1>마곡역 밥집 지도</h1>
     <p class="lede">
-      마곡역·마곡나루역 걸어갈 만한 거리의 식당을 종류별로 묶었습니다.
-      카테고리를 누르면 목록이 다시 불러와집니다. 가게 이름을 누르면 지도·후기로 바로 넘어갑니다.
+      마곡역·마곡나루역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
+      카테고리를 누르면 목록이 다시 불러와집니다. 카드마다 네이버 지도와 캐치테이블로 바로 넘어갑니다.
     </p>
     <div class="lines">
       <span class="line-badge"><span class="bullet l5">5</span>마곡역</span>
@@ -476,6 +569,9 @@
         </svg>
         <input id="q" type="search" placeholder="가게·메뉴 검색" aria-label="가게 또는 메뉴 검색" autocomplete="off">
       </label>
+      <button type="button" class="toggle" id="only-resv" aria-pressed="false">
+        <span class="dot" aria-hidden="true"></span>예약 가능
+      </button>
       <div class="sort" role="group" aria-label="정렬">
         <button type="button" id="sort-default" aria-pressed="true">기본순</button>
         <button type="button" id="sort-name" aria-pressed="false">가나다순</button>
@@ -487,15 +583,23 @@
 
   <footer>
     <div class="note-block">
-      <h2>이 목록에 대하여</h2>
+      <h2>자료 출처</h2>
+      <div class="src">
+        <span class="s-naver">네이버 지도 · 플레이스</span>
+        <span class="s-ct">캐치테이블</span>
+      </div>
       <p>
-        다이닝코드·식신·당근 동네업체·지역 블로그 등 공개된 목록에 마곡 일대 가게로 올라와 있는 곳을
-        종류별로 정리한 것입니다. 직접 방문해 매긴 순위나 평점이 아니며, 순서에 우열은 없습니다.
+        가게 정보는 네이버 지도와 캐치테이블에 등록된 내용을 기준으로 정리했습니다.
+        직접 방문해 매긴 순위나 평점이 아니며, 목록 순서에 우열은 없습니다.
+      </p>
+      <p>
+        <strong>&lsquo;예약&rsquo; 표시가 붙은 곳은 캐치테이블에 예약 페이지가 확인된 가게입니다.</strong>
+        나머지는 캐치테이블 검색 결과로 연결되며, 예약을 받지 않는 곳일 수 있습니다.
       </p>
       <p>
         영업시간·휴무·메뉴·가격은 자주 바뀌고 폐업하는 곳도 있습니다.
-        <strong>가기 전에 각 카드의 &lsquo;지도&rsquo; 링크에서 최신 정보를 확인하세요.</strong>
-        주소나 출구 정보는 확인된 곳에만 적어두었고, 나머지는 &lsquo;마곡 일대&rsquo;로만 표시했습니다.
+        가기 전에 각 카드의 네이버 지도 링크에서 최신 정보를 확인하세요.
+        주소와 전화번호는 확인된 곳에만 적었습니다.
       </p>
       <p>
         점심시간에는 인근 직장인 수요로 대기가 생깁니다. 11시 30분 이전이나 오후 1시 이후가 한결 여유롭습니다.
@@ -505,142 +609,63 @@
   </footer>
 </div>
 
+<!-- 데이터: fetch_places.py 가 이 블록을 통째로 다시 씁니다. 직접 고쳐도 됩니다. -->
+<script type="application/json" id="places-data">
+[
+  {"name": "산청숯불가든 마곡", "cat": "meat", "menu": "숯불구이", "resv": true, "ct": "sancheong_mg", "note": "캐치테이블에 예약 페이지가 열려 있는 숯불구이집. 파인스퀘어 2차·3차 주차장을 쓸 수 있습니다.", "where": "마곡 파인스퀘어", "addr": "", "tel": ""},
+  {"name": "고기꿈", "cat": "meat", "menu": "구이·회식", "resv": false, "ct": "", "note": "단체 회식 자리로 자주 꼽히는 곳. 상차림이 넉넉하다는 평이 많습니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "금고깃집 마곡본점", "cat": "meat", "menu": "돼지구이", "resv": false, "ct": "", "note": "마곡에서 오래 자리를 지켜온 고깃집. YBD 품종 돼지를 쓰고 고기를 구워 줍니다.", "where": "마곡역–발산역 사이", "addr": "", "tel": ""},
+  {"name": "도니랑김치생삼겹", "cat": "meat", "menu": "김치 생삼겹", "resv": false, "ct": "", "note": "묵은지와 생삼겹을 같이 굽는 구성. 김치를 좋아하면 잘 맞습니다.", "where": "마곡나루역 인근", "addr": "", "tel": ""},
+  {"name": "돼슐랭", "cat": "meat", "menu": "삼겹살", "resv": false, "ct": "", "note": "마곡나루역 삼겹살 목록 상위권에 꾸준히 이름이 보이는 집.", "where": "마곡나루역 인근", "addr": "", "tel": ""},
+  {"name": "마부자생삼겹살", "cat": "meat", "menu": "생삼겹살", "resv": false, "ct": "", "note": "마곡나루 쪽 생삼겹 전문. 점심 목록에도 자주 올라옵니다.", "where": "마곡나루역 인근", "addr": "", "tel": ""},
+  {"name": "오마이양대창", "cat": "meat", "menu": "양대창·순댓국", "resv": false, "ct": "", "note": "곱창·대창 구이집이면서 순댓국도 함께 하는 곳.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "특삼겹", "cat": "meat", "menu": "숙성 삼겹살", "resv": false, "ct": "", "note": "숙성 삼겹살을 직원이 직접 구워 내줍니다. 열무김치·파절이·계란찜이 함께 나오는 구성.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "또순이네", "cat": "korean", "menu": "된장찌개", "resv": false, "ct": "", "note": "된장찌개로 이름난 백반집. 마곡 점심 목록에 빠지지 않고 등장합니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "봄담아", "cat": "korean", "menu": "샤브샤브", "resv": false, "ct": "", "note": "샤브샤브 전문. 여럿이 천천히 먹기 좋은 점심 자리로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "예향정", "cat": "korean", "menu": "한정식·백반", "resv": false, "ct": "", "note": "마곡 점심 맛집 목록에 자주 오르는 한식집.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "오복순대국", "cat": "korean", "menu": "순대국", "resv": false, "ct": "", "note": "혼밥으로도 부담 없는 순대국집.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "칼스토랑", "cat": "korean", "menu": "칼국수", "resv": false, "ct": "", "note": "마곡역 국밥·면 목록 상위에 오르는 칼국수집.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "함평해장", "cat": "korean", "menu": "해장국", "resv": false, "ct": "", "note": "마곡역과 발산역 중간에 있는 해장국집. 아침·해장 수요가 많습니다.", "where": "마곡역 3번 출구에서 약 400m", "addr": "", "tel": ""},
+  {"name": "스시풀 마곡역", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "마곡역 인근 초밥집. 가게 이름에 역 이름이 붙어 있을 만큼 역세권입니다.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "우미마토", "cat": "japanese", "menu": "오마카세", "resv": false, "ct": "", "note": "마곡역 쪽 오마카세. 기념일이나 접대 자리로 언급이 많습니다. 방문 전 예약 확인 권장.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "유미카츠", "cat": "japanese", "menu": "돈까스", "resv": false, "ct": "", "note": "마곡 점심 목록에 자주 오르는 돈까스집.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "몽중헌 마곡", "cat": "chinese", "menu": "중식 다이닝", "resv": true, "ct": "", "note": "캐치테이블 기준 평점 4.8. 저녁 5시 30분에 문을 열고 최대 20명까지 예약을 받습니다. 상견례·접대 자리로 많이 씁니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "도화림", "cat": "chinese", "menu": "짜장면", "resv": false, "ct": "", "note": "짜장면 쪽 평이 좋은 집.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "동천", "cat": "chinese", "menu": "중식", "resv": false, "ct": "", "note": "짬뽕·식사 메뉴로 언급이 많은 동네 중식당.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "서울홍성원", "cat": "chinese", "menu": "짬뽕", "resv": false, "ct": "", "note": "마곡역 짬뽕 목록 상위에 오르는 중식당.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "신선", "cat": "chinese", "menu": "해물짬뽕", "resv": false, "ct": "", "note": "해물짬뽕으로 소개된 강서구 마곡동 중식당.", "where": "강서구 마곡동", "addr": "", "tel": ""},
+  {"name": "쓰부", "cat": "chinese", "menu": "간짜장·짬뽕", "resv": false, "ct": "", "note": "주문 즉시 볶아 내는 간짜장과 짬뽕. 요리도 1인분 단위로 시킬 수 있습니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "비마이플레이스", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "마곡 파스타 목록 상위의 이탈리안 레스토랑.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "비바나폴리", "cat": "western", "menu": "화덕피자", "resv": false, "ct": "", "note": "화덕피자 전문. 마곡 양식 목록에서 상위로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "아우어루꼴라", "cat": "western", "menu": "피자", "resv": false, "ct": "", "note": "루꼴라를 올린 피자로 알려진 곳.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "오늘 파스타 마곡점", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "부담 없는 가격대의 파스타 체인 지점.", "where": "마곡동", "addr": "", "tel": ""},
+  {"name": "올데이파스타", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "마곡동 이탈리아 음식점. 이름대로 종일 파스타를 냅니다.", "where": "강서구 마곡동", "addr": "", "tel": ""},
+  {"name": "타케로스", "cat": "western", "menu": "타코", "resv": false, "ct": "", "note": "마곡역 목록에 오르는 타코 전문점. 가볍게 한 잔 곁들이기 좋습니다.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "트라고 마곡", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "생면 라자냐와 파스타, 와인 100여 종을 갖춘 이탈리안. 역에서 아주 가깝습니다.", "where": "마곡역 3번 출구 도보 1분", "addr": "", "tel": ""},
+  {"name": "523베이커리카페", "cat": "cafe", "menu": "베이커리 카페", "resv": false, "ct": "", "note": "방화·마곡지구 쪽 베이커리 카페로 소개되는 곳.", "where": "방화·마곡지구", "addr": "", "tel": ""},
+  {"name": "라크레마", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "마곡역 디저트카페 목록 상위권.", "where": "마곡역 인근", "addr": "", "tel": ""},
+  {"name": "버터풀리", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "구움과자·디저트류로 언급이 많은 카페.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "브릭샌드", "cat": "cafe", "menu": "샌드위치", "resv": false, "ct": "", "note": "샌드위치와 커피. 간단한 점심 대용으로 자주 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": ""},
+  {"name": "빵백화점 마곡점", "cat": "cafe", "menu": "베이커리 · 24시간", "resv": false, "ct": "", "note": "24시간 여는 대형 베이커리. 최대 4시간 주차 지원이 됩니다.", "where": "마곡M밸리 W타워 4차 1층", "addr": "서울 강서구 마곡중앙1로 14", "tel": ""},
+  {"name": "에그 베이커리", "cat": "cafe", "menu": "치즈케이크", "resv": false, "ct": "", "note": "크럼블 치즈케이크가 여러 종류. 밤·흑임자 맘모스 치즈케이크가 대표 메뉴입니다.", "where": "마곡나루역 인근", "addr": "", "tel": ""},
+  {"name": "픽트 로스터리", "cat": "cafe", "menu": "로스터리 카페", "resv": false, "ct": "", "note": "직접 로스팅하는 카페. 프렌치토스트 평이 좋습니다.", "where": "마곡동", "addr": "", "tel": ""},
+  {"name": "야키토리잔잔 마곡나루점", "cat": "bar", "menu": "야키토리", "resv": true, "ct": "", "note": "캐치테이블 기준 오후 2시부터 새벽 2시까지 영업하고 최대 50명까지 예약을 받습니다. 저녁 기준 1~4만원대.", "where": "마곡나루역 인근", "addr": "", "tel": ""},
+  {"name": "구주 마곡", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "천장이 높고 주황빛 조명의 넓은 주점. 건물 주차장 2시간 무료.", "where": "퀸즈파크13 1층", "addr": "서울 강서구 마곡중앙로 55", "tel": ""},
+  {"name": "이자카야 우규 마곡점", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "은은한 조명의 일식 주점. 월~토 17:00–01:00, 일 17:00–24:00 영업으로 안내됩니다.", "where": "마곡역 3번 출구 도보 7분", "addr": "", "tel": ""},
+  {"name": "이자카야 춘", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 이름을 올린 주점.", "where": "마곡 일대", "addr": "", "tel": ""}
+]
+</script>
+
 <script>
 (function () {
   "use strict";
 
-  var PLACES = [
-    // 고기·구이
-    { name: "특삼겹", cat: "meat", menu: "숙성 삼겹살",
-      note: "숙성 삼겹살을 직원이 직접 구워 내줍니다. 열무김치·파절이·계란찜이 함께 나오는 구성.",
-      where: "마곡역 인근" },
-    { name: "금고깃집 마곡본점", cat: "meat", menu: "돼지구이",
-      note: "마곡에서 오래 자리를 지켜온 고깃집. YBD 품종 돼지를 쓰고 고기를 구워 줍니다.",
-      where: "마곡역–발산역 사이" },
-    { name: "고기꿈", cat: "meat", menu: "구이·회식",
-      note: "단체 회식 자리로 자주 꼽히는 곳. 상차림이 넉넉하다는 평이 많습니다.",
-      where: "마곡 일대" },
-    { name: "마부자생삼겹살", cat: "meat", menu: "생삼겹살",
-      note: "마곡나루 쪽 생삼겹 전문. 점심 맛집 목록에도 자주 올라옵니다.",
-      where: "마곡나루역 인근" },
-    { name: "돼슐랭", cat: "meat", menu: "삼겹살",
-      note: "마곡나루역 삼겹살 목록 상위권에 꾸준히 이름이 보이는 집.",
-      where: "마곡나루역 인근" },
-    { name: "도니랑김치생삼겹", cat: "meat", menu: "김치 생삼겹",
-      note: "묵은지와 생삼겹을 같이 굽는 구성. 김치를 좋아하면 잘 맞습니다.",
-      where: "마곡나루역 인근" },
-    { name: "오마이양대창", cat: "meat", menu: "양대창·순댓국",
-      note: "곱창·대창 구이집이면서 순댓국도 함께 하는 곳.",
-      where: "마곡 일대" },
-
-    // 한식·국물
-    { name: "또순이네", cat: "korean", menu: "된장찌개",
-      note: "된장찌개로 이름난 백반집. 마곡 점심 목록에 빠지지 않고 등장합니다.",
-      where: "마곡 일대" },
-    { name: "봄담아", cat: "korean", menu: "샤브샤브",
-      note: "샤브샤브 전문. 여럿이 천천히 먹기 좋은 점심 자리로 꼽힙니다.",
-      where: "마곡 일대" },
-    { name: "예향정", cat: "korean", menu: "한정식·백반",
-      note: "마곡 점심 맛집 목록에 자주 오르는 한식집.",
-      where: "마곡 일대" },
-    { name: "함평해장", cat: "korean", menu: "해장국",
-      note: "마곡역과 발산역 중간에 있는 해장국집. 아침·해장 수요가 많습니다.",
-      where: "마곡역 3번 출구에서 약 400m" },
-    { name: "칼스토랑", cat: "korean", menu: "칼국수",
-      note: "마곡역 국밥·면 목록 상위에 오르는 칼국수집.",
-      where: "마곡역 인근" },
-    { name: "오복순대국", cat: "korean", menu: "순대국",
-      note: "혼밥으로도 부담 없는 순대국집.",
-      where: "마곡역 인근" },
-
-    // 일식
-    { name: "우미마토", cat: "japanese", menu: "오마카세",
-      note: "마곡역 쪽 오마카세. 기념일이나 접대 자리로 언급이 많습니다. 예약 확인 권장.",
-      where: "마곡역 인근" },
-    { name: "유미카츠", cat: "japanese", menu: "돈까스",
-      note: "마곡 점심 목록에 자주 오르는 돈까스집.",
-      where: "마곡 일대" },
-    { name: "스시풀 마곡역", cat: "japanese", menu: "초밥",
-      note: "마곡역 인근 초밥집. 가게 이름에 역 이름이 붙어 있을 만큼 역세권입니다.",
-      where: "마곡역 인근" },
-
-    // 중식
-    { name: "쓰부", cat: "chinese", menu: "간짜장·짬뽕",
-      note: "주문 즉시 볶아 내는 간짜장과 짬뽕. 요리도 1인분 단위로 시킬 수 있습니다.",
-      where: "마곡 일대" },
-    { name: "서울홍성원", cat: "chinese", menu: "짬뽕",
-      note: "마곡역 짬뽕 목록 상위에 오르는 중식당.",
-      where: "마곡역 인근" },
-    { name: "동천", cat: "chinese", menu: "중식",
-      note: "짬뽕·식사 메뉴로 언급이 많은 동네 중식당.",
-      where: "마곡 일대" },
-    { name: "도화림", cat: "chinese", menu: "짜장면",
-      note: "짜장면 쪽 평이 좋은 집.",
-      where: "마곡 일대" },
-    { name: "신선", cat: "chinese", menu: "해물짬뽕",
-      note: "해물짬뽕으로 소개된 강서구 마곡동 중식당.",
-      where: "강서구 마곡동" },
-
-    // 양식·피자
-    { name: "트라고 마곡", cat: "western", menu: "이탈리안",
-      note: "생면 라자냐와 파스타, 와인 100여 종을 갖춘 이탈리안. 역에서 아주 가깝습니다.",
-      where: "마곡역 3번 출구 도보 1분" },
-    { name: "비바나폴리", cat: "western", menu: "화덕피자",
-      note: "화덕피자 전문. 마곡 양식 목록에서 상위로 꼽힙니다.",
-      where: "마곡 일대" },
-    { name: "비마이플레이스", cat: "western", menu: "이탈리안",
-      note: "마곡 파스타 목록 상위의 이탈리안 레스토랑.",
-      where: "마곡 일대" },
-    { name: "아우어루꼴라", cat: "western", menu: "피자",
-      note: "루꼴라를 올린 피자로 알려진 곳.",
-      where: "마곡 일대" },
-    { name: "올데이파스타", cat: "western", menu: "파스타",
-      note: "마곡동 이탈리아 음식점. 이름대로 종일 파스타를 냅니다.",
-      where: "강서구 마곡동" },
-    { name: "오늘 파스타 마곡점", cat: "western", menu: "파스타",
-      note: "부담 없는 가격대의 파스타 체인 지점.",
-      where: "마곡동" },
-    { name: "타케로스", cat: "western", menu: "타코",
-      note: "마곡역 목록에 오르는 타코 전문점. 가볍게 한 잔 곁들이기 좋습니다.",
-      where: "마곡역 인근" },
-
-    // 카페·베이커리
-    { name: "빵백화점 마곡점", cat: "cafe", menu: "베이커리 · 24시간",
-      note: "24시간 여는 대형 베이커리. 최대 4시간 주차 지원이 됩니다.",
-      where: "마곡중앙1로 14, 마곡M밸리 W타워 4차 1층" },
-    { name: "에그 베이커리", cat: "cafe", menu: "치즈케이크",
-      note: "크럼블 치즈케이크가 여러 종류. 밤·흑임자 맘모스 치즈케이크가 대표 메뉴입니다.",
-      where: "마곡나루역 인근" },
-    { name: "픽트 로스터리", cat: "cafe", menu: "로스터리 카페",
-      note: "직접 로스팅하는 카페. 프렌치토스트 평이 좋습니다.",
-      where: "마곡동" },
-    { name: "라크레마", cat: "cafe", menu: "디저트 카페",
-      note: "마곡역 디저트카페 목록 상위권.",
-      where: "마곡역 인근" },
-    { name: "버터풀리", cat: "cafe", menu: "디저트 카페",
-      note: "구움과자·디저트류로 언급이 많은 카페.",
-      where: "마곡 일대" },
-    { name: "브릭샌드", cat: "cafe", menu: "샌드위치",
-      note: "샌드위치와 커피. 간단한 점심 대용으로 자주 꼽힙니다.",
-      where: "마곡 일대" },
-    { name: "523베이커리카페", cat: "cafe", menu: "베이커리 카페",
-      note: "방화·마곡지구 쪽 베이커리 카페로 소개되는 곳.",
-      where: "방화·마곡지구" },
-
-    // 술집
-    { name: "이자카야 우규 마곡점", cat: "bar", menu: "이자카야",
-      note: "은은한 조명의 일식 주점. 월~토 17:00–01:00, 일 17:00–24:00 영업으로 안내됩니다.",
-      where: "마곡역 3번 출구 도보 7분" },
-    { name: "구주 마곡", cat: "bar", menu: "이자카야",
-      note: "천장이 높고 주황빛 조명의 넓은 주점. 건물 주차장 2시간 무료.",
-      where: "마곡중앙로 55, 퀸즈파크13 1층" },
-    { name: "야키토리잔잔", cat: "bar", menu: "야키토리",
-      note: "꼬치구이에 한 잔. 마곡 이자카야 목록에 함께 오릅니다.",
-      where: "마곡 일대" },
-    { name: "이자카야 춘", cat: "bar", menu: "이자카야",
-      note: "마곡 이자카야 목록에 이름을 올린 주점.",
-      where: "마곡 일대" }
-  ];
+  var PLACES = [];
+  try {
+    PLACES = JSON.parse(document.getElementById("places-data").textContent);
+  } catch (e) {
+    PLACES = [];
+  }
 
   var CATS = [
     { id: "all",      label: "전체" },
@@ -653,12 +678,13 @@
     { id: "bar",      label: "술집" }
   ];
 
-  var state = { cat: "all", q: "", sort: "default" };
+  var state = { cat: "all", q: "", sort: "default", onlyResv: false };
 
   var railEl  = document.getElementById("rail");
   var listEl  = document.getElementById("list");
   var countEl = document.getElementById("count");
   var qEl     = document.getElementById("q");
+  var resvEl  = document.getElementById("only-resv");
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var timer   = null;
 
@@ -697,44 +723,105 @@
     var q = state.q.trim().toLowerCase();
     var out = PLACES.filter(function (p) {
       if (state.cat !== "all" && p.cat !== state.cat) return false;
+      if (state.onlyResv && !p.resv) return false;
       if (!q) return true;
-      return (p.name + " " + p.menu + " " + p.note + " " + p.where).toLowerCase().indexOf(q) !== -1;
+      return (p.name + " " + p.menu + " " + p.note + " " + p.where + " " + (p.addr || ""))
+        .toLowerCase().indexOf(q) !== -1;
     });
-    if (state.sort === "name") out = out.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
+    if (state.sort === "name") {
+      out = out.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
+    }
     return out;
   }
 
-  function mapUrl(name) {
-    return "https://map.naver.com/p/search/" + encodeURIComponent("마곡 " + name);
+  function naverUrl(p) {
+    return "https://map.naver.com/p/search/" + encodeURIComponent(p.name + " 마곡");
   }
-  function reviewUrl(name) {
-    return "https://www.diningcode.com/list.dc?query=" + encodeURIComponent("마곡 " + name);
+  function ctUrl(p) {
+    if (p.ct) return "https://app.catchtable.co.kr/ct/shop/" + p.ct;
+    var k = encodeURIComponent(p.name);
+    return "https://app.catchtable.co.kr/ct/map/COMMON?showTabs=true&serviceType=INTEGRATION" +
+           "&keyword=" + k + "&keywordSearch=" + k;
+  }
+
+  function metaRow(key, value, href) {
+    var row = document.createElement("p");
+    row.className = "meta-row";
+    var k = document.createElement("span");
+    k.className = "k";
+    k.textContent = key;
+    var v = document.createElement("span");
+    v.className = "v";
+    if (href) {
+      var a = document.createElement("a");
+      a.href = href;
+      a.textContent = value;
+      v.appendChild(a);
+    } else {
+      v.textContent = value;
+    }
+    row.appendChild(k);
+    row.appendChild(v);
+    return row;
   }
 
   function cardEl(p) {
     var el = document.createElement("article");
     el.className = "card";
-    el.innerHTML =
-      '<div class="card-top">' +
-        '<h3 class="name"></h3>' +
-        '<span class="menu-tag"></span>' +
-      '</div>' +
-      '<p class="note"></p>' +
-      '<p class="where"><span class="k">위치</span><span class="v"></span></p>' +
-      '<div class="links">' +
-        '<a class="map" target="_blank" rel="noopener noreferrer">지도</a>' +
-        '<a class="rev" target="_blank" rel="noopener noreferrer">후기 찾기</a>' +
-      '</div>';
-    el.querySelector(".name").textContent = p.name;
-    el.querySelector(".menu-tag").textContent = p.menu;
-    el.querySelector(".note").textContent = p.note;
-    el.querySelector(".where .v").textContent = p.where;
-    var m = el.querySelector(".map");
-    m.href = mapUrl(p.name);
-    m.setAttribute("aria-label", p.name + " 네이버 지도에서 보기");
-    var r = el.querySelector(".rev");
-    r.href = reviewUrl(p.name);
-    r.setAttribute("aria-label", p.name + " 후기 검색");
+
+    var top = document.createElement("div");
+    top.className = "card-top";
+    var h = document.createElement("h3");
+    h.className = "name";
+    h.textContent = p.name;
+    var tag = document.createElement("span");
+    tag.className = "menu-tag";
+    tag.textContent = p.menu;
+    top.appendChild(h);
+    top.appendChild(tag);
+    el.appendChild(top);
+
+    if (p.resv) {
+      var badge = document.createElement("span");
+      badge.className = "resv";
+      badge.textContent = "캐치테이블 예약";
+      el.appendChild(badge);
+    }
+
+    var note = document.createElement("p");
+    note.className = "note";
+    note.textContent = p.note;
+    el.appendChild(note);
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.appendChild(metaRow("위치", p.where));
+    if (p.addr) meta.appendChild(metaRow("주소", p.addr));
+    if (p.tel)  meta.appendChild(metaRow("전화", p.tel, "tel:" + p.tel.replace(/[^0-9+]/g, "")));
+    el.appendChild(meta);
+
+    var links = document.createElement("div");
+    links.className = "links";
+
+    var a1 = document.createElement("a");
+    a1.className = "btn btn-naver";
+    a1.href = naverUrl(p);
+    a1.target = "_blank";
+    a1.rel = "noopener noreferrer";
+    a1.innerHTML = '<span class="sq" aria-hidden="true">N</span>지도';
+    a1.setAttribute("aria-label", p.name + " 네이버 지도에서 보기");
+
+    var a2 = document.createElement("a");
+    a2.className = "btn btn-ct";
+    a2.href = ctUrl(p);
+    a2.target = "_blank";
+    a2.rel = "noopener noreferrer";
+    a2.innerHTML = '<span class="sq" aria-hidden="true">C</span>' + (p.resv ? "예약" : "예약 검색");
+    a2.setAttribute("aria-label", p.name + " 캐치테이블에서 보기");
+
+    links.appendChild(a1);
+    links.appendChild(a2);
+    el.appendChild(links);
     return el;
   }
 
@@ -766,7 +853,7 @@
       rows.forEach(function (p) { frag.appendChild(cardEl(p)); });
       listEl.appendChild(frag);
     }
-    countEl.innerHTML = label + " · <b>" + rows.length + "</b>곳";
+    countEl.innerHTML = label + (state.onlyResv ? " · 예약 가능" : "") + " · <b>" + rows.length + "</b>곳";
   }
 
   function reload() {
@@ -788,6 +875,12 @@
     paint();
   }
 
+  resvEl.addEventListener("click", function () {
+    state.onlyResv = !state.onlyResv;
+    resvEl.setAttribute("aria-pressed", String(state.onlyResv));
+    reload();
+  });
+
   var qTimer = null;
   qEl.addEventListener("input", function () {
     state.q = qEl.value;
@@ -803,7 +896,8 @@
   buildRail();
   paint();
 
+  var nResv = PLACES.filter(function (p) { return p.resv; }).length;
   document.getElementById("stamp").textContent =
-    "총 " + PLACES.length + "곳 · 2026년 9월 기준으로 정리했습니다.";
+    "총 " + PLACES.length + "곳 · 그중 캐치테이블 예약 확인 " + nResv + "곳 · 2026년 9월 기준.";
 })();
 </script>

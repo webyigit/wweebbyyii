@@ -75,3 +75,48 @@ blog_naver/
   chrome_profile/       # 로그인 세션 (git 제외, 절대 커밋 금지)
   posts/                # 발행 초안/이력 (status: draft -> published)
 ```
+
+---
+
+# 마곡 맛집 페이지
+
+`docs/magok-matjip/index.html` — 마곡역·마곡나루역 주변 식당을 종류별로 묶은 한 장짜리
+정적 페이지입니다. 빌드 과정이 없어서 파일을 그대로 열어도 되고, GitHub Pages를 `docs/`
+폴더로 켜면 바로 공개됩니다.
+
+가게 데이터는 파일 안의 `<script type="application/json" id="places-data">` 블록에 들어
+있습니다. 직접 고쳐도 되고, 아래 스크립트로 네이버·캐치테이블에서 받아와 채워도 됩니다.
+
+## 데이터 채우기
+
+```bash
+python fetch_places.py                 # 네이버 지역검색만
+python fetch_places.py --catchtable    # 네이버 + 캐치테이블 예약 링크
+python fetch_places.py --dry-run       # 파일은 그대로 두고 결과만 확인
+```
+
+**네이버**는 지역검색 오픈API를 씁니다. 화면을 긁는 게 아니라 공개 API라서 약관 문제가
+없습니다. https://developers.naver.com 에서 애플리케이션을 등록하고 "검색" API를 추가하면
+키가 나옵니다. 무료이고 하루 25,000회까지 됩니다. `config.json`에 넣으세요.
+
+```json
+{
+  "naver_client_id": "...",
+  "naver_client_secret": "..."
+}
+```
+
+이 API는 한 번 호출에 최대 5건만 돌려주기 때문에, `fetch_places.py`의 `QUERIES` 목록처럼
+키워드를 여러 개 던져서 모으는 구조입니다. 빠진 종류가 있으면 `QUERIES`에 키워드를
+추가하면 됩니다. 받아오는 값은 상호명·분류·도로명주소·전화번호입니다. **평점과 리뷰는
+가져오지 않습니다** (지역검색 API가 주지 않습니다).
+
+**캐치테이블**은 공개 API가 없습니다. `--catchtable`을 붙이면 `auto_post.py`와 같은 방식으로
+로컬 크롬을 열어 검색 결과에 떠 있는 예약 페이지 주소(`/ct/shop/<슬러그>`)만 읽어옵니다.
+가게 이름과 링크만 보고 리뷰·사진은 건드리지 않습니다. 짧은 간격으로 반복 실행하지 마세요.
+
+## 다시 받아와도 안 지워지는 것
+
+직접 써 넣은 한 줄 소개(`note`)와 위치 설명(`where`)은 그대로 둡니다. 주소·전화번호·분류만
+새 값으로 덮어쓰고, 네이버에서 새로 나온 가게는 목록 뒤에 붙습니다. 새로 붙은 가게는
+소개글이 비어 있으니 직접 채워 넣으세요.

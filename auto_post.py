@@ -301,11 +301,21 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
                 )
             )
             target = None
+            # 1단계: 정확한 일치 찾기
             for el in candidates:
                 text = el.get_attribute("textContent") or ""
                 if normalize_category_text(text) == leaf_norm:
                     target = el
                     break
+            # 2단계: 정확한 일치가 없으면 부분 일치 찾기
+            if target is None:
+                for el in candidates:
+                    text = el.get_attribute("textContent") or ""
+                    norm_text = normalize_category_text(text)
+                    # leaf가 카테고리 텍스트에 포함되는지 확인
+                    if leaf_norm in norm_text:
+                        target = el
+                        break
             if target is None:
                 raise NoSuchElementException(f"category '{leaf}' not in dropdown")
             # 실제 클릭 대상은 텍스트가 든 <span>이 아니라 그걸 감싸는 <label role="button">.

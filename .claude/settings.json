@@ -1,7 +1,6 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "Write-Host '━━━━━━━━━━━━━━━━━ 📁 blog_naver ━━━━━━━━━━━━━━━━━'",
-    "shell": "powershell"
+    "command": "echo '━━━━━━━━━━━━━━━━━ 📁 blog_naver ━━━━━━━━━━━━━━━━━'"
   }
 }

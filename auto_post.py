@@ -108,6 +108,9 @@ def build_driver(profile_dir: Path, config: dict) -> webdriver.Chrome:
     options.add_argument("--start-maximized")
     # 자동화 표시(Chrome이 자동화 제어중이라는 배너 등) 최소화
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    if config.get("headless", False):
+        options.add_argument("--headless=new")
+        options.add_argument("--window-size=1920,1080")
     driver_path = ChromeDriverManager().install()
     service = Service(executable_path=driver_path)
     return webdriver.Chrome(service=service, options=options)
@@ -119,10 +122,15 @@ def is_logged_in(driver, blog_id: str) -> bool:
     return "nid.naver.com" not in driver.current_url
 
 
-def ensure_logged_in(driver, blog_id: str, max_attempts: int = 5):
+def ensure_logged_in(driver, blog_id: str, config: dict, max_attempts: int = 5):
     for attempt in range(1, max_attempts + 1):
         if is_logged_in(driver, blog_id):
             return
+        if config.get("headless", False):
+            sys.exit(
+                "[로그인 필요] 창 없이(headless) 실행 중인데 로그인 세션이 없습니다.\n"
+                "config.json 의 headless 를 false 로 잠깐 바꿔서 한 번 로그인한 뒤 다시 headless 로 돌려주세요."
+            )
         input(
             f"\n[로그인 필요 - {attempt}/{max_attempts}] 지금 뜬 크롬 창에서 네이버에 직접 로그인해주세요.\n"
             "(아이디/비번 입력 후 '새로운 기기 인증' 문자/이메일이 뜨면 그것까지 완료)\n"
@@ -289,13 +297,9 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
 
     # 실제 공개 발행은 되돌리기 어려운 동작이므로, dry_run=false 여도 한 번 더
     # 사람이 직접 확인하게 한다.
-    answer = input(
-        f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행합니다.\n"
-        "브라우저에서 제목/본문/카테고리/태그를 확인하셨나요?\n"
-        "정말 발행하려면 PUBLISH 를 입력하세요 (그 외 입력 시 취소): "
-    )
-    if answer.strip() != "PUBLISH":
-        print("[취소] 발행을 취소했습니다. 브라우저에서 직접 확인/발행해주세요.")
+    answer = input(f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행할까요? (예/아니오): ")
+    if answer.strip() not in ("예", "y", "Y", "yes", "Yes"):
+        print("[취소] 발행을 취소했습니다.")
         return False
 
     try:
@@ -346,7 +350,7 @@ def main():
 
     driver = build_driver(profile_dir, config)
     try:
-        ensure_logged_in(driver, config["blog_id"])
+        ensure_logged_in(driver, config["blog_id"], config)
 
         if args.inspect:
             driver.get(f"https://blog.naver.com/{config['blog_id']}?Redirect=Write&")

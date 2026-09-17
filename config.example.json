@@ -2,5 +2,6 @@
   "blog_id": "wweebbyyii",
   "chrome_profile_dir": "./chrome_profile",
   "chrome_binary": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "headless": false,
   "dry_run": true
 }

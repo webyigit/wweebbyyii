@@ -110,15 +110,23 @@ def build_driver(profile_dir: Path, config: dict) -> webdriver.Chrome:
     return webdriver.Chrome(service=service, options=options)
 
 
-def ensure_logged_in(driver, profile_is_fresh: bool):
-    driver.get("https://nid.naver.com/nidlogin.login")
-    if profile_is_fresh:
+def is_logged_in(driver, blog_id: str) -> bool:
+    driver.get(f"https://blog.naver.com/{blog_id}?Redirect=Write&")
+    time.sleep(2)
+    return "nid.naver.com" not in driver.current_url
+
+
+def ensure_logged_in(driver, blog_id: str, max_attempts: int = 5):
+    for attempt in range(1, max_attempts + 1):
+        if is_logged_in(driver, blog_id):
+            return
         input(
-            "\n[로그인 필요] 새로 뜬 크롬 창에서 네이버에 직접 로그인해주세요.\n"
-            "로그인을 마쳤으면 이 터미널로 돌아와서 Enter 를 눌러주세요..."
+            f"\n[로그인 필요 - {attempt}/{max_attempts}] 지금 뜬 크롬 창에서 네이버에 직접 로그인해주세요.\n"
+            "(아이디/비번 입력 후 '새로운 기기 인증' 문자/이메일이 뜨면 그것까지 완료)\n"
+            "로그인 후 실제로 네이버 블로그 화면이 보이는지 확인한 다음, 이 터미널로 돌아와서 Enter 를 눌러주세요..."
         )
-    else:
-        time.sleep(2)
+    if not is_logged_in(driver, blog_id):
+        sys.exit(f"[로그인 실패] {max_attempts}번 시도했지만 로그인 상태를 확인하지 못했습니다.")
 
 
 def try_click(driver, css_list: str, timeout=5):
@@ -240,7 +248,6 @@ def main():
 
     config = load_config()
     profile_dir = (BASE_DIR / config["chrome_profile_dir"]).resolve()
-    profile_is_fresh = not profile_dir.exists() or not any(profile_dir.iterdir())
     profile_dir.mkdir(parents=True, exist_ok=True)
 
     draft_path = Path(args.file) if args.file else find_next_draft()
@@ -249,7 +256,7 @@ def main():
 
     driver = build_driver(profile_dir, config)
     try:
-        ensure_logged_in(driver, profile_is_fresh)
+        ensure_logged_in(driver, config["blog_id"])
 
         if args.inspect:
             driver.get(f"https://blog.naver.com/{config['blog_id']}?Redirect=Write&")

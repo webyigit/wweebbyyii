@@ -1577,7 +1577,9 @@
       </p>
       <p>
         <strong>메뉴와 가격</strong>은 각 가게가 네이버에 올려 둔 대표 메뉴를 옮긴 것이라
-        실제 계산 금액과 다를 수 있습니다. 사진은 직접 찍은 것만 올립니다.
+        실제 계산 금액과 다를 수 있습니다. <strong>사진</strong>도 네이버 플레이스에 올라온 것을
+        가져왔습니다. 개인적으로 보려고 만든 페이지라 그대로 썼고, 사진의 권리는 찍은 사람에게
+        있습니다.
       </p>
       <p>
         영업시간·휴무·메뉴·가격은 자주 바뀌고 폐업하는 곳도 있습니다.
@@ -2004,9 +2006,9 @@
         var hint = document.createElement("div");
         hint.className = "hint";
         hint.innerHTML =
-          "<span aria-hidden=\"true\">☆</span><span>이 분류는 <b>별점과 메뉴 가격이 아직 비어 있습니다.</b> " +
-          "채우고 나면 카드에 별점이 뜨고, 분류마다 상위 5곳에 순위 딱지가 붙습니다. " +
-          "지어낸 숫자를 넣지 않으려고 비워 뒀습니다.</span>";
+          "<span aria-hidden=\"true\">☆</span><span>이 분류는 <b>별점·가격·사진이 아직 비어 있습니다.</b> " +
+          "<b>crawl_naver_place.py</b> 를 돌리면 네이버 플레이스에서 받아와 채워집니다. " +
+          "채우고 나면 분류마다 별점 상위 5곳에 순위 딱지가 붙습니다.</span>";
         listEl.appendChild(hint);
       }
       var frag = document.createDocumentFragment();

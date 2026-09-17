@@ -139,8 +139,8 @@ python fetch_places.py --dry-run       # 파일은 그대로 두고 결과만 �
 
 ```bash
 python crawl_naver_place.py --limit 5 --dry-run   # 먼저 5곳만 시험
-python crawl_naver_place.py                        # 별점 · 리뷰수 · 메뉴/가격
-python crawl_naver_place.py --photos               # 사진까지
+python crawl_naver_place.py                        # 별점 · 리뷰수 · 메뉴/가격 · 사진
+python crawl_naver_place.py --no-photos            # 사진은 빼고
 python crawl_naver_place.py --only 특삼겹 몽중헌     # 특정 가게만
 python crawl_naver_place.py --force                # 이미 값이 있어도 다시
 ```
@@ -163,10 +163,17 @@ CSS 클래스명을 짚지 않기 때문에 네이버가 화면 디자인을 바
 
 ### 사진
 
-`--photos` 로 받은 사진은 가게나 다른 이용자가 올린 것이라 공개 페이지에 그대로 쓰면
-저작권 문제가 생길 수 있습니다. 직접 찍은 사진을 `docs/magok-matjip/photos/` 에 넣는 걸
-권합니다. 같은 이름 파일이 이미 있으면 크롤링이 덮어쓰지 않으니, **직접 찍은 사진을 먼저
-넣어 두면 안전합니다.** 자세한 내용은 `docs/magok-matjip/photos/README.md` 참고.
+기본으로 같이 받아옵니다. 네이버 플레이스에 올라온 사진이라 **개인적으로 보는 용도**입니다.
+외부에 공개하거나 다시 배포할 거면 직접 찍은 사진으로 바꾸세요.
+
+한 장만 집으면 로고나 프로필 아이콘을 물고 오는 일이 있어서, 후보를 여러 장 모아 두고
+순서대로 받아 보며 고릅니다. 가게 대표 이미지를 앞에 두고 리뷰 사진은 뒤로 미루며,
+프로필·로고·빈 이미지는 주소만 보고 미리 걸러냅니다. 받은 파일이 12KB보다 작거나
+이미지 형식이 아니면 버리고 다음 후보로 넘어갑니다. 썸네일 주소의 크기 지정은
+`?type=w1500` 으로 바꿔 큰 쪽을 받습니다.
+
+`photos/` 에 같은 이름 파일이 있으면 덮어쓰지 않습니다. **직접 찍은 사진을 먼저 넣어 두면
+크롤링이 그 위를 안 건드립니다.** 자세한 내용은 `docs/magok-matjip/photos/README.md` 참고.
 
 ### 주의
 

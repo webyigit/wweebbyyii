@@ -2,8 +2,8 @@
 
 사장님 PC에서 돌리는 스크립트입니다 (로컬 크롬 + Selenium).
 
-    python crawl_naver_place.py                  # 별점 · 리뷰수 · 메뉴/가격
-    python crawl_naver_place.py --photos         # 사진까지 내려받기
+    python crawl_naver_place.py                  # 별점 · 리뷰수 · 메뉴/가격 · 사진
+    python crawl_naver_place.py --no-photos      # 사진은 빼고
     python crawl_naver_place.py --only 특삼겹 금고깃집  # 특정 가게만
     python crawl_naver_place.py --limit 5        # 앞 5곳만 (시험 삼아)
     python crawl_naver_place.py --dry-run        # 파일은 그대로, 결과만 출력
@@ -22,8 +22,8 @@
 
   - 네이버 화면을 읽는 방식이라 약관상 회색지대입니다. auto_post.py 와 같은 수준으로
     보시면 됩니다. 한 가게당 몇 초씩 쉬면서 천천히 돕니다. 하루에 몇 번씩 돌리지 마세요.
-  - --photos 로 받은 사진은 **가게나 다른 이용자가 올린 사진**입니다. 공개 페이지에
-    그대로 쓰면 저작권 문제가 생길 수 있습니다. 직접 찍은 사진을 쓰시는 걸 권합니다.
+  - 사진은 네이버 플레이스에 올라온 것을 가져옵니다. 개인적으로 보는 용도로만 쓰세요.
+    남이 올린 사진이라 외부에 공개하거나 다시 배포하면 저작권 문제가 생길 수 있습니다.
     photos/ 에 같은 이름 파일이 이미 있으면 덮어쓰지 않습니다.
 """
 
@@ -139,15 +139,57 @@ def pick_menus(state, limit: int = 6) -> list[dict]:
     return [{"name": m["name"], "price": m["price"]} for m in found[:limit]]
 
 
-def pick_photo(state) -> str:
+# 대표 사진으로 쓰기엔 곤란한 것들 (프로필 아이콘, 지도 썸네일, 빈 이미지 등)
+BAD_IMAGE = re.compile(
+    r"(profile|blank|noimage|no_image|logo|icon|sprite|map|static\.naver)", re.I)
+IMAGE_KEYS = ("imageUrl", "thumbnailUrl", "thumbUrl", "origin", "imgUrl", "url")
+
+
+def upsize(url: str) -> str:
+    """네이버 썸네일 주소의 크기 지정을 걷어내 원본에 가깝게 만든다.
+
+    .../abcd_01.jpg?type=f320_320  ->  .../abcd_01.jpg?type=w1500
+    """
+    base = url.split("?")[0]
+    if "pstatic.net" not in base:
+        return url
+    return base + "?type=w1500"
+
+
+def pick_photos(state, limit: int = 6) -> list[str]:
+    """대표 사진 후보를 그럴듯한 순서로 모은다.
+
+    한 장만 집으면 로고나 아이콘을 물고 오는 경우가 있어서 여러 장을 받아 두고,
+    실제로 내려받아 보고 쓸 만한 것을 고른다.
+    """
+    scored, seen = [], set()
     for node in walk(state):
-        for key in ("imageUrl", "thumbnailUrl", "url", "origin"):
+        typename = str(node.get("__typename", ""))
+        for key in IMAGE_KEYS:
             url = node.get(key)
-            if isinstance(url, str) and url.startswith("http") \
-                    and re.search(r"\.(jpe?g|png)", url, re.I) \
-                    and "pstatic.net" in url:
-                return url
-    return ""
+            if not isinstance(url, str) or not url.startswith("http"):
+                continue
+            if not re.search(r"\.(jpe?g|png)", url, re.I):
+                continue
+            if "pstatic.net" not in url or BAD_IMAGE.search(url):
+                continue
+            clean = upsize(url)
+            if clean in seen:
+                continue
+            seen.add(clean)
+
+            # 가게 대표 이미지에 가까울수록 앞으로
+            score = 0
+            if re.search(r"(place|restaurant|business|represent)", typename, re.I):
+                score -= 3
+            if key in ("imageUrl", "origin"):
+                score -= 2
+            if re.search(r"(review|user)", typename, re.I):
+                score += 2
+            scored.append((score, clean))
+
+    scored.sort(key=lambda x: x[0])
+    return [u for _, u in scored[:limit]]
 
 
 def fallback_from_text(text: str) -> tuple[float | None, int | None]:
@@ -200,7 +242,7 @@ def find_place_id(driver, name: str) -> str:
 
 
 def scrape_place(driver, pid: str, want_photo: bool) -> dict:
-    out = {"rating": None, "reviews": None, "menus": [], "photo_url": ""}
+    out = {"rating": None, "reviews": None, "menus": [], "photo_urls": []}
 
     driver.get(HOME_URL.format(pid=pid))
     time.sleep(3)
@@ -208,7 +250,7 @@ def scrape_place(driver, pid: str, want_photo: bool) -> dict:
     if state:
         out["rating"], out["reviews"] = pick_rating(state)
         if want_photo:
-            out["photo_url"] = pick_photo(state)
+            out["photo_urls"] = pick_photos(state)
     else:
         out["rating"], out["reviews"] = fallback_from_text(driver.page_source)
 
@@ -221,42 +263,74 @@ def scrape_place(driver, pid: str, want_photo: bool) -> dict:
     return out
 
 
-def save_photo(url: str, name: str) -> str:
-    """photos/<가게이름>.jpg 로 저장. 이미 있으면 건드리지 않는다."""
+MIN_BYTES = 12_000        # 이보다 작으면 아이콘이나 빈 이미지로 본다
+MAGIC = (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n")
+
+
+def save_photo(urls: list[str], name: str) -> str:
+    """후보를 순서대로 받아 보고 쓸 만한 첫 장을 저장한다.
+
+    photos/ 에 같은 이름 파일이 이미 있으면 손대지 않는다 — 직접 넣은 사진이 이긴다.
+    """
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
     safe = re.sub(r'[\\/:*?"<>|]', "_", name).strip()
+
     for existing in PHOTO_DIR.glob(f"{safe}.*"):
-        return f"photos/{existing.name}"      # 이미 있는 사진 우선
-    ext = ".png" if ".png" in url.lower() else ".jpg"
-    target = PHOTO_DIR / f"{safe}{ext}"
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Mozilla/5.0", "Referer": "https://m.place.naver.com/"})
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        target.write_bytes(resp.read())
-    return f"photos/{target.name}"
+        if existing.suffix.lower() in (".jpg", ".jpeg", ".png"):
+            return f"photos/{existing.name}"
+
+    last_error = "후보 없음"
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://m.place.naver.com/",
+            })
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                blob = resp.read()
+        except Exception as exc:
+            last_error = str(exc)
+            continue
+
+        if len(blob) < MIN_BYTES:
+            last_error = f"너무 작음({len(blob)}B)"
+            continue
+        if not blob.startswith(MAGIC):
+            last_error = "이미지가 아님"
+            continue
+
+        ext = ".png" if blob.startswith(MAGIC[1]) else ".jpg"
+        target = PHOTO_DIR / f"{safe}{ext}"
+        target.write_bytes(blob)
+        return f"photos/{target.name}"
+
+    raise RuntimeError(last_error)
 
 
 # --------------------------------------------------------------------- 메인
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="네이버 플레이스 별점·메뉴·사진 수집")
-    ap.add_argument("--photos", action="store_true", help="대표 사진도 내려받기")
+    ap.add_argument("--no-photos", action="store_true", help="사진은 받지 않기")
     ap.add_argument("--only", nargs="*", metavar="이름", help="이 이름이 들어간 가게만")
     ap.add_argument("--limit", type=int, help="앞에서 N곳만")
     ap.add_argument("--force", action="store_true", help="이미 값이 있어도 다시 받기")
     ap.add_argument("--dry-run", action="store_true", help="파일은 그대로, 결과만 출력")
     args = ap.parse_args()
 
-    if args.photos:
-        print("! --photos 로 받는 사진은 가게나 다른 이용자가 올린 사진입니다.")
-        print("  공개 페이지에 쓰기 전에 사용해도 되는 사진인지 확인하세요.\n")
+    want_photo = not args.no_photos
+    if want_photo:
+        print("* 사진은 네이버 플레이스에 올라온 것을 가져옵니다. 개인적으로 보는 용도로 쓰세요.")
+        print("  photos/ 에 같은 이름 파일이 있으면 덮어쓰지 않습니다.\n")
 
     places = fp.read_existing()
     todo = places
     if args.only:
         todo = [p for p in todo if any(k in p["name"] for k in args.only)]
     if not args.force:
-        todo = [p for p in todo if p.get("rating") is None or not p.get("menus")]
+        todo = [p for p in todo
+                if p.get("rating") is None or not p.get("menus")
+                or (want_photo and not p.get("photo"))]
     if args.limit:
         todo = todo[:args.limit]
 
@@ -279,7 +353,7 @@ def main() -> None:
                     print("플레이스를 못 찾음")
                     fail += 1
                     continue
-                got = scrape_place(driver, pid, args.photos)
+                got = scrape_place(driver, pid, want_photo)
 
                 bits = []
                 if got["rating"] is not None:
@@ -292,9 +366,9 @@ def main() -> None:
                 if got["menus"]:
                     place["menus"] = got["menus"]
                     bits.append(f"메뉴 {len(got['menus'])}개")
-                if got["photo_url"]:
+                if got["photo_urls"]:
                     try:
-                        place["photo"] = save_photo(got["photo_url"], name)
+                        place["photo"] = save_photo(got["photo_urls"], name)
                         bits.append("사진")
                     except Exception as exc:
                         bits.append(f"사진 실패({exc})")

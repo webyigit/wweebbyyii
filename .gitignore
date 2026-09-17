@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+
+# 네이버 로그인 세션(쿠키)이 들어있는 크롬 프로필 - 절대 커밋 금지
+chrome_profile/
+
+# 개인 설정(블로그 아이디 등)
+config.json
+
+# 디버그용 DOM 덤프 (비공개 초안 내용이 담길 수 있음)
+debug_dom.html

@@ -299,7 +299,14 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         return False
 
     try:
-        try_click(driver, SELECTORS["publish_confirm_btn"], timeout=10)
+        confirm_btn = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, SELECTORS["publish_confirm_btn"])
+            )
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", confirm_btn)
+        time.sleep(0.3)
+        driver.execute_script("arguments[0].click();", confirm_btn)
     except Exception:  # noqa: BLE001
         dump_debug(driver, "최종 발행 확정")
         raise

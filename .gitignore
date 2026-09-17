@@ -10,3 +10,6 @@ config.json
 
 # 디버그용 DOM 덤프 (비공개 초안 내용이 담길 수 있음)
 debug_dom*.html
+
+# 임시 실행 로그
+*.log

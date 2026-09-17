@@ -132,6 +132,19 @@ def ensure_logged_in(driver, blog_id: str, max_attempts: int = 5):
         sys.exit(f"[로그인 실패] {max_attempts}번 시도했지만 로그인 상태를 확인하지 못했습니다.")
 
 
+def normalize_category_text(s: str) -> str:
+    """카테고리 표시 텍스트를 비교용으로 정규화.
+
+    - '하위 카테고리'라는 스크린리더 전용 라벨이 textContent에 섞여 들어온다.
+    - 사람마다 '허깅페이스 논문' / '허깅페이스논문' 처럼 띄어쓰기를 다르게 넣거나
+      &nbsp;(U+00A0)를 섞어 쓰기도 한다.
+    둘 다 무시하고 순수 글자만 비교한다.
+    """
+    s = s.replace("하위 카테고리", "")
+    s = s.replace("\xa0", "").replace(" ", "")
+    return s.strip()
+
+
 def try_click(driver, css_list: str, timeout=5):
     end = time.time() + timeout
     last_err = None
@@ -224,20 +237,28 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
     category = meta.get("category", "").strip()
     if category:
         leaf = category.split(">")[-1].strip()
+        leaf_norm = normalize_category_text(leaf)
         try:
             try_click(driver, SELECTORS["category_open_btn"], timeout=5)
             time.sleep(0.5)
-            # 실제 클릭 대상은 텍스트가 든 <span>이 아니라 그걸 감싸는 <label role="button">.
-            # (확인됨: debug_dom.html, option_list_layer 안의 li > span.option > input + label > span.text)
-            item = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        f"//span[normalize-space(text())='{leaf}']/ancestor::label",
-                    )
+            # 카테고리 이름에 사람마다 띄어쓰기/줄바꿈(&nbsp;)을 다르게 넣는 경우가 있어
+            # 공백을 다 제거하고 비교한다. (확인됨: debug_dom.html)
+            candidates = WebDriverWait(driver, 5).until(
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, "[data-testid^='categoryItemText_']")
                 )
             )
-            driver.execute_script("arguments[0].click();", item)
+            target = None
+            for el in candidates:
+                text = el.get_attribute("textContent") or ""
+                if normalize_category_text(text) == leaf_norm:
+                    target = el
+                    break
+            if target is None:
+                raise NoSuchElementException(f"category '{leaf}' not in dropdown")
+            # 실제 클릭 대상은 텍스트가 든 <span>이 아니라 그걸 감싸는 <label role="button">.
+            label = target.find_element(By.XPATH, "./ancestor::label")
+            driver.execute_script("arguments[0].click();", label)
             time.sleep(0.3)
         except Exception:  # noqa: BLE001
             dump_debug(driver, f"카테고리 선택 ('{leaf}')")

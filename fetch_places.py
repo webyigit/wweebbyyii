@@ -59,6 +59,15 @@ QUERIES = [
     ("마곡나루역 고기집", "meat"),
     ("마곡 소고기", "meat"),
     ("마곡역 한식", "korean"),
+    ("마곡역 횟집", "hoe"),
+    ("마곡나루역 횟집", "hoe"),
+    ("마곡 물회", "hoe"),
+    ("마곡역 분식", "snack"),
+    ("마곡역 떡볶이", "snack"),
+    ("마곡역 김밥", "snack"),
+    ("마곡역 쌀국수", "asian"),
+    ("마곡 베트남음식", "asian"),
+    ("마곡 아시안", "asian"),
     ("마곡역 국밥", "korean"),
     ("마곡역 칼국수", "korean"),
     ("마곡 백반", "korean"),
@@ -91,6 +100,20 @@ CATEGORY_RULES = [
     ("호프", "bar"),
     ("포장마차", "bar"),
     ("와인", "bar"),
+    ("생선회", "hoe"),
+    ("횟집", "hoe"),
+    ("물회", "hoe"),
+    ("해산물", "hoe"),
+    ("조개", "hoe"),
+    ("수산", "hoe"),
+    ("베트남", "asian"),
+    ("쌀국수", "asian"),
+    ("태국", "asian"),
+    ("아시아", "asian"),
+    ("인도", "asian"),
+    ("분식", "snack"),
+    ("떡볶이", "snack"),
+    ("김밥", "snack"),
     ("육류,고기", "meat"),
     ("곱창", "meat"),
     ("닭갈비", "meat"),
@@ -107,7 +130,6 @@ CATEGORY_RULES = [
     ("멕시코", "western"),
     ("스테이크", "western"),
     ("한식", "korean"),
-    ("분식", "korean"),
     ("국수", "korean"),
     ("해물", "korean"),
 ]
@@ -333,7 +355,8 @@ def merge(existing: list[dict], fetched: dict[str, dict], slugs: dict[str, str])
         added += 1
 
     order = {c: i for i, c in enumerate(
-        ["meat", "korean", "japanese", "chinese", "western", "cafe", "bar"]
+        ["meat", "korean", "snack", "hoe", "japanese", "chinese",
+         "asian", "western", "cafe", "bar"]
     )}
     merged.sort(key=lambda p: (order.get(p["cat"], 99), not p["resv"], p["name"]))
     print(f"\n기존 {len(existing)}곳, 새로 붙은 곳 {added}곳 -> 합계 {len(merged)}곳")

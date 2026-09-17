@@ -87,6 +87,17 @@ blog_naver/
 가게 데이터는 파일 안의 `<script type="application/json" id="places-data">` 블록에 들어
 있습니다. 직접 고쳐도 되고, 아래 스크립트로 네이버·캐치테이블에서 받아와 채워도 됩니다.
 
+분류는 고기·구이 / 한식·국물 / 분식 / 회·해산물 / 일식 / 중식 / 아시안 / 양식·피자 /
+카페·베이커리 / 술집 열 가지입니다. 분류를 더 넣으려면 `index.html`의 `CATS` 배열과
+`fetch_places.py`의 `QUERIES`·`CATEGORY_RULES`·정렬 순서를 같이 고쳐야 합니다.
+
+## 폰트
+
+본문은 프리텐다드(Pretendard)입니다. CDN을 쓰지 않고 `docs/magok-matjip/fonts/`에 넣은
+가변 폰트를 `@font-face`로 직접 물립니다. 유니코드 범위별로 92개 파일로 쪼갠 서브셋이라
+브라우저가 실제 화면에 쓰는 글자 파일만 내려받습니다 (전체 3.1MB 중 보통 400KB 안팎).
+폰트는 SIL Open Font License 1.1이고 전문은 `docs/magok-matjip/fonts/OFL.txt`에 있습니다.
+
 ## 데이터 채우기
 
 ```bash

@@ -325,6 +325,14 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
     for _ in range(20):
         time.sleep(1)
         try:
+            alert = driver.switch_to.alert
+            print(f"[알림창] 브라우저 alert 발견: {alert.text!r} -> 확인 처리")
+            alert.accept()
+            time.sleep(1)
+            continue
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             current = driver.execute_script("return window.location.href;")
         except Exception:  # noqa: BLE001
             current = ""
@@ -334,6 +342,7 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
 
     if not published:
         dump_debug(driver, "발행 후 반영 확인")
+        print(f"[디버그] 마지막으로 확인된 iframe URL: {current!r}")
         print(
             f"[경고] 발행 버튼은 눌렀지만 화면이 넘어가는 것을 확인하지 못했습니다.\n"
             "        브라우저/블로그에서 직접 확인해주세요 (초안 상태는 draft로 유지합니다)."

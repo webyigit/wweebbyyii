@@ -304,6 +304,21 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         dump_debug(driver, "최종 발행 확정")
         raise
 
+    # 클릭 직후 바로 브라우저를 닫으면 실제 발행 요청이 끝나기 전에 끊길 수 있다.
+    # 발행 성공 시 최상위 프레임이 글쓰기 화면(Redirect=Write)에서 벗어나므로
+    # 그걸로 실제 반영 여부를 확인한다.
+    try:
+        driver.switch_to.default_content()
+        WebDriverWait(driver, 20).until(lambda d: "Redirect=Write" not in d.current_url)
+        time.sleep(1)
+    except TimeoutException:
+        dump_debug(driver, "발행 후 반영 확인")
+        print(
+            "[경고] 발행 버튼은 눌렀지만 화면이 넘어가는 것을 확인하지 못했습니다.\n"
+            "        브라우저에서 실제로 발행됐는지 직접 확인해주세요 (초안 상태는 draft로 유지합니다)."
+        )
+        return False
+
     print(f"[완료] '{meta['title']}' 발행을 시도했습니다. 브라우저에서 실제 반영 여부를 확인해주세요.")
     return True
 

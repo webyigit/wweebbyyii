@@ -287,6 +287,17 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         )
         return False
 
+    # 실제 공개 발행은 되돌리기 어려운 동작이므로, dry_run=false 여도 한 번 더
+    # 사람이 직접 확인하게 한다.
+    answer = input(
+        f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행합니다.\n"
+        "브라우저에서 제목/본문/카테고리/태그를 확인하셨나요?\n"
+        "정말 발행하려면 PUBLISH 를 입력하세요 (그 외 입력 시 취소): "
+    )
+    if answer.strip() != "PUBLISH":
+        print("[취소] 발행을 취소했습니다. 브라우저에서 직접 확인/발행해주세요.")
+        return False
+
     try:
         try_click(driver, SELECTORS["publish_confirm_btn"], timeout=10)
     except Exception:  # noqa: BLE001

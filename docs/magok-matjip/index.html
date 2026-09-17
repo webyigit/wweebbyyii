@@ -1,0 +1,809 @@
+<title>마곡역 밥집 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:      #F6F4F9;
+    --surface:    #FFFFFF;
+    --surface-2:  #F0ECF4;
+    --ink:        #1C1A22;
+    --ink-soft:   #4A4455;
+    --muted:      #6E6680;
+    --line:       #E3DDEA;
+    --line-soft:  #EDE8F2;
+    --line5:      #7C4E9F;
+    --on-accent:  #FFFFFF;
+    --line5-ink:  #6B3F8C;
+    --line9:      #9A7F35;
+    --air:        #3A6FB0;
+    --shadow:     0 1px 2px rgba(28,26,34,.05), 0 8px 24px -16px rgba(28,26,34,.28);
+
+    --font-display: "Gowun Batang", "Nanum Myeongjo", serif;
+    --font-body: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #161419;
+      --surface:   #1F1C25;
+      --surface-2: #272330;
+      --ink:       #EEEAF3;
+      --ink-soft:  #CFC8DA;
+      --muted:     #9F97AE;
+      --line:      #332E3D;
+      --line-soft: #2A2633;
+      --line5:     #B78FD4;
+      --on-accent: #17131C;
+      --line5-ink: #C9A9E0;
+      --line9:     #CDAF5E;
+      --air:       #7FAAE0;
+      --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:     #161419;
+    --surface:   #1F1C25;
+    --surface-2: #272330;
+    --ink:       #EEEAF3;
+    --ink-soft:  #CFC8DA;
+    --muted:     #9F97AE;
+    --line:      #332E3D;
+    --line-soft: #2A2633;
+    --line5:     #B78FD4;
+    --on-accent: #17131C;
+    --line5-ink: #C9A9E0;
+    --line9:     #CDAF5E;
+    --air:       #7FAAE0;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-inline: 20px;
+  }
+
+  /* ---------- 헤더 ---------- */
+
+  .masthead {
+    padding-block: 40px 26px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(34px, 7vw, 52px);
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 58ch;
+    color: var(--ink-soft);
+    font-size: 15px;
+    font-weight: 300;
+  }
+
+  .lines {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .line-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 11px 4px 5px;
+  }
+
+  .bullet {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    flex: none;
+  }
+  .bullet.l5 { background: var(--line5); }
+  .bullet.l9 { background: var(--line9); }
+  .bullet.ar { background: var(--air); }
+
+  /* ---------- 카테고리 레일 ---------- */
+
+  .controls {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 20;
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rail-scroll {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rail-scroll::-webkit-scrollbar { display: none; }
+
+  .rail {
+    display: flex;
+    gap: 7px;
+    padding-block: 13px;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .chip {
+    appearance: none;
+    flex: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .14s ease, color .14s ease, border-color .14s ease;
+  }
+
+  .chip .n {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: color .14s ease;
+  }
+
+  .chip:hover { border-color: var(--line5); color: var(--line5-ink); }
+
+  .chip[aria-pressed="true"] {
+    background: var(--line5);
+    border-color: var(--line5);
+    color: var(--on-accent);
+  }
+  .chip[aria-pressed="true"] .n { color: currentColor; opacity: .7; }
+
+  .chip:focus-visible,
+  .search input:focus-visible,
+  .card a:focus-visible,
+  .sort button:focus-visible {
+    outline: 2px solid var(--line5);
+    outline-offset: 2px;
+  }
+
+  /* ---------- 결과 헤더 ---------- */
+
+  .resultbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 22px 16px;
+  }
+
+  .count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .count b { color: var(--ink); font-weight: 600; }
+
+  .tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 0 11px;
+  }
+  .search svg { flex: none; color: var(--muted); }
+  .search input {
+    border: 0;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--ink);
+    padding: 8px 0;
+    width: 150px;
+  }
+  .search input::placeholder { color: var(--muted); }
+  .search input:focus { outline: none; }
+
+  .sort { display: flex; gap: 2px; background: var(--surface-2); border-radius: 7px; padding: 3px; }
+  .sort button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .sort button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+
+  /* ---------- 목록 ---------- */
+
+  .list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+    gap: 12px;
+    padding-bottom: 8px;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 17px 17px 15px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0;
+    letter-spacing: -.01em;
+  }
+
+  .menu-tag {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .04em;
+    color: var(--line5-ink);
+    background: color-mix(in srgb, var(--line5) 12%, transparent);
+    border-radius: 4px;
+    padding: 3px 7px;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+
+  .note {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 300;
+    color: var(--ink-soft);
+    line-height: 1.62;
+  }
+
+  .where {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--muted);
+    border-top: 1px dashed var(--line);
+    padding-top: 10px;
+    margin-top: auto;
+  }
+  .where .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    flex: none;
+  }
+
+  .links { display: flex; gap: 7px; }
+  .card a {
+    flex: 1;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--ink-soft);
+    background: var(--surface-2);
+    border-radius: 6px;
+    padding: 7px 8px;
+    transition: background .14s ease, color .14s ease;
+  }
+  .card a:hover { background: var(--line5); color: var(--on-accent); }
+
+  /* 스켈레톤 (목록 리로딩) */
+
+  .skeleton {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .sk-bar { height: 11px; border-radius: 4px; background: var(--surface-2); }
+  .sk-bar.w1 { width: 52%; height: 17px; }
+  .sk-bar.w2 { width: 92%; }
+  .sk-bar.w3 { width: 68%; }
+  .sk-bar.w4 { width: 40%; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  .skeleton { animation: pulse 1s ease-in-out infinite; }
+
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 56px 20px;
+    color: var(--muted);
+    font-size: 14px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+  }
+  .empty strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+
+  /* ---------- 푸터 ---------- */
+
+  footer {
+    border-top: 1px solid var(--line);
+    margin-top: 34px;
+    padding-block: 26px 44px;
+  }
+  .note-block {
+    max-width: 62ch;
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--muted);
+    line-height: 1.75;
+  }
+  .note-block h2 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 9px;
+  }
+  .note-block p { margin: 0 0 9px; }
+  .note-block a { color: var(--line5-ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding-inline: 16px; }
+    .search input { width: 110px; }
+    .list { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">서울 강서구 · 마곡지구</p>
+    <h1>마곡역 밥집 지도</h1>
+    <p class="lede">
+      마곡역·마곡나루역 걸어갈 만한 거리의 식당을 종류별로 묶었습니다.
+      카테고리를 누르면 목록이 다시 불러와집니다. 가게 이름을 누르면 지도·후기로 바로 넘어갑니다.
+    </p>
+    <div class="lines">
+      <span class="line-badge"><span class="bullet l5">5</span>마곡역</span>
+      <span class="line-badge"><span class="bullet l9">9</span>마곡나루역</span>
+      <span class="line-badge"><span class="bullet ar">A</span>공항철도 마곡나루</span>
+    </div>
+  </header>
+</div>
+
+<div class="controls">
+  <div class="wrap">
+    <div class="rail-scroll">
+      <div class="rail" id="rail" role="group" aria-label="음식 종류"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="resultbar">
+    <p class="count" id="count" aria-live="polite">불러오는 중…</p>
+    <div class="tools">
+      <label class="search">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10.6 10.6L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input id="q" type="search" placeholder="가게·메뉴 검색" aria-label="가게 또는 메뉴 검색" autocomplete="off">
+      </label>
+      <div class="sort" role="group" aria-label="정렬">
+        <button type="button" id="sort-default" aria-pressed="true">기본순</button>
+        <button type="button" id="sort-name" aria-pressed="false">가나다순</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>
+    <div class="note-block">
+      <h2>이 목록에 대하여</h2>
+      <p>
+        다이닝코드·식신·당근 동네업체·지역 블로그 등 공개된 목록에 마곡 일대 가게로 올라와 있는 곳을
+        종류별로 정리한 것입니다. 직접 방문해 매긴 순위나 평점이 아니며, 순서에 우열은 없습니다.
+      </p>
+      <p>
+        영업시간·휴무·메뉴·가격은 자주 바뀌고 폐업하는 곳도 있습니다.
+        <strong>가기 전에 각 카드의 &lsquo;지도&rsquo; 링크에서 최신 정보를 확인하세요.</strong>
+        주소나 출구 정보는 확인된 곳에만 적어두었고, 나머지는 &lsquo;마곡 일대&rsquo;로만 표시했습니다.
+      </p>
+      <p>
+        점심시간에는 인근 직장인 수요로 대기가 생깁니다. 11시 30분 이전이나 오후 1시 이후가 한결 여유롭습니다.
+      </p>
+      <p id="stamp"></p>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PLACES = [
+    // 고기·구이
+    { name: "특삼겹", cat: "meat", menu: "숙성 삼겹살",
+      note: "숙성 삼겹살을 직원이 직접 구워 내줍니다. 열무김치·파절이·계란찜이 함께 나오는 구성.",
+      where: "마곡역 인근" },
+    { name: "금고깃집 마곡본점", cat: "meat", menu: "돼지구이",
+      note: "마곡에서 오래 자리를 지켜온 고깃집. YBD 품종 돼지를 쓰고 고기를 구워 줍니다.",
+      where: "마곡역–발산역 사이" },
+    { name: "고기꿈", cat: "meat", menu: "구이·회식",
+      note: "단체 회식 자리로 자주 꼽히는 곳. 상차림이 넉넉하다는 평이 많습니다.",
+      where: "마곡 일대" },
+    { name: "마부자생삼겹살", cat: "meat", menu: "생삼겹살",
+      note: "마곡나루 쪽 생삼겹 전문. 점심 맛집 목록에도 자주 올라옵니다.",
+      where: "마곡나루역 인근" },
+    { name: "돼슐랭", cat: "meat", menu: "삼겹살",
+      note: "마곡나루역 삼겹살 목록 상위권에 꾸준히 이름이 보이는 집.",
+      where: "마곡나루역 인근" },
+    { name: "도니랑김치생삼겹", cat: "meat", menu: "김치 생삼겹",
+      note: "묵은지와 생삼겹을 같이 굽는 구성. 김치를 좋아하면 잘 맞습니다.",
+      where: "마곡나루역 인근" },
+    { name: "오마이양대창", cat: "meat", menu: "양대창·순댓국",
+      note: "곱창·대창 구이집이면서 순댓국도 함께 하는 곳.",
+      where: "마곡 일대" },
+
+    // 한식·국물
+    { name: "또순이네", cat: "korean", menu: "된장찌개",
+      note: "된장찌개로 이름난 백반집. 마곡 점심 목록에 빠지지 않고 등장합니다.",
+      where: "마곡 일대" },
+    { name: "봄담아", cat: "korean", menu: "샤브샤브",
+      note: "샤브샤브 전문. 여럿이 천천히 먹기 좋은 점심 자리로 꼽힙니다.",
+      where: "마곡 일대" },
+    { name: "예향정", cat: "korean", menu: "한정식·백반",
+      note: "마곡 점심 맛집 목록에 자주 오르는 한식집.",
+      where: "마곡 일대" },
+    { name: "함평해장", cat: "korean", menu: "해장국",
+      note: "마곡역과 발산역 중간에 있는 해장국집. 아침·해장 수요가 많습니다.",
+      where: "마곡역 3번 출구에서 약 400m" },
+    { name: "칼스토랑", cat: "korean", menu: "칼국수",
+      note: "마곡역 국밥·면 목록 상위에 오르는 칼국수집.",
+      where: "마곡역 인근" },
+    { name: "오복순대국", cat: "korean", menu: "순대국",
+      note: "혼밥으로도 부담 없는 순대국집.",
+      where: "마곡역 인근" },
+
+    // 일식
+    { name: "우미마토", cat: "japanese", menu: "오마카세",
+      note: "마곡역 쪽 오마카세. 기념일이나 접대 자리로 언급이 많습니다. 예약 확인 권장.",
+      where: "마곡역 인근" },
+    { name: "유미카츠", cat: "japanese", menu: "돈까스",
+      note: "마곡 점심 목록에 자주 오르는 돈까스집.",
+      where: "마곡 일대" },
+    { name: "스시풀 마곡역", cat: "japanese", menu: "초밥",
+      note: "마곡역 인근 초밥집. 가게 이름에 역 이름이 붙어 있을 만큼 역세권입니다.",
+      where: "마곡역 인근" },
+
+    // 중식
+    { name: "쓰부", cat: "chinese", menu: "간짜장·짬뽕",
+      note: "주문 즉시 볶아 내는 간짜장과 짬뽕. 요리도 1인분 단위로 시킬 수 있습니다.",
+      where: "마곡 일대" },
+    { name: "서울홍성원", cat: "chinese", menu: "짬뽕",
+      note: "마곡역 짬뽕 목록 상위에 오르는 중식당.",
+      where: "마곡역 인근" },
+    { name: "동천", cat: "chinese", menu: "중식",
+      note: "짬뽕·식사 메뉴로 언급이 많은 동네 중식당.",
+      where: "마곡 일대" },
+    { name: "도화림", cat: "chinese", menu: "짜장면",
+      note: "짜장면 쪽 평이 좋은 집.",
+      where: "마곡 일대" },
+    { name: "신선", cat: "chinese", menu: "해물짬뽕",
+      note: "해물짬뽕으로 소개된 강서구 마곡동 중식당.",
+      where: "강서구 마곡동" },
+
+    // 양식·피자
+    { name: "트라고 마곡", cat: "western", menu: "이탈리안",
+      note: "생면 라자냐와 파스타, 와인 100여 종을 갖춘 이탈리안. 역에서 아주 가깝습니다.",
+      where: "마곡역 3번 출구 도보 1분" },
+    { name: "비바나폴리", cat: "western", menu: "화덕피자",
+      note: "화덕피자 전문. 마곡 양식 목록에서 상위로 꼽힙니다.",
+      where: "마곡 일대" },
+    { name: "비마이플레이스", cat: "western", menu: "이탈리안",
+      note: "마곡 파스타 목록 상위의 이탈리안 레스토랑.",
+      where: "마곡 일대" },
+    { name: "아우어루꼴라", cat: "western", menu: "피자",
+      note: "루꼴라를 올린 피자로 알려진 곳.",
+      where: "마곡 일대" },
+    { name: "올데이파스타", cat: "western", menu: "파스타",
+      note: "마곡동 이탈리아 음식점. 이름대로 종일 파스타를 냅니다.",
+      where: "강서구 마곡동" },
+    { name: "오늘 파스타 마곡점", cat: "western", menu: "파스타",
+      note: "부담 없는 가격대의 파스타 체인 지점.",
+      where: "마곡동" },
+    { name: "타케로스", cat: "western", menu: "타코",
+      note: "마곡역 목록에 오르는 타코 전문점. 가볍게 한 잔 곁들이기 좋습니다.",
+      where: "마곡역 인근" },
+
+    // 카페·베이커리
+    { name: "빵백화점 마곡점", cat: "cafe", menu: "베이커리 · 24시간",
+      note: "24시간 여는 대형 베이커리. 최대 4시간 주차 지원이 됩니다.",
+      where: "마곡중앙1로 14, 마곡M밸리 W타워 4차 1층" },
+    { name: "에그 베이커리", cat: "cafe", menu: "치즈케이크",
+      note: "크럼블 치즈케이크가 여러 종류. 밤·흑임자 맘모스 치즈케이크가 대표 메뉴입니다.",
+      where: "마곡나루역 인근" },
+    { name: "픽트 로스터리", cat: "cafe", menu: "로스터리 카페",
+      note: "직접 로스팅하는 카페. 프렌치토스트 평이 좋습니다.",
+      where: "마곡동" },
+    { name: "라크레마", cat: "cafe", menu: "디저트 카페",
+      note: "마곡역 디저트카페 목록 상위권.",
+      where: "마곡역 인근" },
+    { name: "버터풀리", cat: "cafe", menu: "디저트 카페",
+      note: "구움과자·디저트류로 언급이 많은 카페.",
+      where: "마곡 일대" },
+    { name: "브릭샌드", cat: "cafe", menu: "샌드위치",
+      note: "샌드위치와 커피. 간단한 점심 대용으로 자주 꼽힙니다.",
+      where: "마곡 일대" },
+    { name: "523베이커리카페", cat: "cafe", menu: "베이커리 카페",
+      note: "방화·마곡지구 쪽 베이커리 카페로 소개되는 곳.",
+      where: "방화·마곡지구" },
+
+    // 술집
+    { name: "이자카야 우규 마곡점", cat: "bar", menu: "이자카야",
+      note: "은은한 조명의 일식 주점. 월~토 17:00–01:00, 일 17:00–24:00 영업으로 안내됩니다.",
+      where: "마곡역 3번 출구 도보 7분" },
+    { name: "구주 마곡", cat: "bar", menu: "이자카야",
+      note: "천장이 높고 주황빛 조명의 넓은 주점. 건물 주차장 2시간 무료.",
+      where: "마곡중앙로 55, 퀸즈파크13 1층" },
+    { name: "야키토리잔잔", cat: "bar", menu: "야키토리",
+      note: "꼬치구이에 한 잔. 마곡 이자카야 목록에 함께 오릅니다.",
+      where: "마곡 일대" },
+    { name: "이자카야 춘", cat: "bar", menu: "이자카야",
+      note: "마곡 이자카야 목록에 이름을 올린 주점.",
+      where: "마곡 일대" }
+  ];
+
+  var CATS = [
+    { id: "all",      label: "전체" },
+    { id: "meat",     label: "고기·구이" },
+    { id: "korean",   label: "한식·국물" },
+    { id: "japanese", label: "일식" },
+    { id: "chinese",  label: "중식" },
+    { id: "western",  label: "양식·피자" },
+    { id: "cafe",     label: "카페·베이커리" },
+    { id: "bar",      label: "술집" }
+  ];
+
+  var state = { cat: "all", q: "", sort: "default" };
+
+  var railEl  = document.getElementById("rail");
+  var listEl  = document.getElementById("list");
+  var countEl = document.getElementById("count");
+  var qEl     = document.getElementById("q");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var timer   = null;
+
+  function countOf(id) {
+    if (id === "all") return PLACES.length;
+    var n = 0;
+    for (var i = 0; i < PLACES.length; i++) if (PLACES[i].cat === id) n++;
+    return n;
+  }
+
+  function buildRail() {
+    CATS.forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.dataset.cat = c.id;
+      b.setAttribute("aria-pressed", String(c.id === state.cat));
+      b.innerHTML = '<span>' + c.label + '</span><span class="n">' + countOf(c.id) + '</span>';
+      b.addEventListener("click", function () { selectCat(c.id); });
+      railEl.appendChild(b);
+    });
+  }
+
+  function selectCat(id) {
+    if (state.cat === id) return;
+    state.cat = id;
+    var chips = railEl.querySelectorAll(".chip");
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].setAttribute("aria-pressed", String(chips[i].dataset.cat === id));
+    }
+    try { localStorage.setItem("magok.cat", id); } catch (e) {}
+    reload();
+  }
+
+  function filtered() {
+    var q = state.q.trim().toLowerCase();
+    var out = PLACES.filter(function (p) {
+      if (state.cat !== "all" && p.cat !== state.cat) return false;
+      if (!q) return true;
+      return (p.name + " " + p.menu + " " + p.note + " " + p.where).toLowerCase().indexOf(q) !== -1;
+    });
+    if (state.sort === "name") out = out.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
+    return out;
+  }
+
+  function mapUrl(name) {
+    return "https://map.naver.com/p/search/" + encodeURIComponent("마곡 " + name);
+  }
+  function reviewUrl(name) {
+    return "https://www.diningcode.com/list.dc?query=" + encodeURIComponent("마곡 " + name);
+  }
+
+  function cardEl(p) {
+    var el = document.createElement("article");
+    el.className = "card";
+    el.innerHTML =
+      '<div class="card-top">' +
+        '<h3 class="name"></h3>' +
+        '<span class="menu-tag"></span>' +
+      '</div>' +
+      '<p class="note"></p>' +
+      '<p class="where"><span class="k">위치</span><span class="v"></span></p>' +
+      '<div class="links">' +
+        '<a class="map" target="_blank" rel="noopener noreferrer">지도</a>' +
+        '<a class="rev" target="_blank" rel="noopener noreferrer">후기 찾기</a>' +
+      '</div>';
+    el.querySelector(".name").textContent = p.name;
+    el.querySelector(".menu-tag").textContent = p.menu;
+    el.querySelector(".note").textContent = p.note;
+    el.querySelector(".where .v").textContent = p.where;
+    var m = el.querySelector(".map");
+    m.href = mapUrl(p.name);
+    m.setAttribute("aria-label", p.name + " 네이버 지도에서 보기");
+    var r = el.querySelector(".rev");
+    r.href = reviewUrl(p.name);
+    r.setAttribute("aria-label", p.name + " 후기 검색");
+    return el;
+  }
+
+  function showSkeleton(n) {
+    listEl.innerHTML = "";
+    var k = Math.min(Math.max(n, 2), 6);
+    for (var i = 0; i < k; i++) {
+      var s = document.createElement("div");
+      s.className = "skeleton";
+      s.setAttribute("aria-hidden", "true");
+      s.innerHTML = '<div class="sk-bar w1"></div><div class="sk-bar w2"></div>' +
+                    '<div class="sk-bar w3"></div><div class="sk-bar w4"></div>';
+      listEl.appendChild(s);
+    }
+  }
+
+  function paint() {
+    var rows = filtered();
+    var label = CATS.filter(function (c) { return c.id === state.cat; })[0].label;
+
+    listEl.innerHTML = "";
+    if (!rows.length) {
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.innerHTML = "<strong>찾는 가게가 없습니다</strong>검색어를 지우거나 다른 카테고리를 눌러 보세요.";
+      listEl.appendChild(e);
+    } else {
+      var frag = document.createDocumentFragment();
+      rows.forEach(function (p) { frag.appendChild(cardEl(p)); });
+      listEl.appendChild(frag);
+    }
+    countEl.innerHTML = label + " · <b>" + rows.length + "</b>곳";
+  }
+
+  function reload() {
+    if (timer) clearTimeout(timer);
+    if (reduced) { paint(); return; }
+    countEl.textContent = "목록을 불러오는 중…";
+    showSkeleton(filtered().length);
+    timer = setTimeout(paint, 230);
+  }
+
+  document.getElementById("sort-default").addEventListener("click", function () { setSort("default"); });
+  document.getElementById("sort-name").addEventListener("click", function () { setSort("name"); });
+
+  function setSort(s) {
+    if (state.sort === s) return;
+    state.sort = s;
+    document.getElementById("sort-default").setAttribute("aria-pressed", String(s === "default"));
+    document.getElementById("sort-name").setAttribute("aria-pressed", String(s === "name"));
+    paint();
+  }
+
+  var qTimer = null;
+  qEl.addEventListener("input", function () {
+    state.q = qEl.value;
+    if (qTimer) clearTimeout(qTimer);
+    qTimer = setTimeout(paint, 120);
+  });
+
+  try {
+    var saved = localStorage.getItem("magok.cat");
+    if (saved && CATS.some(function (c) { return c.id === saved; })) state.cat = saved;
+  } catch (e) {}
+
+  buildRail();
+  paint();
+
+  document.getElementById("stamp").textContent =
+    "총 " + PLACES.length + "곳 · 2026년 9월 기준으로 정리했습니다.";
+})();
+</script>

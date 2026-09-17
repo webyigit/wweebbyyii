@@ -50,12 +50,13 @@ SELECTORS = {
     "body_candidates": [
         ".se-component-content .se-text-paragraph",
     ],
-    # 확인됨(2026-09-17, debug_dom_iframe.html): 상단 우측 "발행" 버튼을 여는 버튼.
-    # 해시된 CSS 클래스(publish_btn__v_kS9)는 배포마다 바뀔 수 있어
-    # 안정적인 data-click-area 속성을 사용한다.
+    # 아래는 모두 확인됨(2026-09-17, debug_dom_iframe_1/2.html). 해시된 CSS 클래스
+    # (예: publish_btn__v_kS9) 대신 배포가 바뀌어도 안 변할 가능성이 높은
+    # data-click-area / data-testid / id / aria-label 속성을 우선 사용한다.
     "publish_open_btn": "button[data-click-area='tpb.publish']",
-    # 아래는 아직 미확인 - 발행 레이어를 연 상태에서 --inspect 로 다시 캡처해서 확정해야 함
-    "publish_confirm_btn": "button[data-testid='seOnePublishBtn'], .layer_publish button[class*='confirm'], .layer_publish button[class*='publish']",
+    "publish_confirm_btn": "button[data-testid='seOnePublishBtn']",
+    "category_open_btn": "button[aria-label='카테고리 목록 버튼']",
+    "tag_input": "#tag-input",
     "continue_writing_cancel": "button.se-popup-button-cancel, .se-popup-dim-white button",
 }
 
@@ -226,10 +227,43 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         dump_debug(driver, "발행 버튼 열기")
         raise
 
+    # 카테고리 선택 (frontmatter의 "대분류 > 중분류" 중 마지막 항목으로 클릭)
+    category = meta.get("category", "").strip()
+    if category:
+        leaf = category.split(">")[-1].strip()
+        try:
+            try_click(driver, SELECTORS["category_open_btn"], timeout=5)
+            time.sleep(0.5)
+            item = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, f"//*[normalize-space(text())='{leaf}']")
+                )
+            )
+            item.click()
+            time.sleep(0.3)
+        except Exception:  # noqa: BLE001
+            dump_debug(driver, f"카테고리 선택 ('{leaf}')")
+            print(f"[경고] 카테고리 '{leaf}' 자동 선택 실패 - 직접 선택해주세요.")
+
+    # 태그 입력
+    tags = [t.strip() for t in meta.get("tags", "").split(",") if t.strip()]
+    if tags:
+        try:
+            tag_el = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, SELECTORS["tag_input"]))
+            )
+            for tag in tags:
+                tag_el.send_keys(tag)
+                tag_el.send_keys(Keys.RETURN)
+                time.sleep(0.2)
+        except Exception:  # noqa: BLE001
+            dump_debug(driver, "태그 입력")
+            print("[경고] 태그 자동 입력 실패 - 직접 입력해주세요.")
+
     if dry_run:
         print(
-            "\n[DRY RUN] 제목/본문 입력까지 완료했습니다.\n"
-            "카테고리 선택, 태그 입력, 최종 발행은 직접 확인 후 진행해주세요.\n"
+            "\n[DRY RUN] 제목/본문/카테고리/태그 입력까지 완료했습니다.\n"
+            "화면을 직접 확인한 뒤 최종 발행은 직접 눌러주세요.\n"
             "config.json 의 dry_run 을 false 로 바꾸면 최종 발행까지 자동 진행합니다."
         )
         return False

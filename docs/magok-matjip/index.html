@@ -1205,7 +1205,7 @@
     cursor: grab;
   }
   .rail-scroll.dragging { cursor: grabbing; scroll-behavior: auto; }
-  .rail-scroll.dragging .chip { pointer-events: none; }
+  .rail-scroll.dragging .chip { pointer-events: none; }  /* 끄는 중에만 */
   .rail-scroll::-webkit-scrollbar { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
@@ -2138,42 +2138,66 @@
       if (e.deltaX) return;                       // 이미 가로로 굴리고 있으면 둔다
       var max = scroller.scrollWidth - scroller.clientWidth;
       if (max <= 0) return;
-      var next = scroller.scrollLeft + e.deltaY;
-      if (next < 0 || next > max) return;         // 끝이면 페이지 스크롤에 양보
+
+      // 남은 거리보다 휠 한 번이 크면 그냥 끝까지 밀어야 한다.
+      // 예전에는 next 가 범위를 넘으면 통째로 포기해서, 넘치는 폭이 작은
+      // 넓은 화면에서는 휠이 아예 안 먹었다.
+      var atStart = scroller.scrollLeft <= 0;
+      var atEnd = scroller.scrollLeft >= max - 1;
+      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;  // 끝이면 페이지에 양보
+
       e.preventDefault();
-      scroller.scrollLeft = next;
+      scroller.scrollLeft = Math.max(0, Math.min(max, scroller.scrollLeft + e.deltaY));
     }, { passive: false });
 
     // 마우스로 끌어서 넘기기 (터치는 브라우저 기본 동작에 맡긴다)
+    //
+    // 주의: 누르자마자 dragging 을 켜면 안 된다. .dragging .chip 이 pointer-events 를
+    // 꺼 버려서 클릭 대상이 칩이 아니라 스크롤 영역이 되고, 분류 선택이 통째로 죽는다.
+    // 실제로 손가락이 움직인 뒤에만 켠다.
+    var pressing = false, dragging = false, suppressClick = false;
+    var startX = 0, startLeft = 0;
+    var THRESHOLD = 5;
+
     scroller.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "touch" || e.button !== 0) return;
-      dragging = true;
-      moved = 0;
+      pressing = true;
+      dragging = false;
+      suppressClick = false;
       startX = e.clientX;
       startLeft = scroller.scrollLeft;
-      scroller.classList.add("dragging");
     });
 
     scroller.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
+      if (!pressing) return;
       var dx = e.clientX - startX;
-      if (Math.abs(dx) > 3) moved = Math.abs(dx);
+      if (!dragging) {
+        if (Math.abs(dx) < THRESHOLD) return;   // 아직 그냥 누른 것
+        dragging = true;
+        scroller.classList.add("dragging");
+      }
       scroller.scrollLeft = startLeft - dx;
       e.preventDefault();
     });
 
     function endDrag() {
-      if (!dragging) return;
-      dragging = false;
-      scroller.classList.remove("dragging");
-      // 끌고 나서 손을 뗀 자리의 칩이 눌리지 않도록 잠깐 막는다
-      if (moved > 3) setTimeout(function () { moved = 0; }, 0);
+      if (!pressing) return;
+      pressing = false;
+      if (dragging) {
+        dragging = false;
+        scroller.classList.remove("dragging");
+        suppressClick = true;      // 뒤따라오는 클릭 한 번만 삼킨다
+      }
     }
     scroller.addEventListener("pointerup", endDrag);
     scroller.addEventListener("pointercancel", endDrag);
     scroller.addEventListener("pointerleave", endDrag);
+
     scroller.addEventListener("click", function (e) {
-      if (moved > 3) { e.stopPropagation(); e.preventDefault(); }
+      if (!suppressClick) return;
+      suppressClick = false;
+      e.stopPropagation();
+      e.preventDefault();
     }, true);
 
     scroller.addEventListener("scroll", sync, { passive: true });

@@ -13,3 +13,7 @@ debug_dom*.html
 
 # 임시 실행 로그
 *.log
+
+# 검증 스크립트용 (playwright)
+node_modules
+package-lock.json

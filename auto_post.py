@@ -8,6 +8,10 @@
   `python auto_post.py --inspect` 로 DOM을 덤프해서 같이 고쳐야 합니다.
 - config.json 의 dry_run 이 true 인 동안은 마지막 '발행' 확정 클릭을 하지 않고
   멈춥니다. 화면을 직접 확인한 뒤 수동으로 발행 버튼을 눌러주세요.
+- 작업 스케줄러처럼 stdin 이 없는 무인 실행에서는 `--unattended` 가 필요합니다.
+  터미널이 없으면 input() 이 EOFError 로 죽기 때문입니다. 이 옵션은 사람이
+  확인하는 마지막 단계를 생략하므로, dry_run=false 와 같이 쓰면 검토 없이
+  바로 공개 발행됩니다.
 """
 
 import argparse
@@ -201,7 +205,7 @@ def dump_debug(driver, label: str):
     print("        이 파일 내용을 채팅에 붙여주시면 선택자를 같이 고칠 수 있어요.")
 
 
-def write_post(driver, meta: dict, config: dict, dry_run: bool):
+def write_post(driver, meta: dict, config: dict, dry_run: bool, unattended: bool = False):
     blog_id = config["blog_id"]
     driver.get(f"https://blog.naver.com/{blog_id}?Redirect=Write&")
     time.sleep(3)
@@ -323,11 +327,15 @@ def write_post(driver, meta: dict, config: dict, dry_run: bool):
         return False
 
     # 실제 공개 발행은 되돌리기 어려운 동작이므로, dry_run=false 여도 한 번 더
-    # 사람이 직접 확인하게 한다.
-    answer = input(f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행할까요? (예/아니오): ")
-    if answer.strip() not in ("예", "y", "Y", "yes", "Yes"):
-        print("[취소] 발행을 취소했습니다.")
-        return False
+    # 사람이 직접 확인하게 한다. 무인 실행에는 물어볼 사람이 없으므로
+    # (터미널이 없으면 input() 이 EOFError) 이때만 이 단계를 생략한다.
+    if unattended:
+        print(f"\n[무인 실행] 확인 절차를 생략하고 '{meta['title']}' 글을 발행합니다.")
+    else:
+        answer = input(f"\n[최종 확인] '{meta['title']}' 글을 지금 실제로 공개 발행할까요? (예/아니오): ")
+        if answer.strip() not in ("예", "y", "Y", "yes", "Yes"):
+            print("[취소] 발행을 취소했습니다.")
+            return False
 
     try:
         confirm_btn = WebDriverWait(driver, 15).until(
@@ -370,6 +378,12 @@ def main():
     parser = argparse.ArgumentParser(description="네이버 블로그 자동발행 (로컬 전용)")
     parser.add_argument("--file", type=str, help="특정 draft 파일 경로 지정 (기본: posts/ 에서 status:draft인 첫 파일)")
     parser.add_argument("--inspect", action="store_true", help="글쓰기 화면을 열고 DOM만 덤프한 뒤 종료")
+    parser.add_argument(
+        "--unattended",
+        action="store_true",
+        help="작업 스케줄러처럼 터미널이 없는 환경용. 최종 확인(예/아니오)과 "
+        "종료 시 Enter 대기를 생략합니다. dry_run=false 와 함께 쓰면 검토 없이 발행됩니다.",
+    )
     args = parser.parse_args()
 
     config = load_config()
@@ -410,11 +424,17 @@ def main():
             return
 
         meta = parse_draft(draft_path)
-        published = write_post(driver, meta, config, dry_run=config.get("dry_run", True))
+        published = write_post(
+            driver,
+            meta,
+            config,
+            dry_run=config.get("dry_run", True),
+            unattended=args.unattended,
+        )
         if published:
             mark_published(draft_path)
     finally:
-        if config.get("dry_run", True) or args.inspect:
+        if (config.get("dry_run", True) or args.inspect) and not args.unattended:
             input("\n브라우저를 닫으려면 Enter 를 누르세요 (직접 확인 후 닫아도 됩니다)...")
         driver.quit()
 

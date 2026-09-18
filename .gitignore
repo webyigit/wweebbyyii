@@ -13,3 +13,6 @@ debug_dom*.html
 
 # 임시 실행 로그
 *.log
+
+# 예약 실행 로그
+logs/

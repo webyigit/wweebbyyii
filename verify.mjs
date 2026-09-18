@@ -288,7 +288,66 @@ const CHECKS = [
     ok(drawn === n, `행 ${n}개 중 아이콘 ${drawn}개`);
   }],
 
-  ["17 표 구조가 머리글과 맞는다", async (p, ctx) => {
+  ["17 목록에서 누르면 상세가 열리고 목록으로 돌아온다", async (p) => {
+    await p.click('.st-btn[data-st="all"]'); await p.waitForTimeout(PAUSE);
+    await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
+    const before = (await cards(p)).length;
+    const first = await p.$eval(".places tbody tr .name", e => e.textContent.trim());
+
+    await p.click(".places tbody tr .name-btn");
+    await p.waitForTimeout(400);
+    ok(await p.$eval("#detail", e => !e.hidden), "상세가 안 열림");
+    ok(await text(p, ".d-name") === first, `상세 이름이 다름: ${await text(p, ".d-name")} ≠ ${first}`);
+    ok(await p.$eval(".table-wrap", e => getComputedStyle(e).display) === "none", "목록이 안 숨겨짐");
+    ok(decodeURIComponent(await p.evaluate(() => location.hash)) === "#place/" + first,
+       "주소에 해시가 안 남음");
+
+    // 지도·예약 링크는 상세를 열지 않아야 한다
+    await p.click("#back"); await p.waitForTimeout(400);
+    ok(await p.$eval("#detail", e => e.hidden), "목록으로 안 돌아옴");
+    ok((await cards(p)).length === before, "돌아왔더니 목록이 달라짐");
+    ok(await p.evaluate(() => location.hash) === "", "해시가 안 지워짐");
+  }],
+
+  ["18 상세에 별점·메뉴·정보가 다 들어간다", async (p) => {
+    await p.click(".places tbody tr .name-btn");
+    await p.waitForTimeout(400);
+    const d = await p.evaluate(() => ({
+      score: document.querySelector(".d-score .big")?.textContent || "",
+      secs: [...document.querySelectorAll(".d-sec h3")].map(h => h.textContent.split(" ·")[0]),
+      menus: document.querySelectorAll(".d-menu .menu-row").length,
+      links: [...document.querySelectorAll(".d-actions a")].map(a => a.href),
+      walk: document.querySelectorAll(".d-walk span").length,
+      map: !!document.querySelector(".minimap"),
+    }));
+    ok(/^[0-5]\.[0-9]$/.test(d.score), `별점 표시가 이상함: ${d.score}`);
+    ["정보", "인기 메뉴", "소개", "주변 역"].forEach(t =>
+      ok(d.secs.includes(t), `상세에 '${t}' 항목이 없음 (${d.secs.join(",")})`));
+    ok(d.menus >= 1 && d.menus <= 8, `메뉴 줄 ${d.menus}개`);
+    ok(d.links.length >= 2, "상세 버튼이 2개 미만");
+    ok(d.links[0].includes("map.naver.com") && d.links[1].includes("catchtable.co.kr"),
+       "상세 링크 주소가 틀림");
+    ok(d.walk === 3, `역 거리 칩이 3개가 아니라 ${d.walk}개`);
+    ok(d.map, "주변 역 그림이 없음");
+    await p.click("#back"); await p.waitForTimeout(400);
+  }],
+
+  ["19 ESC 와 주소창으로도 상세를 여닫는다", async (p) => {
+    await p.click(".places tbody tr .name-btn");
+    await p.waitForTimeout(400);
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(400);
+    ok(await p.$eval("#detail", e => e.hidden), "ESC 로 안 닫힘");
+
+    const name = await p.$eval(".places tbody tr .name", e => e.textContent.trim());
+    await p.evaluate(n => { location.hash = "place/" + encodeURIComponent(n); }, name);
+    await p.waitForTimeout(500);
+    ok(await p.$eval("#detail", e => !e.hidden), "해시로 안 열림");
+    ok(await text(p, ".d-name") === name, "해시로 연 가게가 다름");
+    await p.click("#back"); await p.waitForTimeout(400);
+  }],
+
+  ["20 표 구조가 머리글과 맞는다", async (p, ctx) => {
     const heads = await p.$$eval(".places thead th", e => e.length);
     ok(heads === 6, `머리글이 6칸이 아니라 ${heads}칸`);
     const wrong = await p.$$eval(".places tbody tr:not(.hint):not(.empty):not(.skeleton)",
@@ -296,13 +355,13 @@ const CHECKS = [
     ok(wrong === 0, `칸 수가 6이 아닌 행 ${wrong}개`);
   }],
 
-  ["18 가로 스크롤이 생기지 않는다", async (p) => {
+  ["21 가로 스크롤이 생기지 않는다", async (p) => {
     const over = await p.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     ok(over <= 1, `페이지가 가로로 ${over}px 넘침`);
   }],
 
-  ["19 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["22 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };

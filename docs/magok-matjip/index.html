@@ -1239,70 +1239,28 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 17px 17px 15px;
+    padding: 16px 17px 15px;
     box-shadow: var(--shadow);
   }
 
-  /* 사진 · 순위 · 별점 · 메뉴 */
+  /* 순위 · 별점 · 메뉴 */
 
-  .shot {
-    position: relative;
-    margin: -17px -17px 2px;
-    aspect-ratio: 16 / 10;
-    max-width: calc(100% + 34px);
-    border-radius: 10px 10px 0 0;
-    overflow: hidden;
-    background: var(--surface-2);
-  }
-  .shot img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .shot .ph {
-    position: absolute;
-    inset: 0;
+  .badges {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    text-align: center;
-    padding: 12px;
-    background:
-      linear-gradient(145deg,
-        color-mix(in srgb, var(--tint) 22%, var(--surface)),
-        color-mix(in srgb, var(--tint) 7%, var(--surface)));
-  }
-  .shot .ph-menu {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -.02em;
-    color: color-mix(in srgb, var(--tint) 72%, var(--ink));
-  }
-  .shot .ph-note {
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: .09em;
-    color: var(--muted);
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .rank {
-    position: absolute;
-    top: 9px;
-    left: 9px;
     display: inline-flex;
     align-items: baseline;
-    gap: 0;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: -.01em;
     color: var(--on-accent);
     background: var(--line5);
     border-radius: 5px;
-    padding: 4px 8px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    padding: 3px 8px;
   }
   .rank .r {
     font-size: 13px;
@@ -1336,10 +1294,17 @@
   .menus {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 9px 11px;
+    gap: 4px;
+    padding: 10px 12px;
     background: var(--surface-2);
     border-radius: 7px;
+  }
+  .menus-title {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    color: var(--muted);
+    margin-bottom: 2px;
   }
   .menu-row {
     display: flex;
@@ -1656,9 +1621,7 @@
       </p>
       <p>
         <strong>메뉴와 가격</strong>은 각 가게가 네이버에 올려 둔 대표 메뉴를 옮긴 것이라
-        실제 계산 금액과 다를 수 있습니다. <strong>사진</strong>도 네이버 플레이스에 올라온 것을
-        가져왔습니다. 개인적으로 보려고 만든 페이지라 그대로 썼고, 사진의 권리는 찍은 사람에게
-        있습니다.
+        실제 계산 금액과 다를 수 있습니다. 가게마다 많이 찾는 메뉴 다섯 개까지 보여 줍니다.
       </p>
       <p>
         영업시간·휴무·메뉴·가격은 자주 바뀌고 폐업하는 곳도 있습니다.
@@ -1852,11 +1815,6 @@
     });
   })();
 
-  var TINT = {
-    meat: "#B4553F", korean: "#8A6A2F", snack: "#C2506E", hoe: "#2F7E93",
-    japanese: "#5D6BA8", chinese: "#B0442F", asian: "#3F8C63",
-    western: "#9A5A2C", cafe: "#8A5FA8", bar: "#4A5A86"
-  };
 
   var railEl  = document.getElementById("rail");
   var listEl  = document.getElementById("list");
@@ -2014,52 +1972,6 @@
     return n.toLocaleString("ko-KR") + "원";
   }
 
-  function shotEl(p) {
-    var box = document.createElement("div");
-    box.className = "shot";
-    box.style.setProperty("--tint", TINT[p.cat] || "#7C4E9F");
-
-    if (p.photo) {
-      var img = document.createElement("img");
-      img.src = p.photo;
-      img.alt = p.name + " 가게 사진";
-      img.loading = "lazy";
-      img.decoding = "async";
-      // 파일이 없으면 대체 타일로 되돌린다.
-      img.addEventListener("error", function () {
-        img.remove();
-        box.insertBefore(placeholder(p), box.firstChild);
-      });
-      box.appendChild(img);
-    } else {
-      box.appendChild(placeholder(p));
-    }
-
-    var rank = RANK[p.name];
-    if (rank) {
-      var badge = document.createElement("span");
-      badge.className = "rank";
-      badge.innerHTML = '별점 <span class="r">' + rank + '</span>위';
-      badge.title = catLabel(p.cat) + " 별점 " + rank + "위";
-      box.appendChild(badge);
-    }
-    return box;
-  }
-
-  function placeholder(p) {
-    var ph = document.createElement("div");
-    ph.className = "ph";
-    var a = document.createElement("span");
-    a.className = "ph-menu";
-    a.textContent = p.menu;
-    var b = document.createElement("span");
-    b.className = "ph-note";
-    b.textContent = "사진 준비 중";
-    ph.appendChild(a);
-    ph.appendChild(b);
-    return ph;
-  }
-
   function catLabel(id) {
     var hit = CATS.filter(function (c) { return c.id === id; })[0];
     return hit ? hit.label : id;
@@ -2098,7 +2010,11 @@
     if (!p.menus || !p.menus.length) return null;
     var box = document.createElement("div");
     box.className = "menus";
-    p.menus.slice(0, 4).forEach(function (m) {
+    var title = document.createElement("div");
+    title.className = "menus-title";
+    title.textContent = "인기 메뉴";
+    box.appendChild(title);
+    p.menus.slice(0, 5).forEach(function (m) {
       var row = document.createElement("div");
       row.className = "menu-row";
       var mn = document.createElement("span");
@@ -2121,8 +2037,6 @@
     var el = document.createElement("article");
     el.className = "card";
 
-    el.appendChild(shotEl(p));
-
     var top = document.createElement("div");
     top.className = "card-top";
     var h = document.createElement("h3");
@@ -2135,11 +2049,24 @@
     top.appendChild(tag);
     el.appendChild(top);
 
-    if (p.resv) {
-      var badge = document.createElement("span");
-      badge.className = "resv";
-      badge.textContent = "캐치테이블 예약";
-      el.appendChild(badge);
+    var rank = RANK[p.name];
+    if (rank || p.resv) {
+      var badges = document.createElement("div");
+      badges.className = "badges";
+      if (rank) {
+        var rb = document.createElement("span");
+        rb.className = "rank";
+        rb.innerHTML = '별점 <span class="r">' + rank + '</span>위';
+        rb.title = catLabel(p.cat) + " 별점 " + rank + "위";
+        badges.appendChild(rb);
+      }
+      if (p.resv) {
+        var cb = document.createElement("span");
+        cb.className = "resv";
+        cb.textContent = "캐치테이블 예약";
+        badges.appendChild(cb);
+      }
+      el.appendChild(badges);
     }
 
     var stars = starsEl(p);
@@ -2224,7 +2151,7 @@
         var hint = document.createElement("div");
         hint.className = "hint";
         hint.innerHTML =
-          "<span aria-hidden=\"true\">☆</span><span>이 분류는 <b>별점·가격·사진이 아직 비어 있습니다.</b> " +
+          "<span aria-hidden=\"true\">☆</span><span>이 분류는 <b>별점과 인기 메뉴가 아직 비어 있습니다.</b> " +
           "<b>crawl_naver_place.py</b> 를 돌리면 네이버 플레이스에서 받아와 채워집니다. " +
           "채우고 나면 분류마다 별점 상위 5곳에 순위 딱지가 붙습니다.</span>";
         listEl.appendChild(hint);
@@ -2295,7 +2222,7 @@
   var nRated = PLACES.filter(function (p) { return typeof p.rating === "number"; }).length;
   var nMenu = PLACES.filter(function (p) { return p.menus && p.menus.length; }).length;
   document.getElementById("stamp").textContent =
-    "총 " + PLACES.length + "곳 · 별점 " + nRated + "곳 · 메뉴 가격 " + nMenu +
+    "총 " + PLACES.length + "곳 · 별점 " + nRated + "곳 · 인기 메뉴 " + nMenu +
     "곳 · 캐치테이블 예약 확인 " + nResv + "곳 · 2026년 9월 기준.";
 })();
 </script>

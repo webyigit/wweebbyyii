@@ -134,7 +134,8 @@ def main() -> None:
     ap.add_argument("--no-crawl", action="store_true", help="크롤링 건너뛰기")
     ap.add_argument("--only-crawl", action="store_true", help="크롤링만 하기")
     ap.add_argument("--no-push", action="store_true", help="깃에 올리지 않기")
-    ap.add_argument("--no-photos", action="store_true", help="사진은 받지 않기")
+    ap.add_argument("--photos", action="store_true",
+                    help="사진도 받기 (페이지에는 안 나옵니다)")
     args = ap.parse_args()
 
     print(f"작업 폴더: {ROOT}")
@@ -156,13 +157,13 @@ def main() -> None:
             print("  키를 넣는 방법은 README 의 '데이터 채우기' 항목을 보세요.")
 
     if not args.no_crawl:
-        hr("3. 네이버 플레이스에서 별점·메뉴·사진·좌표 받기")
+        hr("3. 네이버 플레이스에서 별점·인기메뉴·좌표 받기")
         if not ensure_deps():
             raise SystemExit(1)
         print("크롬 창이 뜹니다. 끝날 때까지 닫지 마세요. 가게가 많으면 시간이 꽤 걸립니다.")
         cmd = [PY, "crawl_naver_place.py"]
-        if args.no_photos:
-            cmd.append("--no-photos")
+        if args.photos:
+            cmd.append("--photos")
         run(cmd, allow_fail=True)
 
     if use_git:

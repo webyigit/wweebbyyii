@@ -2,8 +2,8 @@
 
 사장님 PC에서 돌리는 스크립트입니다 (로컬 크롬 + Selenium).
 
-    python crawl_naver_place.py                  # 별점 · 리뷰수 · 메뉴/가격 · 사진 · 좌표
-    python crawl_naver_place.py --no-photos      # 사진은 빼고
+    python crawl_naver_place.py                  # 별점 · 리뷰수 · 인기메뉴/가격 · 좌표
+    python crawl_naver_place.py --photos         # 사진까지 (페이지에는 안 나옴)
     python crawl_naver_place.py --only 특삼겹 금고깃집  # 특정 가게만
     python crawl_naver_place.py --limit 5        # 앞 5곳만 (시험 삼아)
     python crawl_naver_place.py --dry-run        # 파일은 그대로, 결과만 출력
@@ -22,9 +22,9 @@
 
   - 네이버 화면을 읽는 방식이라 약관상 회색지대입니다. auto_post.py 와 같은 수준으로
     보시면 됩니다. 한 가게당 몇 초씩 쉬면서 천천히 돕니다. 하루에 몇 번씩 돌리지 마세요.
-  - 사진은 네이버 플레이스에 올라온 것을 가져옵니다. 개인적으로 보는 용도로만 쓰세요.
-    남이 올린 사진이라 외부에 공개하거나 다시 배포하면 저작권 문제가 생길 수 있습니다.
-    photos/ 에 같은 이름 파일이 이미 있으면 덮어쓰지 않습니다.
+  - 사진은 --photos 를 붙일 때만 받습니다. 페이지에서 사진 영역을 뺐기 때문에
+    기본으로는 받지 않습니다. 받더라도 남이 올린 사진이라 외부에 공개하거나 다시
+    배포하면 저작권 문제가 생길 수 있습니다.
 """
 
 from __future__ import annotations
@@ -114,8 +114,12 @@ def pick_rating(state) -> tuple[float | None, int | None]:
     return best
 
 
-def pick_menus(state, limit: int = 6) -> list[dict]:
-    """메뉴 이름 + 가격. 대표 메뉴가 표시돼 있으면 그쪽을 앞으로 올린다."""
+def pick_menus(state, limit: int = 8) -> list[dict]:
+    """메뉴 이름 + 가격. 대표 메뉴가 표시돼 있으면 그쪽을 앞으로 올린다.
+
+    페이지는 다섯 개까지 보여 주지만, 가격이 없는 메뉴가 섞여 걸러질 수 있어
+    넉넉히 받아 둔다.
+    """
     found, seen = [], set()
     for node in walk(state):
         name = node.get("name") or node.get("menuName")
@@ -331,17 +335,18 @@ def save_photo(urls: list[str], name: str) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="네이버 플레이스 별점·메뉴·사진 수집")
-    ap.add_argument("--no-photos", action="store_true", help="사진은 받지 않기")
+    ap.add_argument("--photos", action="store_true",
+                    help="사진도 받기 (페이지에는 안 나옵니다)")
     ap.add_argument("--only", nargs="*", metavar="이름", help="이 이름이 들어간 가게만")
     ap.add_argument("--limit", type=int, help="앞에서 N곳만")
     ap.add_argument("--force", action="store_true", help="이미 값이 있어도 다시 받기")
     ap.add_argument("--dry-run", action="store_true", help="파일은 그대로, 결과만 출력")
     args = ap.parse_args()
 
-    want_photo = not args.no_photos
+    want_photo = args.photos
     if want_photo:
         print("* 사진은 네이버 플레이스에 올라온 것을 가져옵니다. 개인적으로 보는 용도로 쓰세요.")
-        print("  photos/ 에 같은 이름 파일이 있으면 덮어쓰지 않습니다.\n")
+        print("  지금 페이지는 사진을 보여주지 않습니다. photos/ 에 파일만 쌓입니다.\n")
 
     places = fp.read_existing()
     todo = places

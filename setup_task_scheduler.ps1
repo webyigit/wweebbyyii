@@ -4,16 +4,28 @@
     이 프로젝트는 본인 PC의 로그인된 Chrome을 직접 조작하므로, 발행 예약은
     반드시 이 PC의 작업 스케줄러가 맡아야 한다 (클라우드에서는 불가능).
 
+    기본값은 08:00 부터 1시간 30분 간격으로 6번 = 08:00, 09:30, 11:00,
+    12:30, 14:00, 15:30 에 각각 초안 1개씩 발행한다.
+
     사용법 (관리자 권한 필요 없음 - 현재 사용자 작업으로 등록됩니다):
         powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1
-        powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1 -Time 21:30
+
+        # 하루 3개, 2시간 간격, 오전 10시 시작으로 줄이기
+        powershell -ExecutionPolicy Bypass -File .\setup_task_scheduler.ps1 `
+            -Time 10:00 -IntervalMinutes 120 -Count 3
 
     등록 후 확인 / 시험 / 삭제는 스크립트가 마지막에 안내해준다.
 #>
 param(
-    # 매일 실행할 시각 (24시간제, 로컬 시간).
-    # 기본값은 Claude 루틴이 오전 8시에 초안을 커밋한 뒤로 잡아둔 것.
-    [string]$Time = "08:40",
+    # 첫 번째 발행 시각 (24시간제, 로컬 시간).
+    # Claude 루틴이 06:30 에 초안을 만들어 올린 뒤로 잡아둔 것.
+    [string]$Time = "08:00",
+
+    # 발행 간격 (분).
+    [int]$IntervalMinutes = 90,
+
+    # 하루 발행 횟수 (첫 회 포함).
+    [int]$Count = 6,
 
     [string]$TaskName = "NaverBlogAutoPost"
 )
@@ -53,8 +65,38 @@ if (-not (Test-Path $chromeProfile)) {
     Write-Warning "  먼저 'python auto_post.py --inspect' 로 네이버에 한 번 로그인해두세요."
 }
 
-$action  = New-ScheduledTaskAction -Execute $runner -WorkingDirectory $root
+if ($Count -lt 1) { throw "-Count 는 1 이상이어야 합니다." }
+if ($IntervalMinutes -lt 1) { throw "-IntervalMinutes 는 1 이상이어야 합니다." }
+
+# 발행 횟수만큼 초안이 있어야 한다. 초안은 클라우드 루틴이 routine.json 의
+# posts_per_day 만큼 만들어주므로, 두 값이 어긋나면 미리 알려준다.
+$routinePath = Join-Path $root "routine.json"
+if (Test-Path $routinePath) {
+    $routine = Get-Content $routinePath -Raw | ConvertFrom-Json
+    if ($routine.posts_per_day -ne $Count) {
+        Write-Warning "routine.json 의 posts_per_day($($routine.posts_per_day)) 와 -Count($Count) 가 다릅니다."
+        Write-Warning "  초안보다 발행 횟수가 많으면 남는 실행은 '대상 없음' 으로 그냥 종료됩니다."
+    }
+    if ($routine.categories.Count -lt $Count) {
+        Write-Warning "routine.json 의 categories 가 $($routine.categories.Count)개뿐입니다 (필요: $Count개)."
+        Write-Warning "  카테고리를 하루 안에서 중복 없이 쓰기 때문에, 초안도 그만큼만 만들어집니다."
+    }
+}
+
+$action = New-ScheduledTaskAction -Execute $runner -WorkingDirectory $root
+
+# 매일 $Time 에 시작해서 $IntervalMinutes 간격으로 총 $Count 번 실행한다.
+# New-ScheduledTaskTrigger 는 -Daily 와 -RepetitionInterval 을 같이 받지 않으므로,
+# -Once 트리거에서 Repetition 객체만 떼어내 -Daily 트리거에 붙인다 (표준 우회법).
 $trigger = New-ScheduledTaskTrigger -Daily -At $Time
+if ($Count -gt 1) {
+    $span = New-TimeSpan -Minutes $IntervalMinutes
+    $totalSpan = New-TimeSpan -Minutes ($IntervalMinutes * ($Count - 1))
+    $trigger.Repetition = (
+        New-ScheduledTaskTrigger -Once -At $Time `
+            -RepetitionInterval $span -RepetitionDuration $totalSpan
+    ).Repetition
+}
 
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
@@ -76,14 +118,19 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Settings $settings `
     -Principal $principal `
-    -Description "네이버 블로그 초안을 매일 정해진 시각에 자동 발행 (run_auto_post.bat)" `
+    -Description "네이버 블로그 초안을 매일 $Time 부터 $IntervalMinutes 분 간격으로 $Count 번 자동 발행 (run_auto_post.bat)" `
     -Force | Out-Null
 
 $logPath = Join-Path $root "logs\auto_post.log"
 
+# 실제 발행 시각을 계산해서 보여준다 (예약이 의도대로 잡혔는지 눈으로 확인용).
+$start = Get-Date $Time
+$slots = 0..($Count - 1) | ForEach-Object { $start.AddMinutes($IntervalMinutes * $_).ToString("HH:mm") }
+
 Write-Host ""
-Write-Host "[완료] '$TaskName' 작업을 매일 $Time 에 실행하도록 등록했습니다." -ForegroundColor Green
+Write-Host "[완료] '$TaskName' 작업을 등록했습니다." -ForegroundColor Green
 Write-Host ""
+Write-Host "  발행 시각 : $($slots -join ', ')  (매일 $Count 회, $IntervalMinutes 분 간격)"
 Write-Host "  실행 대상 : $runner"
 Write-Host "  로그 파일 : $logPath"
 Write-Host ""

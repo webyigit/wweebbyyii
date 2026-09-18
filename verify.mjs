@@ -66,14 +66,14 @@ function buildFixture() {
 const ok = (cond, msg) => { if (!cond) throw new Error(msg); };
 const text = (page, sel) => page.$eval(sel, el => el.textContent.trim());
 const pressed = (page, sel) => page.$eval(sel, el => el.getAttribute("aria-pressed"));
-const cards = page => page.$$eval(".card .name", els => els.map(e => e.textContent));
+const cards = page => page.$$eval(".places tbody tr .name", els => els.map(e => e.textContent));
 
 // ---------------------------------------------------------------- 검증 항목
 const CHECKS = [
   ["01 페이지가 오류 없이 뜬다", async (p, ctx) => {
     ok(ctx.errors.length === 0, "JS 오류: " + ctx.errors.join(" / "));
-    const n = await p.$$eval(".card", e => e.length);
-    ok(n > 0, "카드가 하나도 없음");
+    const n = await p.$$eval(".places tbody tr", e => e.length);
+    ok(n > 0, "행이 하나도 없음");
   }],
 
   ["02 분류 11개가 모두 선택된다", async (p) => {
@@ -88,7 +88,7 @@ const CHECKS = [
       ok(on === 1, `${id}: 동시에 ${on}개가 선택됨`);
       const n = Number((await text(p, "#count")).match(/(\d+)곳/)[1]);
       const shown = (await cards(p)).length;
-      ok(n === shown, `${id}: 머리글은 ${n}곳인데 카드는 ${shown}개`);
+      ok(n === shown, `${id}: 머리글은 ${n}곳인데 행은 ${shown}개`);
     }
   }],
 
@@ -130,7 +130,7 @@ const CHECKS = [
 
   ["06 별점순이 실제 점수 내림차순이다", async (p) => {
     await p.click("#sort-rating"); await p.waitForTimeout(PAUSE);
-    const scores = await p.$$eval(".card .sc", els => els.map(e => Number(e.textContent)));
+    const scores = await p.$$eval(".places tbody tr .sc", els => els.map(e => Number(e.textContent)));
     for (let i = 1; i < scores.length; i++) {
       ok(scores[i - 1] >= scores[i], `별점 역전: ${scores[i - 1]} 다음에 ${scores[i]}`);
     }
@@ -140,7 +140,7 @@ const CHECKS = [
     for (const cat of ["meat", "bar", "cafe"]) {
       await p.click('.st-btn[data-st="all"]'); await p.waitForTimeout(PAUSE);
       await p.click(`.chip[data-cat="${cat}"]`); await p.waitForTimeout(PAUSE);
-      const ranks = await p.$$eval(".card .rank .r", els => els.map(e => Number(e.textContent)));
+      const ranks = await p.$$eval(".places tbody tr .c-num .top", els => els.map(e => Number(e.textContent)));
       ok(ranks.length <= 5, `${cat}: 순위 딱지가 ${ranks.length}개`);
       ok(new Set(ranks).size === ranks.length, `${cat}: 순위가 중복됨 ${ranks}`);
     }
@@ -169,8 +169,8 @@ const CHECKS = [
     await p.click("#only-resv"); await p.waitForTimeout(PAUSE);
     const after = (await cards(p)).length;
     ok(after > 0 && after < before, `예약 필터 결과 ${after} / ${before}`);
-    const badges = await p.$$eval(".card .resv", e => e.length);
-    ok(badges === after, `예약 딱지 ${badges}개인데 카드는 ${after}개`);
+    const badges = await p.$$eval(".places tbody tr .resv", e => e.length);
+    ok(badges === after, `예약 딱지 ${badges}개인데 행은 ${after}개`);
     await p.click("#only-resv"); await p.waitForTimeout(PAUSE);
     ok((await cards(p)).length === before, "토글을 풀어도 안 돌아옴");
   }],
@@ -263,7 +263,7 @@ const CHECKS = [
   ["15 카드 내용과 링크가 온전하다", async (p) => {
     await p.click('.st-btn[data-st="all"]'); await p.waitForTimeout(PAUSE);
     await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
-    const bad = await p.$$eval(".card", els => els.map(c => {
+    const bad = await p.$$eval(".places tbody tr", els => els.map(c => {
       const name = c.querySelector(".name")?.textContent?.trim();
       const links = [...c.querySelectorAll("a.btn")].map(a => a.href);
       const menus = c.querySelectorAll(".menu-row").length;
@@ -283,23 +283,31 @@ const CHECKS = [
       return ids.filter(id => !document.getElementById("ic-" + id));
     });
     ok(missing.length === 0, "빠진 아이콘: " + missing.join(","));
-    const drawn = await p.$$eval(".card .name-wrap .ic", e => e.length);
-    const n = await p.$$eval(".card", e => e.length);
-    ok(drawn === n, `카드 ${n}개 중 아이콘 ${drawn}개`);
+    const drawn = await p.$$eval(".places tbody tr .name-wrap .ic", e => e.length);
+    const n = await p.$$eval(".places tbody tr", e => e.length);
+    ok(drawn === n, `행 ${n}개 중 아이콘 ${drawn}개`);
   }],
 
-  ["17 가로 스크롤이 생기지 않는다", async (p) => {
+  ["17 표 구조가 머리글과 맞는다", async (p, ctx) => {
+    const heads = await p.$$eval(".places thead th", e => e.length);
+    ok(heads === 6, `머리글이 6칸이 아니라 ${heads}칸`);
+    const wrong = await p.$$eval(".places tbody tr:not(.hint):not(.empty):not(.skeleton)",
+      rows => rows.map(r => r.children.length).filter(n => n !== 6).length);
+    ok(wrong === 0, `칸 수가 6이 아닌 행 ${wrong}개`);
+  }],
+
+  ["18 가로 스크롤이 생기지 않는다", async (p) => {
     const over = await p.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     ok(over <= 1, `페이지가 가로로 ${over}px 넘침`);
   }],
 
-  ["18 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["19 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };
       return { bg: lum(getComputedStyle(document.body).backgroundColor),
-               fg: lum(getComputedStyle(document.querySelector(".name")).color) };
+               fg: lum(getComputedStyle(document.querySelector(".places tbody .name")).color) };
     });
     ok(c.bg < 90, `다크인데 배경이 밝음 (${Math.round(c.bg)})`);
     ok(c.fg > 140, `다크인데 글자가 어두움 (${Math.round(c.fg)})`);

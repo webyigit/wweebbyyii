@@ -1358,134 +1358,206 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.08);
   }
 
-  /* ---------- 목록 ---------- */
+  /* ---------- 목록 (표) ---------- */
 
-  .list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
-    gap: 12px;
-    padding-bottom: 8px;
+  .table-wrap { overflow-x: auto; }
+
+  .places {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
   }
 
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 16px 17px 15px;
-    box-shadow: var(--shadow);
+  .places thead th {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 10px 8px;
+    border-bottom: 2px solid var(--line);
+    white-space: nowrap;
+  }
+  .places thead .c-num { width: 42px; text-align: center; }
+  .places thead .c-rate { width: 96px; }
+  .places thead .c-where { width: 150px; }
+  .places thead .c-go { width: 128px; }
+
+  .places tbody tr {
+    border-bottom: 1px solid var(--line);
+    transition: background .12s ease;
+  }
+  .places tbody tr:hover { background: var(--surface-2); }
+
+  .places td {
+    padding: 12px 10px;
+    vertical-align: top;
   }
 
-  /* 순위 · 별점 · 메뉴 */
-
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .rank {
-    display: inline-flex;
-    align-items: baseline;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: -.01em;
-    color: var(--on-accent);
-    background: var(--line5);
-    border-radius: 5px;
-    padding: 3px 8px;
-  }
-  .rank .r {
-    font-size: 13px;
+  .c-num {
+    text-align: center;
     font-variant-numeric: tabular-nums;
-    margin: 0 1px 0 4px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .c-num .top {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: var(--line5);
+    color: var(--on-accent);
+    font-size: 12px;
+    font-weight: 700;
   }
 
-  .stars {
+  .name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .name-wrap .ic { font-size: 18px; color: var(--tint); }
+
+  .name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0;
+    letter-spacing: -.02em;
+  }
+
+  .menu-tag {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .02em;
+    color: var(--tint);
+    background: color-mix(in srgb, var(--tint) 13%, transparent);
+    border-radius: 5px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+
+  .resv {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--ct);
+    background: var(--ct-soft);
+    border-radius: 5px;
+    padding: 2px 6px;
+  }
+
+  .note {
+    margin: 5px 0 0;
+    font-size: 12.5px;
+    font-weight: 300;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 46ch;
+  }
+
+  .stars { display: flex; flex-direction: column; gap: 1px; }
+  .stars .line1 { display: flex; align-items: baseline; gap: 4px; }
+  .stars .st { color: var(--star); font-size: 12px; letter-spacing: -.1em; }
+  .stars .sc {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+  }
+  .stars .rv { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .no-data { color: var(--muted); font-size: 12px; }
+
+  .menus { display: flex; flex-direction: column; gap: 3px; }
+  .menu-row {
     display: flex;
     align-items: baseline;
     gap: 6px;
     font-size: 12.5px;
-    color: var(--muted);
+    line-height: 1.5;
   }
-  .stars .sc {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -.01em;
-  }
-  .stars .st { color: var(--star); letter-spacing: -.1em; }
-  .stars .rv { font-variant-numeric: tabular-nums; }
-  .stars .from {
-    margin-left: auto;
-    font-size: 10px;
-    letter-spacing: .07em;
-    opacity: .8;
-  }
-
-  .menus {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 10px 12px;
-    background: var(--surface-2);
-    border-radius: 7px;
-  }
-  .menus-title {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: .12em;
-    color: var(--muted);
-    margin-bottom: 2px;
-  }
-  .menus-title .by {
-    font-weight: 500;
-    letter-spacing: .04em;
-    color: var(--line5-ink);
-  }
+  .menu-row .mn { color: var(--ink-soft); }
   .menu-row .hits {
-    flex: none;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 600;
     color: var(--line5-ink);
     background: color-mix(in srgb, var(--line5) 13%, transparent);
     border-radius: 3px;
-    padding: 1px 5px;
+    padding: 0 4px;
     font-variant-numeric: tabular-nums;
   }
-  .menu-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-size: 12.5px;
-  }
-  .menu-row .mn {
-    color: var(--ink-soft);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .menu-row .dots {
-    flex: 1;
-    border-bottom: 1px dotted var(--line);
-    transform: translateY(-3px);
-    min-width: 10px;
-  }
   .menu-row .mp {
+    margin-left: auto;
     font-weight: 600;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
-  .hint {
-    grid-column: 1 / -1;
+  .where-main { color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; }
+  .where-sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  .dist {
+    display: inline-block;
+    margin-top: 3px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--line5-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .links { display: flex; flex-direction: column; gap: 5px; }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 6px;
+    padding: 6px 8px;
+    transition: background .14s ease, color .14s ease;
+  }
+  .btn .sq {
+    width: 12px; height: 12px; border-radius: 2.5px;
+    display: grid; place-items: center;
+    font-size: 8px; font-weight: 700; line-height: 1;
+    color: #fff; flex: none;
+  }
+  .btn-naver { color: var(--naver); background: var(--naver-soft); }
+  .btn-naver .sq { background: var(--naver); }
+  .btn-naver:hover { background: var(--naver); color: #fff; }
+  .btn-ct { color: var(--ct); background: var(--ct-soft); }
+  .btn-ct .sq { background: var(--ct); }
+  .btn-ct:hover { background: var(--ct); color: #fff; }
+  .btn:focus-visible { outline: 2px solid var(--line5); outline-offset: 2px; }
+
+  .skeleton td { padding: 14px 10px; }
+  .sk-bar { height: 11px; border-radius: 4px; background: var(--surface-2); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+  .skeleton { animation: pulse 1s ease-in-out infinite; }
+
+  .empty td, .hint td { padding: 0; }
+  .empty-box {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty-box strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+  .empty-box .ic { font-size: 40px; color: var(--c-korean); opacity: .55; margin-bottom: 10px; display: block; margin-inline: auto; }
+
+  .hint-box {
     display: flex;
     gap: 9px;
     align-items: flex-start;
@@ -1495,165 +1567,40 @@
     background: var(--surface);
     border: 1px dashed var(--line);
     border-radius: 9px;
-    padding: 13px 15px;
-    margin-bottom: 2px;
+    padding: 12px 14px;
+    margin: 10px 0;
     line-height: 1.6;
   }
-  .hint b { color: var(--ink-soft); font-weight: 600; }
+  .hint-box b { color: var(--ink-soft); font-weight: 600; }
 
-  .card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
+  /* 좁은 화면에서는 표를 풀어 한 건씩 쌓는다 */
+  @media (max-width: 760px) {
+    .places, .places tbody, .places tr, .places td { display: block; width: 100%; }
+    .places thead { display: none; }
+    .places tbody tr {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      margin-bottom: 10px;
+      padding: 13px 14px;
+      position: relative;
+    }
+    .places td { padding: 0; }
+    .places td + td { margin-top: 8px; }
+    .c-num {
+      position: absolute;
+      top: 13px;
+      right: 14px;
+      text-align: right;
+    }
+    .c-name { padding-right: 44px !important; }
+    .stars { flex-direction: row; align-items: baseline; gap: 6px; }
+    .links { flex-direction: row; }
+    .links .btn { flex: 1; }
+    .where-main { display: inline; }
+    .dist { margin-left: 6px; }
   }
-
-  .name-wrap {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-  }
-  .name-wrap .ic {
-    font-size: 19px;
-    color: var(--tint);
-  }
-
-  .name {
-    font-family: var(--font-display);
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.32;
-    margin: 0;
-    letter-spacing: -.028em;
-  }
-
-  .menu-tag {
-    flex: none;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: .04em;
-    color: var(--tint);
-    background: color-mix(in srgb, var(--tint) 13%, transparent);
-    border-radius: 5px;
-    padding: 3px 7px;
-    margin-top: 3px;
-    white-space: nowrap;
-  }
-
-  .resv {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    align-self: flex-start;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .07em;
-    color: var(--ct);
-    background: var(--ct-soft);
-    border-radius: 4px;
-    padding: 3px 7px;
-  }
-
-  .note {
-    margin: 0;
-    font-size: 13.5px;
-    font-weight: 300;
-    color: var(--ink-soft);
-    line-height: 1.62;
-  }
-
-  .meta {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    border-top: 1px dashed var(--line);
-    padding-top: 10px;
-    margin-top: auto;
-  }
-  .meta-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-  .meta-row .k {
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    flex: none;
-    width: 30px;
-    opacity: .85;
-  }
-  .meta-row .v { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .meta-row a { color: var(--muted); text-decoration: none; }
-  .meta-row a:hover { color: var(--ink); text-decoration: underline; }
-
-  .links { display: flex; gap: 7px; }
-  .card a.btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    font-size: 12.5px;
-    font-weight: 500;
-    text-decoration: none;
-    border-radius: 6px;
-    padding: 7px 8px;
-    transition: background .14s ease, color .14s ease;
-  }
-  .card a.btn .sq {
-    width: 12px; height: 12px; border-radius: 2.5px;
-    display: grid; place-items: center;
-    font-size: 8px; font-weight: 700; line-height: 1;
-    color: #fff; flex: none;
-  }
-  .btn-naver { color: var(--naver); background: var(--naver-soft); }
-  .btn-naver .sq { background: var(--naver); }
-  .btn-naver:hover { background: var(--naver); color: #fff; }
-  .btn-naver:hover .sq { background: rgba(255,255,255,.28); }
-
-  .btn-ct { color: var(--ct); background: var(--ct-soft); }
-  .btn-ct .sq { background: var(--ct); }
-  .btn-ct:hover { background: var(--ct); color: #fff; }
-  .btn-ct:hover .sq { background: rgba(255,255,255,.28); }
-
-  /* 스켈레톤 (목록 리로딩) */
-
-  .skeleton {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
-    padding: 17px;
-    display: flex;
-    flex-direction: column;
-    gap: 11px;
-  }
-  .sk-bar { height: 11px; border-radius: 4px; background: var(--surface-2); }
-  .sk-bar.w1 { width: 52%; height: 17px; }
-  .sk-bar.w2 { width: 92%; }
-  .sk-bar.w3 { width: 68%; }
-  .sk-bar.w4 { width: 40%; }
-
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-  .skeleton { animation: pulse 1s ease-in-out infinite; }
-
-  .empty {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 56px 20px;
-    color: var(--muted);
-    font-size: 14px;
-    border: 1px dashed var(--line);
-    border-radius: 10px;
-  }
-  .empty strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 6px; font-weight: 600; }
-  .empty .ic { font-size: 40px; color: var(--c-korean); opacity: .55; margin-bottom: 10px; display: block; margin-inline: auto; }
 
   /* ---------- 푸터 ---------- */
 
@@ -1789,7 +1736,7 @@
     <p class="lede">
       마곡역·마곡나루역·발산역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
       기준 역을 고르면 그 역에서 가까운 순으로 목록이 다시 불러와집니다.
-      카드마다 네이버 지도와 캐치테이블로 바로 넘어갑니다.
+      줄마다 별점·인기 메뉴·거리를 나란히 놓았고, 네이버 지도와 캐치테이블로 바로 넘어갑니다.
     </p>
       <svg class="hero" viewBox="0 0 268 132" role="img" aria-label="밥그릇과 초밥, 맥주잔이 놓인 그림">
         <ellipse cx="134" cy="123" rx="118" ry="7" fill="var(--line)"/>
@@ -1868,7 +1815,22 @@
   </div>
 
   <p class="unknown" id="unknown" hidden></p>
-  <div class="list" id="list"></div>
+
+  <div class="table-wrap">
+    <table class="places">
+      <thead>
+        <tr>
+          <th class="c-num" scope="col">#</th>
+          <th class="c-name" scope="col">가게</th>
+          <th class="c-rate" scope="col">별점</th>
+          <th class="c-menu" scope="col">인기 메뉴</th>
+          <th class="c-where" scope="col">위치</th>
+          <th class="c-go" scope="col">바로가기</th>
+        </tr>
+      </thead>
+      <tbody id="list"></tbody>
+    </table>
+  </div>
 
   <footer>
     <div class="note-block">
@@ -2317,35 +2279,6 @@
            "&keyword=" + k + "&keywordSearch=" + k;
   }
 
-  function distLabel(p, st) {
-    if (!st || st.id === "all") return "";
-    var d = distTo(p, st);
-    if (d !== null) return d < 1000 ? d + "m" : (d / 1000).toFixed(1) + "km";
-    if (typeof p.walk === "number") return "도보 " + p.walk + "분";
-    return "";
-  }
-
-  function metaRow(key, value, href) {
-    var row = document.createElement("p");
-    row.className = "meta-row";
-    var k = document.createElement("span");
-    k.className = "k";
-    k.textContent = key;
-    var v = document.createElement("span");
-    v.className = "v";
-    if (href) {
-      var a = document.createElement("a");
-      a.href = href;
-      a.textContent = value;
-      v.appendChild(a);
-    } else {
-      v.textContent = value;
-    }
-    row.appendChild(k);
-    row.appendChild(v);
-    return row;
-  }
-
   function won(n) {
     return n.toLocaleString("ko-KR") + "원";
   }
@@ -2355,11 +2288,23 @@
     return hit ? hit.label : id;
   }
 
+  function distLabel(p, st) {
+    if (!st || st.id === "all") return "";
+    var d = distTo(p, st);
+    if (d !== null) return d < 1000 ? d + "m" : (d / 1000).toFixed(1) + "km";
+    if (typeof p.walk === "number") return "도보 " + p.walk + "분";
+    return "";
+  }
+
   function starsEl(p) {
-    if (typeof p.rating !== "number") return null;
-    var row = document.createElement("p");
-    row.className = "stars";
-    row.style.margin = "0";
+    var box = document.createElement("div");
+    box.className = "stars";
+    if (typeof p.rating !== "number") {
+      box.innerHTML = '<span class="no-data">–</span>';
+      return box;
+    }
+    var l1 = document.createElement("span");
+    l1.className = "line1";
     var st = document.createElement("span");
     st.className = "st";
     st.setAttribute("aria-hidden", "true");
@@ -2367,40 +2312,26 @@
     var sc = document.createElement("span");
     sc.className = "sc";
     sc.textContent = p.rating.toFixed(1);
-    row.appendChild(st);
-    row.appendChild(sc);
+    l1.appendChild(st);
+    l1.appendChild(sc);
+    box.appendChild(l1);
     if (typeof p.reviews === "number") {
       var rv = document.createElement("span");
       rv.className = "rv";
-      rv.textContent = "리뷰 " + p.reviews.toLocaleString("ko-KR");
-      row.appendChild(rv);
+      rv.textContent = "리뷰 " + p.reviews.toLocaleString("ko-KR") +
+                       (p.src === "catchtable" ? " · 캐치테이블" : "");
+      box.appendChild(rv);
     }
-    if (p.src) {
-      var from = document.createElement("span");
-      from.className = "from";
-      from.textContent = p.src === "catchtable" ? "캐치테이블" : "네이버";
-      row.appendChild(from);
-    }
-    return row;
+    return box;
   }
 
   function menusEl(p) {
-    if (!p.menus || !p.menus.length) return null;
     var box = document.createElement("div");
     box.className = "menus";
-    var counted = p.menus.some(function (m) { return (m.hits || 0) > 0; });
-
-    var title = document.createElement("div");
-    title.className = "menus-title";
-    title.appendChild(document.createTextNode("인기 메뉴"));
-    if (counted) {
-      var by = document.createElement("span");
-      by.className = "by";
-      by.textContent = "후기 언급순";
-      title.appendChild(by);
+    if (!p.menus || !p.menus.length) {
+      box.innerHTML = '<span class="no-data">–</span>';
+      return box;
     }
-    box.appendChild(title);
-
     p.menus.slice(0, 5).forEach(function (m) {
       var row = document.createElement("div");
       row.className = "menu-row";
@@ -2415,93 +2346,88 @@
         hits.title = "후기에서 " + m.hits + "번 언급";
         row.appendChild(hits);
       }
-      var dots = document.createElement("span");
-      dots.className = "dots";
       var mp = document.createElement("span");
       mp.className = "mp";
       mp.textContent = typeof m.price === "number" ? won(m.price) : String(m.price || "");
-      row.appendChild(dots);
       row.appendChild(mp);
       box.appendChild(row);
     });
     return box;
   }
 
-  function cardEl(p) {
-    var el = document.createElement("article");
-    el.className = "card";
+  function cell(row, cls) {
+    var td = document.createElement("td");
+    td.className = cls;
+    row.appendChild(td);
+    return td;
+  }
 
-    el.style.setProperty("--tint", tintVar(p.cat));
+  function rowEl(p, index) {
+    var tr = document.createElement("tr");
+    tr.style.setProperty("--tint", tintVar(p.cat));
 
-    var top = document.createElement("div");
-    top.className = "card-top";
+    // 번호. 분류별 별점 상위 5곳은 딱지를 씌워 눈에 띄게.
+    var rank = RANK[p.name];
+    var num = cell(tr, "c-num");
+    if (rank) {
+      var badge = document.createElement("span");
+      badge.className = "top";
+      badge.textContent = rank;
+      badge.title = catLabel(p.cat) + " 별점 " + rank + "위";
+      num.appendChild(badge);
+    } else {
+      num.textContent = index + 1;
+    }
 
-    var nameWrap = document.createElement("div");
-    nameWrap.className = "name-wrap";
-    nameWrap.innerHTML = icon(p.cat);
+    var nameCell = cell(tr, "c-name");
+    var wrap = document.createElement("div");
+    wrap.className = "name-wrap";
+    wrap.innerHTML = icon(p.cat);
     var h = document.createElement("h3");
     h.className = "name";
     h.textContent = p.name;
-    nameWrap.appendChild(h);
-
+    wrap.appendChild(h);
     var tag = document.createElement("span");
     tag.className = "menu-tag";
     tag.textContent = p.menu;
-    top.appendChild(nameWrap);
-    top.appendChild(tag);
-    el.appendChild(top);
-
-    var rank = RANK[p.name];
-    if (rank || p.resv) {
-      var badges = document.createElement("div");
-      badges.className = "badges";
-      if (rank) {
-        var rb = document.createElement("span");
-        rb.className = "rank";
-        rb.innerHTML = '별점 <span class="r">' + rank + '</span>위';
-        rb.title = catLabel(p.cat) + " 별점 " + rank + "위";
-        badges.appendChild(rb);
-      }
-      if (p.resv) {
-        var cb = document.createElement("span");
-        cb.className = "resv";
-        cb.textContent = "캐치테이블 예약";
-        badges.appendChild(cb);
-      }
-      el.appendChild(badges);
+    wrap.appendChild(tag);
+    if (p.resv) {
+      var rb = document.createElement("span");
+      rb.className = "resv";
+      rb.textContent = "예약";
+      wrap.appendChild(rb);
     }
-
-    var stars = starsEl(p);
-    if (stars) el.appendChild(stars);
-
+    nameCell.appendChild(wrap);
     var note = document.createElement("p");
     note.className = "note";
     note.textContent = p.note;
-    el.appendChild(note);
+    nameCell.appendChild(note);
 
-    var menus = menusEl(p);
-    if (menus) el.appendChild(menus);
+    cell(tr, "c-rate").appendChild(starsEl(p));
+    cell(tr, "c-menu").appendChild(menusEl(p));
 
-    var meta = document.createElement("div");
-    meta.className = "meta";
-
-    var whereRow = metaRow("위치", p.where);
-    var st = stationById(state.station);
-    var label = distLabel(p, st);
-    if (label) {
-      var tag = document.createElement("span");
-      tag.className = "dist";
-      tag.textContent = label;
-      whereRow.appendChild(tag);
+    var whereCell = cell(tr, "c-where");
+    var w1 = document.createElement("div");
+    w1.className = "where-main";
+    w1.textContent = p.where;
+    whereCell.appendChild(w1);
+    if (p.addr) {
+      var w2 = document.createElement("div");
+      w2.className = "where-sub";
+      w2.textContent = p.addr;
+      whereCell.appendChild(w2);
     }
-    meta.appendChild(whereRow);
-    if (p.addr) meta.appendChild(metaRow("주소", p.addr));
-    if (p.tel)  meta.appendChild(metaRow("전화", p.tel, "tel:" + p.tel.replace(/[^0-9+]/g, "")));
-    el.appendChild(meta);
+    var label = distLabel(p, stationById(state.station));
+    if (label) {
+      var d = document.createElement("span");
+      d.className = "dist";
+      d.textContent = label;
+      whereCell.appendChild(d);
+    }
 
+    var go = cell(tr, "c-go");
     var links = document.createElement("div");
     links.className = "links";
-
     var a1 = document.createElement("a");
     a1.className = "btn btn-naver";
     a1.href = naverUrl(p);
@@ -2509,7 +2435,6 @@
     a1.rel = "noopener noreferrer";
     a1.innerHTML = '<span class="sq" aria-hidden="true">N</span>지도';
     a1.setAttribute("aria-label", p.name + " 네이버 지도에서 보기");
-
     var a2 = document.createElement("a");
     a2.className = "btn btn-ct";
     a2.href = ctUrl(p);
@@ -2517,23 +2442,22 @@
     a2.rel = "noopener noreferrer";
     a2.innerHTML = '<span class="sq" aria-hidden="true">C</span>' + (p.resv ? "예약" : "예약 검색");
     a2.setAttribute("aria-label", p.name + " 캐치테이블에서 보기");
-
     links.appendChild(a1);
     links.appendChild(a2);
-    el.appendChild(links);
-    return el;
+    go.appendChild(links);
+
+    return tr;
   }
 
   function showSkeleton(n) {
     listEl.innerHTML = "";
     var k = Math.min(Math.max(n, 2), 6);
     for (var i = 0; i < k; i++) {
-      var s = document.createElement("div");
-      s.className = "skeleton";
-      s.setAttribute("aria-hidden", "true");
-      s.innerHTML = '<div class="sk-bar w1"></div><div class="sk-bar w2"></div>' +
-                    '<div class="sk-bar w3"></div><div class="sk-bar w4"></div>';
-      listEl.appendChild(s);
+      var tr = document.createElement("tr");
+      tr.className = "skeleton";
+      tr.setAttribute("aria-hidden", "true");
+      tr.innerHTML = '<td colspan="6"><div class="sk-bar"></div></td>';
+      listEl.appendChild(tr);
     }
   }
 
@@ -2543,24 +2467,24 @@
 
     listEl.innerHTML = "";
     if (!rows.length) {
-      var e = document.createElement("div");
+      var e = document.createElement("tr");
       e.className = "empty";
-      e.innerHTML = icon("korean") +
-        "<strong>빈 그릇이네요</strong>검색어를 지우거나 다른 분류·역을 눌러 보세요.";
+      e.innerHTML = '<td colspan="6"><div class="empty-box">' + icon("korean") +
+        "<strong>빈 그릇이네요</strong>검색어를 지우거나 다른 분류·역을 눌러 보세요.</div></td>";
       listEl.appendChild(e);
     } else {
       var rated = rows.filter(function (p) { return typeof p.rating === "number"; }).length;
       if (!rated) {
-        var hint = document.createElement("div");
+        var hint = document.createElement("tr");
         hint.className = "hint";
-        hint.innerHTML =
+        hint.innerHTML = '<td colspan="6"><div class="hint-box">' +
           "<span aria-hidden=\"true\">☆</span><span>이 분류는 <b>별점과 인기 메뉴가 아직 비어 있습니다.</b> " +
           "<b>crawl_naver_place.py</b> 를 돌리면 네이버 플레이스에서 받아와 채워집니다. " +
-          "채우고 나면 분류마다 별점 상위 5곳에 순위 딱지가 붙습니다.</span>";
+          "채우고 나면 분류마다 별점 상위 5곳에 순위 딱지가 붙습니다.</span></div></td>";
         listEl.appendChild(hint);
       }
       var frag = document.createDocumentFragment();
-      rows.forEach(function (p) { frag.appendChild(cardEl(p)); });
+      rows.forEach(function (p, i) { frag.appendChild(rowEl(p, i)); });
       listEl.appendChild(frag);
     }
     var stName = state.station === "all" ? "전체" : stationById(state.station).label + "역";

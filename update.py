@@ -19,6 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PY = sys.executable or "python"
+BRANCH = "claude/magok-restaurant-page-9j1zxb"
 
 
 def hr(title: str) -> None:
@@ -56,6 +57,42 @@ def git_ready() -> bool:
     return True
 
 
+def git_out(*args: str) -> str:
+    out = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    return out.stdout.strip()
+
+
+def ensure_branch() -> bool:
+    """작업용 브랜치에 있는지 확인하고, 아니면 옮겨 준다.
+
+    엉뚱한 브랜치(보통 main)에 있으면 git pull 을 해도 이 페이지 작업이 안 딸려온다.
+    고친 파일이 남아 있으면 덮어쓰지 않고 멈춘다.
+    """
+    current = git_out("rev-parse", "--abbrev-ref", "HEAD")
+    if current == BRANCH:
+        print(f"브랜치: {current}")
+        return True
+
+    print(f"! 지금 '{current}' 브랜치에 있습니다. 이 페이지 작업은 '{BRANCH}' 에 있습니다.")
+    if has_changes():
+        print("  아직 저장하지 않은 변경이 있어서 자동으로 옮기지 않습니다.")
+        print("  먼저 정리한 뒤 아래를 직접 실행하세요:")
+        print(f"    git checkout {BRANCH}")
+        return False
+
+    print("  브랜치를 옮깁니다.")
+    run(["git", "fetch", "origin", BRANCH], allow_fail=True)
+    code = subprocess.call(["git", "checkout", BRANCH], cwd=ROOT)
+    if code != 0:
+        code = subprocess.call(
+            ["git", "checkout", "-b", BRANCH, f"origin/{BRANCH}"], cwd=ROOT)
+    if code != 0:
+        print(f"\n[중단] '{BRANCH}' 브랜치로 옮기지 못했습니다.")
+        return False
+    print(f"브랜치: {BRANCH}")
+    return True
+
+
 def has_changes() -> bool:
     out = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
                          capture_output=True, text=True)
@@ -77,6 +114,8 @@ def main() -> None:
 
     if use_git:
         hr("1. 최신 코드 받기")
+        if not ensure_branch():
+            raise SystemExit(1)
         run(["git", "pull"], allow_fail=True)
 
     if not args.only_crawl:

@@ -179,6 +179,18 @@ const CHECKS = [
     const left = () => p.$eval("#rail-scroll", el => el.scrollLeft);
     await p.$eval("#rail-scroll", el => { el.scrollLeft = 0; });
     await p.waitForTimeout(200);
+
+    // 화면이 넓으면 칩이 다 들어가서 넘칠 게 없다. 그때는 움직이지 않는 게 맞고,
+    // 대신 화살표와 그라데이션이 스스로 사라져야 한다.
+    const over = await p.$eval("#rail-scroll", el => el.scrollWidth - el.clientWidth);
+    if (over <= 0) {
+      const nav = await p.$eval(".rail-nav.next", el => getComputedStyle(el).display);
+      ok(nav === "none", "넘치지도 않는데 화살표가 보임");
+      const cls = await p.$eval("#rail-wrap", el => el.className);
+      ok(!/more-(left|right)/.test(cls), "넘치지도 않는데 더보기 표시가 켜짐");
+      return;
+    }
+
     const box = await p.locator("#rail-scroll").boundingBox();
     const y = box.y + box.height / 2;
 

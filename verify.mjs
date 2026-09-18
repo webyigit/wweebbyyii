@@ -189,11 +189,23 @@ const CHECKS = [
     await p.waitForTimeout(300);
     ok(await left() > 50, "마우스로 끌어도 안 움직임");
 
+    // 앞의 끌기가 이미 끝까지 밀어 놨으면 휠은 페이지에 양보하는 게 맞다.
+    // 휠만 따로 보려면 처음으로 되돌리고 시작해야 한다.
+    await p.$eval("#rail-scroll", el => { el.scrollLeft = 0; });
+    await p.waitForTimeout(350);
     const beforeWheel = await left();
     await p.mouse.move(box.x + box.width / 2, y);
     await p.mouse.wheel(0, 200);
-    await p.waitForTimeout(300);
-    ok(await left() > beforeWheel, "세로 휠이 가로로 안 넘어감");
+    await p.waitForTimeout(400);
+    ok(await left() > beforeWheel, `세로 휠이 가로로 안 넘어감 (${beforeWheel} -> ${await left()})`);
+
+    // 끝에 닿으면 휠을 페이지에 넘겨야 한다 (칩 줄이 스크롤을 붙잡으면 안 됨)
+    const maxLeft = await p.$eval("#rail-scroll", el => el.scrollWidth - el.clientWidth);
+    await p.$eval("#rail-scroll", el => { el.scrollLeft = el.scrollWidth; });
+    await p.waitForTimeout(350);
+    await p.mouse.wheel(0, 200);
+    await p.waitForTimeout(350);
+    ok(await left() <= maxLeft + 1, "끝을 넘어서 더 밀림");
 
     await p.$eval("#rail-scroll", el => { el.scrollLeft = 0; });
     await p.waitForTimeout(300);

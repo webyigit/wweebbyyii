@@ -319,6 +319,8 @@ const CHECKS = [
       links: [...document.querySelectorAll(".d-actions a")].map(a => a.href),
       walk: document.querySelectorAll(".d-walk span").length,
       map: !!document.querySelector(".minimap"),
+      sites: [...document.querySelectorAll(".sites .site")].map(a => ({
+        id: a.dataset.site, href: a.href, label: a.textContent.trim() })),
     }));
     ok(/^[0-5]\.[0-9]$/.test(d.score), `별점 표시가 이상함: ${d.score}`);
     ["정보", "인기 메뉴", "소개", "주변 역"].forEach(t =>
@@ -329,6 +331,22 @@ const CHECKS = [
        "상세 링크 주소가 틀림");
     ok(d.walk === 3, `역 거리 칩이 3개가 아니라 ${d.walk}개`);
     ok(d.map, "주변 역 그림이 없음");
+
+    ok(d.sites.length === 10, `검색 사이트가 10곳이 아니라 ${d.sites.length}곳`);
+    const HOSTS = {
+      naver: "map.naver.com", nblog: "search.naver.com", nimg: "search.naver.com",
+      kakao: "map.kakao.com", ct: "catchtable.co.kr", dining: "diningcode.com",
+      siksin: "siksinhot.com", gmap: "google.com/maps", yt: "youtube.com",
+      insta: "instagram.com",
+    };
+    Object.keys(HOSTS).forEach(id => {
+      const hit = d.sites.filter(x => x.id === id)[0];
+      ok(hit, `검색 사이트에 ${id} 가 없음`);
+      ok(hit.href.includes(HOSTS[id]), `${id} 주소가 ${HOSTS[id]} 가 아님: ${hit.href}`);
+      ok(hit.label.length > 0, `${id} 이름이 비어 있음`);
+    });
+    ok(new Set(d.sites.map(x => x.href)).size === 10, "검색 사이트 주소가 중복됨");
+
     await p.click("#back"); await p.waitForTimeout(400);
   }],
 
@@ -355,13 +373,27 @@ const CHECKS = [
     ok(wrong === 0, `칸 수가 6이 아닌 행 ${wrong}개`);
   }],
 
-  ["21 가로 스크롤이 생기지 않는다", async (p) => {
+  ["21 넓은 화면에서 가로폭을 다 쓴다", async (p, ctx) => {
+    if (ctx.width < 1000) return;
+    const m = await p.evaluate(() => {
+      const wrap = document.querySelector(".table-wrap");
+      const table = document.querySelector(".places");
+      const root = document.documentElement.clientWidth;
+      return { wrap: wrap.getBoundingClientRect().width,
+               table: table.getBoundingClientRect().width, root };
+    });
+    ok(m.table >= m.wrap - 2, `표가 컨테이너보다 좁음 (${Math.round(m.table)}/${Math.round(m.wrap)})`);
+    ok(m.wrap >= m.root * 0.86,
+       `본문이 창 폭의 86% 미만 (${Math.round(m.wrap)}/${m.root})`);
+  }],
+
+  ["22 가로 스크롤이 생기지 않는다", async (p) => {
     const over = await p.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     ok(over <= 1, `페이지가 가로로 ${over}px 넘침`);
   }],
 
-  ["22 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["23 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };
@@ -377,6 +409,7 @@ const CHECKS = [
 const VIEWS = [
   { name: "폰 390", width: 390, height: 820, dark: false },
   { name: "PC 1100", width: 1100, height: 900, dark: false },
+  { name: "PC 1700", width: 1700, height: 950, dark: false },
   { name: "폰 다크", width: 390, height: 820, dark: true },
 ];
 
@@ -407,7 +440,7 @@ for (let run = 1; run <= RUNS; run++) {
     for (const [name, fn] of CHECKS) {
       total++;
       try {
-        await fn(page, { errors, dark: view.dark });
+        await fn(page, { errors, dark: view.dark, width: view.width });
         pass++;
       } catch (e) {
         runFails.push(`${view.name} | ${name} | ${e.message}`);

@@ -846,6 +846,14 @@
     --line9:      #D9A21C;
     --air:        #2E8FA8;
     --star:       #F5A623;
+    --s-naver:    #03C75A;
+    --s-kakao:    #FEE500;
+    --s-ct:       #C8342B;
+    --s-dining:   #F26F21;
+    --s-siksin:   #E7352B;
+    --s-google:   #4285F4;
+    --s-youtube:  #FF0033;
+    --s-insta:    #C13584;
     --naver:      #118A43;
     --naver-soft: #E4F3EA;
     --ct:         #C8342B;
@@ -946,7 +954,7 @@
   }
 
   .wrap {
-    max-width: 1080px;
+    max-width: 1560px;
     margin: 0 auto;
     padding-inline: 20px;
   }
@@ -1014,7 +1022,7 @@
 
   .lede {
     margin: 0;
-    max-width: 58ch;
+    max-width: 72ch;
     color: var(--ink-soft);
     font-size: 15px;
     font-weight: 300;
@@ -1462,7 +1470,7 @@
     font-weight: 300;
     color: var(--muted);
     line-height: 1.55;
-    max-width: 46ch;
+    max-width: 68ch;
   }
 
   .stars { display: flex; flex-direction: column; gap: 1px; }
@@ -1608,6 +1616,17 @@
 
   .detail { padding-block: 18px 40px; }
 
+  @media (min-width: 1100px) {
+    .d-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+      column-gap: 44px;
+      align-items: start;
+    }
+    .d-body > .d-sec { border-bottom: 0; }
+    .d-body > .d-sec:not(:last-child) { border-bottom: 1px solid var(--line); }
+  }
+
   .back {
     appearance: none;
     display: inline-flex;
@@ -1734,8 +1753,47 @@
     font-weight: 300;
     line-height: 1.75;
     color: var(--ink-soft);
-    max-width: 62ch;
+    max-width: 72ch;
   }
+
+  .sites {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 8px;
+  }
+  .site {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-decoration: none;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 12px;
+    transition: border-color .14s ease, background .14s ease, transform .1s ease;
+  }
+  .site:hover { border-color: var(--tone); background: var(--surface-2); }
+  .site:active { transform: translateY(1px); }
+  .site:focus-visible { outline: 2px solid var(--line5); outline-offset: 2px; }
+  .site .sq {
+    width: 20px; height: 20px; border-radius: 5px;
+    display: grid; place-items: center;
+    font-size: 10px; font-weight: 700; line-height: 1;
+    color: #fff; background: var(--tone); flex: none;
+  }
+
+  .tone-naver  { --tone: var(--s-naver); }
+  .tone-kakao  { --tone: var(--s-kakao); }
+  .tone-kakao .sq { color: #2A1A00; }
+  .tone-ct     { --tone: var(--s-ct); }
+  .tone-dining { --tone: var(--s-dining); }
+  .tone-siksin { --tone: var(--s-siksin); }
+  .tone-google { --tone: var(--s-google); }
+  .tone-youtube{ --tone: var(--s-youtube); }
+  .tone-insta  { --tone: var(--s-insta); }
 
   .minimap {
     width: 100%;
@@ -1771,7 +1829,7 @@
     padding-block: 26px 44px;
   }
   .note-block {
-    max-width: 62ch;
+    max-width: none;
     font-size: 12.5px;
     font-weight: 300;
     color: var(--muted);
@@ -1786,7 +1844,17 @@
     color: var(--ink-soft);
     margin: 0 0 9px;
   }
-  .note-block p { margin: 0 0 9px; }
+  .note-block p { margin: 0 0 9px; break-inside: avoid; }
+
+  @media (min-width: 900px) {
+    .note-block .cols {
+      columns: 2;
+      column-gap: 46px;
+    }
+  }
+  @media (min-width: 1300px) {
+    .note-block .cols { columns: 3; column-gap: 44px; }
+  }
 
   .src {
     display: flex;
@@ -2002,8 +2070,11 @@
         <span class="s-naver">네이버 지도 · 플레이스</span>
         <span class="s-ct">캐치테이블</span>
       </div>
+      <div class="cols">
       <p>
         가게 정보는 네이버 지도와 캐치테이블에 등록된 내용을 기준으로 정리했습니다.
+        상세 화면의 &lsquo;다른 곳에서 찾아보기&rsquo;는 검색 주소만 만들어 연결하는 것이라,
+        그 사이트들에서 자료를 가져오지는 않습니다.
         직접 방문해 매긴 순위나 평점이 아니며, 목록 순서에 우열은 없습니다.
       </p>
       <p>
@@ -2030,6 +2101,7 @@
       <p>
         점심시간에는 인근 직장인 수요로 대기가 생깁니다. 11시 30분 이전이나 오후 1시 이후가 한결 여유롭습니다.
       </p>
+      </div>
       <p id="stamp"></p>
     </div>
   </footer>
@@ -2665,6 +2737,56 @@
   }
 
   // 세 역과 가게 위치를 한눈에. 외부 지도 이미지는 못 쓰니 직접 그린다.
+  // 가게 하나를 여러 곳에서 찾아보게 한다. 주소만 만들 뿐 자료를 가져오지는 않는다.
+  function enc(v) { return encodeURIComponent(v); }
+  function q(p) { return p.name + " 마곡"; }
+
+  var SITES = [
+    { id: "naver",  mark: "N", label: "네이버 지도", tone: "naver",
+      url: function (p) { return "https://map.naver.com/p/search/" + enc(q(p)); } },
+    { id: "nblog",  mark: "블", label: "네이버 블로그", tone: "naver",
+      url: function (p) { return "https://search.naver.com/search.naver?where=blog&query=" + enc(q(p)); } },
+    { id: "nimg",   mark: "사", label: "네이버 이미지", tone: "naver",
+      url: function (p) { return "https://search.naver.com/search.naver?where=image&query=" + enc(q(p)); } },
+    { id: "kakao",  mark: "K", label: "카카오맵", tone: "kakao",
+      url: function (p) { return "https://map.kakao.com/?q=" + enc(q(p)); } },
+    { id: "ct",     mark: "C", label: "캐치테이블", tone: "ct", url: ctUrl },
+    { id: "dining", mark: "D", label: "다이닝코드", tone: "dining",
+      url: function (p) { return "https://www.diningcode.com/list.dc?query=" + enc(q(p)); } },
+    { id: "siksin", mark: "식", label: "식신", tone: "siksin",
+      url: function (p) { return "https://www.siksinhot.com/search?keywords=" + enc(p.name); } },
+    { id: "gmap",   mark: "G", label: "구글 지도", tone: "google",
+      url: function (p) { return "https://www.google.com/maps/search/" + enc(q(p)); } },
+    { id: "yt",     mark: "▶", label: "유튜브", tone: "youtube",
+      url: function (p) { return "https://www.youtube.com/results?search_query=" + enc(q(p)); } },
+    { id: "insta",  mark: "@", label: "인스타그램", tone: "insta",
+      url: function (p) {
+        return "https://www.instagram.com/explore/tags/" + enc(p.name.replace(/\s+/g, ""));
+      } }
+  ];
+
+  function siteGrid(p) {
+    var box = document.createElement("div");
+    box.className = "sites";
+    SITES.forEach(function (site) {
+      var a = document.createElement("a");
+      a.className = "site tone-" + site.tone;
+      a.href = site.url(p);
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.dataset.site = site.id;
+      a.setAttribute("aria-label", p.name + " " + site.label + "에서 찾기");
+      var m = document.createElement("span");
+      m.className = "sq";
+      m.setAttribute("aria-hidden", "true");
+      m.textContent = site.mark;
+      a.appendChild(m);
+      a.appendChild(document.createTextNode(site.label));
+      box.appendChild(a);
+    });
+    return box;
+  }
+
   function minimap(p) {
     if (typeof p.lat !== "number") return null;
     var pts = STATIONS.filter(function (s) { return s.lat !== null; })
@@ -2776,6 +2898,7 @@
     }
     detailEl.appendChild(actions);
 
+    var body = el("div", "d-body");
     var rows = el("div", "d-rows");
     rows.appendChild(infoRow("위치", p.where));
     if (p.addr) rows.appendChild(infoRow("주소", p.addr));
@@ -2790,7 +2913,7 @@
       r.appendChild(dd);
       rows.appendChild(r);
     }
-    detailEl.appendChild(section("정보", rows));
+    body.appendChild(section("정보", rows));
 
     if (p.menus && p.menus.length) {
       var menus = menusEl(p);
@@ -2809,13 +2932,16 @@
         menus.appendChild(row);
       });
       var counted = p.menus.some(function (m) { return (m.hits || 0) > 0; });
-      detailEl.appendChild(section("인기 메뉴" + (counted ? " · 후기 언급순" : ""), menus));
+      body.appendChild(section("인기 메뉴" + (counted ? " · 후기 언급순" : ""), menus));
     }
 
-    if (p.note) detailEl.appendChild(section("소개", el("p", "d-note", p.note)));
+    if (p.note) body.appendChild(section("소개", el("p", "d-note", p.note)));
+
+    body.appendChild(section("다른 곳에서 찾아보기", siteGrid(p)));
 
     var map = minimap(p);
-    if (map) detailEl.appendChild(section("주변 역", map));
+    if (map) body.appendChild(section("주변 역", map));
+    detailEl.appendChild(body);
   }
 
   function openDetail(name, fromHash) {

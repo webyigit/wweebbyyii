@@ -77,9 +77,16 @@ if (Test-Path $routinePath) {
         Write-Warning "routine.json 의 posts_per_day($($routine.posts_per_day)) 와 -Count($Count) 가 다릅니다."
         Write-Warning "  초안보다 발행 횟수가 많으면 남는 실행은 '대상 없음' 으로 그냥 종료됩니다."
     }
-    if ($routine.categories.Count -lt $Count) {
-        Write-Warning "routine.json 의 categories 가 $($routine.categories.Count)개뿐입니다 (필요: $Count개)."
-        Write-Warning "  카테고리를 하루 안에서 중복 없이 쓰기 때문에, 초안도 그만큼만 만들어집니다."
+
+    # 하루에 대분류당 1개씩 뽑으므로, 대분류 개수가 발행 횟수보다 적으면 모자란다.
+    $groups = @($routine.category_groups.PSObject.Properties)
+    if ($groups.Count -lt $Count) {
+        Write-Warning "routine.json 의 대분류가 $($groups.Count)개뿐입니다 (발행 $Count 회)."
+        Write-Warning "  대분류당 하루 1개씩 뽑기 때문에 초안이 $($groups.Count)개만 만들어집니다."
+    }
+    $emptyGroups = $groups | Where-Object { @($_.Value).Count -eq 0 } | ForEach-Object { $_.Name }
+    if ($emptyGroups) {
+        Write-Warning "중분류가 비어 있는 대분류가 있습니다: $($emptyGroups -join ', ')"
     }
 }
 

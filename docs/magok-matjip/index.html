@@ -1074,6 +1074,8 @@
     padding-top: 12px;
     overflow-x: auto;
     scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
   .stations::-webkit-scrollbar { display: none; }
 
@@ -1140,12 +1142,75 @@
     white-space: nowrap;
   }
 
+  .rail-wrap {
+    position: relative;
+  }
+
+  /* 양 끝 그라데이션 — 더 있다는 걸 눈에 보이게 */
+  .rail-wrap::before,
+  .rail-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+  .rail-wrap::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--paper), transparent);
+  }
+  .rail-wrap::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--paper), transparent);
+  }
+  .rail-wrap.more-left::before,
+  .rail-wrap.more-right::after { opacity: 1; }
+
+  .rail-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    display: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+    box-shadow: 0 2px 8px -2px rgba(80,40,20,.3);
+  }
+  .rail-nav svg { width: 15px; height: 15px; }
+  .rail-nav.prev { left: -4px; }
+  .rail-nav.next { right: -4px; }
+  .rail-nav:hover { color: var(--line5); border-color: var(--line5); }
+  .rail-nav:focus-visible { outline: 2px solid var(--line5); outline-offset: 2px; }
+  .rail-wrap.more-left .rail-nav.prev,
+  .rail-wrap.more-right .rail-nav.next { display: grid; }
+
   .rail-scroll {
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    cursor: grab;
   }
+  .rail-scroll.dragging { cursor: grabbing; scroll-behavior: auto; }
+  .rail-scroll.dragging .chip { pointer-events: none; }
   .rail-scroll::-webkit-scrollbar { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail-scroll { scroll-behavior: auto; }
+  }
 
   .rail {
     display: flex;
@@ -1764,8 +1829,18 @@
       <span class="st-label">역</span>
       <div class="st-group" id="stations" role="group" aria-label="기준 역"></div>
     </div>
-    <div class="rail-scroll">
-      <div class="rail" id="rail" role="group" aria-label="음식 종류"></div>
+    <div class="rail-wrap" id="rail-wrap">
+      <button type="button" class="rail-nav prev" data-dir="-1" aria-label="분류 왼쪽으로">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" fill="none"
+          stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="rail-scroll" id="rail-scroll">
+        <div class="rail" id="rail" role="group" aria-label="음식 종류"></div>
+      </div>
+      <button type="button" class="rail-nav next" data-dir="1" aria-label="분류 오른쪽으로">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none"
+          stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -2046,6 +2121,73 @@
     return n;
   }
 
+  // 가로로 넘치는 줄을 어떤 입력으로든 움직일 수 있게 한다.
+  // 터치는 브라우저가 알아서 하지만, 마우스는 끌어도 휠을 굴려도 아무 일이 없었다.
+  function makeScrollable(scroller, wrap) {
+    var dragging = false, startX = 0, startLeft = 0, moved = 0;
+
+    function sync() {
+      if (!wrap) return;
+      var max = scroller.scrollWidth - scroller.clientWidth;
+      wrap.classList.toggle("more-left", scroller.scrollLeft > 4);
+      wrap.classList.toggle("more-right", scroller.scrollLeft < max - 4);
+    }
+
+    // 세로 휠을 가로 스크롤로 넘긴다
+    scroller.addEventListener("wheel", function (e) {
+      if (e.deltaX) return;                       // 이미 가로로 굴리고 있으면 둔다
+      var max = scroller.scrollWidth - scroller.clientWidth;
+      if (max <= 0) return;
+      var next = scroller.scrollLeft + e.deltaY;
+      if (next < 0 || next > max) return;         // 끝이면 페이지 스크롤에 양보
+      e.preventDefault();
+      scroller.scrollLeft = next;
+    }, { passive: false });
+
+    // 마우스로 끌어서 넘기기 (터치는 브라우저 기본 동작에 맡긴다)
+    scroller.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "touch" || e.button !== 0) return;
+      dragging = true;
+      moved = 0;
+      startX = e.clientX;
+      startLeft = scroller.scrollLeft;
+      scroller.classList.add("dragging");
+    });
+
+    scroller.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var dx = e.clientX - startX;
+      if (Math.abs(dx) > 3) moved = Math.abs(dx);
+      scroller.scrollLeft = startLeft - dx;
+      e.preventDefault();
+    });
+
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      scroller.classList.remove("dragging");
+      // 끌고 나서 손을 뗀 자리의 칩이 눌리지 않도록 잠깐 막는다
+      if (moved > 3) setTimeout(function () { moved = 0; }, 0);
+    }
+    scroller.addEventListener("pointerup", endDrag);
+    scroller.addEventListener("pointercancel", endDrag);
+    scroller.addEventListener("pointerleave", endDrag);
+    scroller.addEventListener("click", function (e) {
+      if (moved > 3) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    scroller.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    sync();
+    return sync;
+  }
+
+  function scrollIntoRail(scroller, el) {
+    if (!el) return;
+    var left = el.offsetLeft - (scroller.clientWidth - el.offsetWidth) / 2;
+    scroller.scrollLeft = Math.max(0, left);
+  }
+
   function buildStations() {
     var box = document.getElementById("stations");
     STATIONS.forEach(function (st) {
@@ -2073,6 +2215,9 @@
     }
     try { localStorage.setItem("magok.station", id); } catch (e) {}
     buildRail(true);
+    var scroller = document.getElementById("rail-scroll");
+    scrollIntoRail(scroller, railEl.querySelector('.chip[aria-pressed="true"]'));
+    scroller.dispatchEvent(new Event("scroll"));
     reload();
   }
 
@@ -2451,6 +2596,22 @@
   buildStations();
   buildRail();
   paint();
+
+  var railScroll = document.getElementById("rail-scroll");
+  var railWrap = document.getElementById("rail-wrap");
+  var syncRail = makeScrollable(railScroll, railWrap);
+  makeScrollable(document.getElementById("stations"), null);
+
+  railWrap.querySelectorAll(".rail-nav").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var step = Math.max(160, railScroll.clientWidth * 0.75);
+      railScroll.scrollLeft += step * Number(btn.dataset.dir);
+    });
+  });
+
+  // 고른 분류가 화면 밖에 있으면 가운데로 끌어온다
+  scrollIntoRail(railScroll, railEl.querySelector('.chip[aria-pressed="true"]'));
+  syncRail();
 
   var nResv = PLACES.filter(function (p) { return p.resv; }).length;
   var nRated = PLACES.filter(function (p) { return typeof p.rating === "number"; }).length;

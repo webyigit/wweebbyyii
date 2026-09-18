@@ -47,6 +47,36 @@ def run(cmd: list[str], *, allow_fail: bool = False) -> int:
     return code
 
 
+def ensure_deps() -> bool:
+    """selenium 이 없으면 알아서 설치한다.
+
+    크롤링은 selenium 이 있어야 돌아가는데, 없으면 74곳을 다 훑고 나서야
+    멈추는 게 아니라 시작도 못 한다. 그래서 미리 깔아 둔다.
+    """
+    try:
+        import selenium  # noqa: F401
+        return True
+    except ImportError:
+        pass
+
+    print("selenium 이 없어서 먼저 설치합니다. 1~2분 걸릴 수 있습니다.")
+    code = subprocess.call(
+        [PY, "-m", "pip", "install", "-r", "requirements.txt"], cwd=ROOT)
+    if code != 0:
+        print("\n[중단] 설치에 실패했습니다. 아래를 직접 실행해 보세요:")
+        print("    pip install -r requirements.txt")
+        return False
+
+    # 방금 깐 패키지는 이 프로세스에 안 잡힐 수 있어서 따로 확인한다.
+    check = subprocess.call([PY, "-c", "import selenium"], cwd=ROOT)
+    if check != 0:
+        print("\n[중단] 설치는 됐지만 selenium 을 불러오지 못했습니다.")
+        print("    창을 닫고 다시 update.bat 을 실행해 보세요.")
+        return False
+    print("설치 완료.")
+    return True
+
+
 def git_ready() -> bool:
     if shutil.which("git") is None:
         print("! git 을 찾을 수 없어 깃 단계는 건너뜁니다.")
@@ -127,6 +157,8 @@ def main() -> None:
 
     if not args.no_crawl:
         hr("3. 네이버 플레이스에서 별점·메뉴·사진·좌표 받기")
+        if not ensure_deps():
+            raise SystemExit(1)
         print("크롬 창이 뜹니다. 끝날 때까지 닫지 마세요. 가게가 많으면 시간이 꽤 걸립니다.")
         cmd = [PY, "crawl_naver_place.py"]
         if args.no_photos:

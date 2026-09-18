@@ -1300,11 +1300,29 @@
     border-radius: 7px;
   }
   .menus-title {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
     font-size: 9.5px;
     font-weight: 600;
     letter-spacing: .12em;
     color: var(--muted);
     margin-bottom: 2px;
+  }
+  .menus-title .by {
+    font-weight: 500;
+    letter-spacing: .04em;
+    color: var(--line5-ink);
+  }
+  .menu-row .hits {
+    flex: none;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--line5-ink);
+    background: color-mix(in srgb, var(--line5) 13%, transparent);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-variant-numeric: tabular-nums;
   }
   .menu-row {
     display: flex;
@@ -1621,7 +1639,10 @@
       </p>
       <p>
         <strong>메뉴와 가격</strong>은 각 가게가 네이버에 올려 둔 대표 메뉴를 옮긴 것이라
-        실제 계산 금액과 다를 수 있습니다. 가게마다 많이 찾는 메뉴 다섯 개까지 보여 줍니다.
+        실제 계산 금액과 다를 수 있습니다. <strong>인기 메뉴 순서는 방문자 후기에서
+        그 메뉴가 몇 번 언급됐는지 세서 정합니다</strong> — 가게가 대표로 걸어 둔 순서가 아니라
+        손님들이 실제로 많이 말한 순서입니다. 메뉴 옆 숫자가 언급 횟수이고, 가게마다 다섯 개까지
+        보여 줍니다. 후기를 몇 장만 읽기 때문에 전체 후기를 다 센 값은 아닙니다.
       </p>
       <p>
         영업시간·휴무·메뉴·가격은 자주 바뀌고 폐업하는 곳도 있습니다.
@@ -2010,22 +2031,38 @@
     if (!p.menus || !p.menus.length) return null;
     var box = document.createElement("div");
     box.className = "menus";
+    var counted = p.menus.some(function (m) { return (m.hits || 0) > 0; });
+
     var title = document.createElement("div");
     title.className = "menus-title";
-    title.textContent = "인기 메뉴";
+    title.appendChild(document.createTextNode("인기 메뉴"));
+    if (counted) {
+      var by = document.createElement("span");
+      by.className = "by";
+      by.textContent = "후기 언급순";
+      title.appendChild(by);
+    }
     box.appendChild(title);
+
     p.menus.slice(0, 5).forEach(function (m) {
       var row = document.createElement("div");
       row.className = "menu-row";
       var mn = document.createElement("span");
       mn.className = "mn";
       mn.textContent = m.name;
+      row.appendChild(mn);
+      if (m.hits) {
+        var hits = document.createElement("span");
+        hits.className = "hits";
+        hits.textContent = m.hits;
+        hits.title = "후기에서 " + m.hits + "번 언급";
+        row.appendChild(hits);
+      }
       var dots = document.createElement("span");
       dots.className = "dots";
       var mp = document.createElement("span");
       mp.className = "mp";
       mp.textContent = typeof m.price === "number" ? won(m.price) : String(m.price || "");
-      row.appendChild(mn);
       row.appendChild(dots);
       row.appendChild(mp);
       box.appendChild(row);

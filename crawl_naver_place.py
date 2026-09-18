@@ -3,6 +3,7 @@
 사장님 PC에서 돌리는 스크립트입니다 (로컬 크롬 + Selenium).
 
     python crawl_naver_place.py                  # 별점 · 리뷰수 · 인기메뉴/가격 · 좌표
+    python crawl_naver_place.py --no-reviews     # 후기 안 읽고 대표 메뉴 순서 그대로
     python crawl_naver_place.py --photos         # 사진까지 (페이지에는 안 나옴)
     python crawl_naver_place.py --only 특삼겹 금고깃집  # 특정 가게만
     python crawl_naver_place.py --limit 5        # 앞 5곳만 (시험 삼아)
@@ -11,10 +12,13 @@
 동작 방식:
 
   1. m.search.naver.com 에서 "<가게이름> 마곡" 으로 찾아 플레이스 ID를 얻습니다.
-  2. m.place.naver.com/restaurant/<id>/home 과 /menu/list 를 열어
+  2. m.place.naver.com/restaurant/<id>/home, /menu/list, /review/visitor 를 열어
      페이지가 들고 있는 데이터 뭉치(window.__APOLLO_STATE__)를 통째로 읽습니다.
      CSS 클래스명을 짚지 않기 때문에 네이버가 화면을 바꿔도 잘 안 깨집니다.
      혹시 그 뭉치가 없으면 화면 글자에서 정규식으로 주워 담는 방법으로 물러섭니다.
+  2-1. 인기 메뉴는 **후기에서 몇 번 언급됐는지 세서** 정합니다. 가게가 걸어 둔
+     대표 메뉴 순서가 아니라 손님들이 실제로 많이 말한 순서입니다. 후기를 몇 장
+     넘겨 가며 읽고, 후기에 붙은 메뉴 태그가 있으면 그것도 같이 셉니다.
   3. 받은 값을 index.html 의 places-data 블록에 병합합니다.
      직접 써 둔 소개글(note)과 이미 있는 값은 건드리지 않습니다.
 
@@ -46,6 +50,7 @@ PHOTO_DIR = ROOT / "docs" / "magok-matjip" / "photos"
 SEARCH_URL = "https://m.search.naver.com/search.naver?query={q}"
 HOME_URL = "https://m.place.naver.com/restaurant/{pid}/home"
 MENU_URL = "https://m.place.naver.com/restaurant/{pid}/menu/list"
+REVIEW_URL = "https://m.place.naver.com/restaurant/{pid}/review/visitor"
 
 PLACE_ID_RE = re.compile(r"place\.naver\.com/(?:restaurant|place)/(\d+)")
 PRICE_RE = re.compile(r"(\d[\d,]*)\s*원?")
@@ -140,7 +145,8 @@ def pick_menus(state, limit: int = 8) -> list[dict]:
             "_rec": bool(node.get("isRecommended") or node.get("recommend")),
         })
     found.sort(key=lambda m: not m["_rec"])
-    return [{"name": m["name"], "price": m["price"]} for m in found[:limit]]
+    return [{"name": m["name"], "price": m["price"], "hits": 0, "_rec": m["_rec"]}
+            for m in found[:limit]]
 
 
 # 대표 사진으로 쓰기엔 곤란한 것들 (프로필 아이콘, 지도 썸네일, 빈 이미지 등)
@@ -158,6 +164,99 @@ def upsize(url: str) -> str:
     if "pstatic.net" not in base:
         return url
     return base + "?type=w1500"
+
+
+# 메뉴 이름을 후기 글과 맞춰 보기 위한 정리 규칙
+SIZE_RE = re.compile(r"\d+\s*(g|kg|ml|l|cc|인분|인|조각|개|pcs|장|마리)\b", re.I)
+PAREN_RE = re.compile(r"[\(\[][^\)\]]*[\)\]]")
+NONWORD_RE = re.compile(r"[^0-9A-Za-z가-힣]")
+
+
+def menu_key(name: str) -> str:
+    """'숙성 삼겹살 180g (2인)' -> '숙성삼겹살'.
+
+    후기에는 '숙성 삼겹살 180g' 처럼 그대로 쓰지 않고 '숙성삼겹살', '삼겹살' 로
+    적는다. 괄호와 용량을 떼고 공백을 없앤 형태로 맞춰 본다.
+    """
+    base = PAREN_RE.sub(" ", name)
+    base = SIZE_RE.sub(" ", base)
+    return NONWORD_RE.sub("", base)
+
+
+def count_mentions(text: str, menus: list[dict]) -> dict[str, int]:
+    """후기 글에서 메뉴별 언급 횟수를 센다.
+
+    긴 이름부터 세고, 센 자리는 지워 가며 진행한다. '숙성삼겹살' 을 이미 센 자리를
+    '삼겹살' 이 다시 세는 겹침을 막기 위해서다.
+    """
+    flat = NONWORD_RE.sub("", text)
+    counts: dict[str, int] = {}
+    ordered = sorted(menus, key=lambda m: -len(menu_key(m["name"])))
+    for menu in ordered:
+        key = menu_key(menu["name"])
+        if len(key) < 2:
+            counts[menu["name"]] = 0
+            continue
+        counts[menu["name"]] = flat.count(key)
+        flat = flat.replace(key, " ")
+    return counts
+
+
+def structured_mentions(state, menus: list[dict]) -> dict[str, int]:
+    """후기에 붙어 있는 메뉴 태그를 센다. 글을 읽는 것보다 정확하다."""
+    keys = {menu_key(m["name"]): m["name"] for m in menus if len(menu_key(m["name"])) >= 2}
+    counts: dict[str, int] = {}
+    for node in walk(state):
+        for field in ("menus", "menu", "tags", "votedKeywords", "purchaseMenus"):
+            value = node.get(field)
+            items = value if isinstance(value, list) else [value]
+            for item in items:
+                label = item.get("name") if isinstance(item, dict) else item
+                if not isinstance(label, str):
+                    continue
+                hit = keys.get(menu_key(label))
+                if hit:
+                    counts[hit] = counts.get(hit, 0) + 1
+    return counts
+
+
+def click_more(driver) -> bool:
+    """후기 목록의 '더보기' 를 눌러 다음 장을 불러온다."""
+    from selenium.webdriver.common.by import By
+    for button in driver.find_elements(By.CSS_SELECTOR, "a, button"):
+        try:
+            if "더보기" in (button.text or ""):
+                driver.execute_script("arguments[0].click();", button)
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def scrape_reviews(driver, pid: str, menus: list[dict], rounds: int = 4) -> dict[str, int]:
+    """후기 화면을 몇 장 넘겨 가며 메뉴 언급 횟수를 센다."""
+    from selenium.webdriver.common.by import By
+    if not menus:
+        return {}
+    driver.get(REVIEW_URL.format(pid=pid))
+    time.sleep(3)
+
+    for _ in range(rounds):
+        if not click_more(driver):
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(1.6)
+
+    try:
+        text = driver.find_element(By.TAG_NAME, "body").text
+    except Exception:
+        text = driver.page_source
+
+    counts = count_mentions(text, menus)
+    state = apollo(driver)
+    if state:
+        for name, n in structured_mentions(state, menus).items():
+            counts[name] = counts.get(name, 0) + n
+    return counts
 
 
 def pick_photos(state, limit: int = 6) -> list[str]:
@@ -263,9 +362,9 @@ def find_place_id(driver, name: str) -> str:
     return match.group(1) if match else ""
 
 
-def scrape_place(driver, pid: str, want_photo: bool) -> dict:
+def scrape_place(driver, pid: str, want_photo: bool, want_reviews: bool = True) -> dict:
     out = {"rating": None, "reviews": None, "menus": [], "photo_urls": [],
-           "lat": None, "lng": None}
+           "lat": None, "lng": None, "review_hits": 0}
 
     driver.get(HOME_URL.format(pid=pid))
     time.sleep(3)
@@ -284,6 +383,15 @@ def scrape_place(driver, pid: str, want_photo: bool) -> dict:
     menu_state = apollo(driver)
     if menu_state:
         out["menus"] = pick_menus(menu_state)
+
+    if want_reviews and out["menus"]:
+        time.sleep(1.5)
+        hits = scrape_reviews(driver, pid, out["menus"])
+        for menu in out["menus"]:
+            menu["hits"] = hits.get(menu["name"], 0)
+        # 후기에 많이 나온 순. 같으면 가게가 대표로 걸어 둔 것을 앞에.
+        out["menus"].sort(key=lambda m: (-m["hits"], not m.get("_rec", False)))
+        out["review_hits"] = sum(m["hits"] for m in out["menus"])
     return out
 
 
@@ -337,6 +445,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="네이버 플레이스 별점·메뉴·사진 수집")
     ap.add_argument("--photos", action="store_true",
                     help="사진도 받기 (페이지에는 안 나옵니다)")
+    ap.add_argument("--no-reviews", action="store_true",
+                    help="후기를 읽지 않고 가게가 올린 대표 메뉴 순서를 그대로 쓰기")
     ap.add_argument("--only", nargs="*", metavar="이름", help="이 이름이 들어간 가게만")
     ap.add_argument("--limit", type=int, help="앞에서 N곳만")
     ap.add_argument("--force", action="store_true", help="이미 값이 있어도 다시 받기")
@@ -379,7 +489,7 @@ def main() -> None:
                     print("플레이스를 못 찾음")
                     fail += 1
                     continue
-                got = scrape_place(driver, pid, want_photo)
+                got = scrape_place(driver, pid, want_photo, not args.no_reviews)
 
                 bits = []
                 if got["rating"] is not None:
@@ -390,8 +500,13 @@ def main() -> None:
                     place["reviews"] = got["reviews"]
                     bits.append(f"리뷰 {got['reviews']:,}")
                 if got["menus"]:
-                    place["menus"] = got["menus"]
-                    bits.append(f"메뉴 {len(got['menus'])}개")
+                    place["menus"] = [
+                        {"name": m["name"], "price": m["price"], "hits": m.get("hits", 0)}
+                        for m in got["menus"]
+                    ]
+                    total = sum(m.get("hits", 0) for m in got["menus"])
+                    bits.append(f"메뉴 {len(got['menus'])}개"
+                                + (f"(후기 {total}회)" if total else "(후기 언급 없음)"))
                 if got["lat"] is not None:
                     place["lat"], place["lng"] = got["lat"], got["lng"]
                     station = fp.nearest_station(got["lat"], got["lng"])

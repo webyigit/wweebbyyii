@@ -114,6 +114,33 @@ blog_naver/
 브라우저가 실제 화면에 쓰는 글자 파일만 내려받습니다 (전체 3.1MB 중 보통 400KB 안팎).
 폰트는 SIL Open Font License 1.1이고 전문은 `docs/magok-matjip/fonts/OFL.txt`에 있습니다.
 
+## 한 번에 갱신 (윈도우)
+
+`update.bat` 을 **더블클릭**하면 끝납니다. 최신 코드 받기 → 목록 갱신 → 크롤링 → 깃 푸시까지
+순서대로 돌고, 중간에 실패하면 어디서 왜 멈췄는지 알려 줍니다.
+
+명령창에 여러 줄을 한꺼번에 붙여넣으면 잘 깨집니다. 특히 **PowerShell 5.1(윈도우 기본)은
+`&&` 를 아예 못 알아듣습니다.** 그래서 이 파일을 두었습니다.
+
+터미널에서 돌리고 싶으면 한 줄이면 됩니다.
+
+```
+update.bat
+```
+
+또는 파이썬으로 직접:
+
+```
+python update.py                # 전부
+python update.py --no-crawl     # 크롬 안 띄우고 목록만
+python update.py --only-crawl   # 크롤링만 다시
+python update.py --no-push      # 깃에 올리지 않고 파일만
+python update.py --no-photos    # 사진 빼고
+```
+
+네이버 API 키가 아직 없어도 괜찮습니다. 그 단계만 건너뛰고 크롤링은 그대로 돕니다.
+크롤링은 키가 필요 없어서, 이미 목록에 있는 가게의 별점·메뉴·사진·좌표는 다 채워집니다.
+
 ## 데이터 채우기
 
 ```bash

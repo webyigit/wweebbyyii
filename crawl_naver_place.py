@@ -2,7 +2,7 @@
 
 사장님 PC에서 돌리는 스크립트입니다 (로컬 크롬 + Selenium).
 
-    python crawl_naver_place.py                  # 별점 · 리뷰수 · 메뉴/가격 · 사진
+    python crawl_naver_place.py                  # 별점 · 리뷰수 · 메뉴/가격 · 사진 · 좌표
     python crawl_naver_place.py --no-photos      # 사진은 빼고
     python crawl_naver_place.py --only 특삼겹 금고깃집  # 특정 가게만
     python crawl_naver_place.py --limit 5        # 앞 5곳만 (시험 삼아)
@@ -192,6 +192,24 @@ def pick_photos(state, limit: int = 6) -> list[str]:
     return [u for _, u in scored[:limit]]
 
 
+def pick_coords(state) -> tuple[float | None, float | None]:
+    """플레이스 데이터에서 위경도를 찾는다. 네이버는 x=경도, y=위도 로 준다."""
+    for node in walk(state):
+        x, y = node.get("x"), node.get("y")
+        if x is None or y is None:
+            coord = node.get("coordinate") or node.get("coord")
+            if isinstance(coord, dict):
+                x, y = coord.get("x"), coord.get("y")
+        try:
+            lng, lat = float(x), float(y)
+        except (TypeError, ValueError):
+            continue
+        # 서울 강서구 언저리인지 대충 확인 — 엉뚱한 숫자를 좌표로 오인하지 않게
+        if 126.5 <= lng <= 127.3 and 37.3 <= lat <= 37.8:
+            return lat, lng
+    return None, None
+
+
 def fallback_from_text(text: str) -> tuple[float | None, int | None]:
     """APOLLO_STATE 가 없을 때 화면 글자에서 점수만이라도 건진다."""
     rating = None
@@ -242,13 +260,15 @@ def find_place_id(driver, name: str) -> str:
 
 
 def scrape_place(driver, pid: str, want_photo: bool) -> dict:
-    out = {"rating": None, "reviews": None, "menus": [], "photo_urls": []}
+    out = {"rating": None, "reviews": None, "menus": [], "photo_urls": [],
+           "lat": None, "lng": None}
 
     driver.get(HOME_URL.format(pid=pid))
     time.sleep(3)
     state = apollo(driver)
     if state:
         out["rating"], out["reviews"] = pick_rating(state)
+        out["lat"], out["lng"] = pick_coords(state)
         if want_photo:
             out["photo_urls"] = pick_photos(state)
     else:
@@ -330,6 +350,7 @@ def main() -> None:
     if not args.force:
         todo = [p for p in todo
                 if p.get("rating") is None or not p.get("menus")
+                or p.get("lat") is None
                 or (want_photo and not p.get("photo"))]
     if args.limit:
         todo = todo[:args.limit]
@@ -366,6 +387,12 @@ def main() -> None:
                 if got["menus"]:
                     place["menus"] = got["menus"]
                     bits.append(f"메뉴 {len(got['menus'])}개")
+                if got["lat"] is not None:
+                    place["lat"], place["lng"] = got["lat"], got["lng"]
+                    station = fp.nearest_station(got["lat"], got["lng"])
+                    if station:
+                        place["station"] = station
+                    bits.append(f"좌표({station or '?'})")
                 if got["photo_urls"]:
                     try:
                         place["photo"] = save_photo(got["photo_urls"], name)

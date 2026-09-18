@@ -191,6 +191,43 @@ def guess_category(naver_category: str, fallback: str) -> str:
     return fallback
 
 
+# 역 좌표 (위키데이터 기준 대략적인 역 중심)
+STATIONS = {
+    "narue":  (37.56700, 126.82433),
+    "magok":  (37.560167, 126.825417),
+    "balsan": (37.55861, 126.83722),
+}
+
+
+def wgs84(value) -> float | None:
+    """네이버 지역검색의 mapx/mapy 를 위경도로 바꾼다.
+
+    현재 API 는 WGS84 에 10^7 을 곱한 정수를 준다 (예: 1268254170 -> 126.825417).
+    예전 KATEC 좌표가 섞여 오면 값 범위가 달라서 걸러진다.
+    """
+    try:
+        n = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if n <= 0:
+        return None
+    deg = n / 1e7
+    return deg if 33 <= deg <= 132 else None
+
+
+def nearest_station(lat: float | None, lng: float | None) -> str:
+    """좌표에서 가장 가까운 역. 대략적인 평면 거리로 충분하다."""
+    if lat is None or lng is None:
+        return ""
+    best, best_d = "", float("inf")
+    for sid, (slat, slng) in STATIONS.items():
+        # 위도 1도 ≈ 111km, 이 위도에서 경도 1도 ≈ 88km
+        d = ((lat - slat) * 111_000) ** 2 + ((lng - slng) * 88_000) ** 2
+        if d < best_d:
+            best, best_d = sid, d
+    return best
+
+
 def short_where(road_address: str) -> str:
     """'서울특별시 강서구 마곡중앙로 55 1층' -> '강서구 마곡중앙로 55'."""
     if not road_address:
@@ -237,6 +274,8 @@ def collect_naver(cid: str, secret: str) -> dict[str, dict]:
             key = name
             if key in found:
                 continue
+            lng = wgs84(item.get("mapx"))
+            lat = wgs84(item.get("mapy"))
             found[key] = {
                 "name": name,
                 "cat": guess_category(item.get("category", ""), fallback),
@@ -247,6 +286,15 @@ def collect_naver(cid: str, secret: str) -> dict[str, dict]:
                 "where": short_where(road or addr),
                 "addr": road or addr,
                 "tel": item.get("telephone", "").strip(),
+                "lat": lat,
+                "lng": lng,
+                "station": nearest_station(lat, lng),
+                "walk": None,
+                "photo": "",
+                "rating": None,
+                "reviews": None,
+                "src": "",
+                "menus": [],
             }
         time.sleep(0.2)  # 예의상 텀
     return found
@@ -335,6 +383,9 @@ def merge(existing: list[dict], fetched: dict[str, dict], slugs: dict[str, str])
         if fresh:
             place["addr"] = fresh["addr"] or place.get("addr", "")
             place["tel"] = fresh["tel"] or place.get("tel", "")
+            if fresh.get("lat") is not None:
+                place["lat"], place["lng"] = fresh["lat"], fresh["lng"]
+                place["station"] = fresh["station"] or place.get("station", "")
             if not place.get("where") or place["where"] == "마곡 일대":
                 place["where"] = fresh["where"]
         slug = match_slug(place["name"], slugs)

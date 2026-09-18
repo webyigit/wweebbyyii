@@ -1000,6 +1000,79 @@
     border-bottom: 1px solid var(--line);
   }
 
+  .stations {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .stations::-webkit-scrollbar { display: none; }
+
+  .st-label {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    color: var(--muted);
+  }
+
+  .st-group {
+    display: flex;
+    gap: 3px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 3px;
+    width: max-content;
+  }
+
+  .st-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 6px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .14s ease, color .14s ease;
+  }
+  .st-btn .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex: none; opacity: .55;
+  }
+  .st-btn[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  }
+  .st-btn[aria-pressed="true"] .dot { opacity: 1; }
+  .st-btn:focus-visible { outline: 2px solid var(--line5); outline-offset: 1px; }
+
+  .unknown {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--muted);
+  }
+
+  .dist {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--line5-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
   .rail-scroll {
     overflow-x: auto;
     scrollbar-width: none;
@@ -1512,8 +1585,9 @@
     <p class="eyebrow">서울 강서구 · 마곡지구</p>
     <h1>마곡역 밥집 지도</h1>
     <p class="lede">
-      마곡역·마곡나루역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
-      카테고리를 누르면 목록이 다시 불러와집니다. 카드마다 네이버 지도와 캐치테이블로 바로 넘어갑니다.
+      마곡역·마곡나루역·발산역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
+      기준 역을 고르면 그 역에서 가까운 순으로 목록이 다시 불러와집니다.
+      카드마다 네이버 지도와 캐치테이블로 바로 넘어갑니다.
     </p>
     <div class="lines">
       <span class="line-badge"><span class="bullet l5">5</span>마곡역</span>
@@ -1525,6 +1599,10 @@
 
 <div class="controls">
   <div class="wrap">
+    <div class="stations">
+      <span class="st-label">역</span>
+      <div class="st-group" id="stations" role="group" aria-label="기준 역"></div>
+    </div>
     <div class="rail-scroll">
       <div class="rail" id="rail" role="group" aria-label="음식 종류"></div>
     </div>
@@ -1546,13 +1624,14 @@
         <span class="dot" aria-hidden="true"></span>예약 가능
       </button>
       <div class="sort" role="group" aria-label="정렬">
-        <button type="button" id="sort-default" aria-pressed="true">기본순</button>
+        <button type="button" id="sort-dist" aria-pressed="true">가까운 순</button>
         <button type="button" id="sort-rating" aria-pressed="false">별점순</button>
         <button type="button" id="sort-name" aria-pressed="false">가나다순</button>
       </div>
     </div>
   </div>
 
+  <p class="unknown" id="unknown" hidden></p>
   <div class="list" id="list"></div>
 
   <footer>
@@ -1597,63 +1676,80 @@
 <!-- 데이터: fetch_places.py 가 이 블록을 통째로 다시 씁니다. 직접 고쳐도 됩니다. -->
 <script type="application/json" id="places-data">
 [
-  {"name": "산청숯불가든 마곡", "cat": "meat", "menu": "숯불구이", "resv": true, "ct": "sancheong_mg", "note": "캐치테이블에 예약 페이지가 열려 있는 숯불구이집. 파인스퀘어 2차·3차 주차장을 쓸 수 있습니다.", "where": "마곡 파인스퀘어", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "고기꿈", "cat": "meat", "menu": "구이·회식", "resv": false, "ct": "", "note": "단체 회식 자리로 자주 꼽히는 곳. 상차림이 넉넉하다는 평이 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "금고깃집 마곡본점", "cat": "meat", "menu": "돼지구이", "resv": false, "ct": "", "note": "마곡에서 오래 자리를 지켜온 고깃집. YBD 품종 돼지를 쓰고 고기를 구워 줍니다.", "where": "마곡역–발산역 사이", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "도니랑김치생삼겹", "cat": "meat", "menu": "김치 생삼겹", "resv": false, "ct": "", "note": "묵은지와 생삼겹을 같이 굽는 구성. 김치를 좋아하면 잘 맞습니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "돼슐랭", "cat": "meat", "menu": "삼겹살", "resv": false, "ct": "", "note": "마곡나루역 삼겹살 목록 상위권에 꾸준히 이름이 보이는 집.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "마부자생삼겹살", "cat": "meat", "menu": "생삼겹살", "resv": false, "ct": "", "note": "마곡나루 쪽 생삼겹 전문. 점심 목록에도 자주 올라옵니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "오마이양대창", "cat": "meat", "menu": "양대창·순댓국", "resv": false, "ct": "", "note": "곱창·대창 구이집이면서 순댓국도 함께 하는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "특삼겹", "cat": "meat", "menu": "숙성 삼겹살", "resv": false, "ct": "", "note": "숙성 삼겹살을 직원이 직접 구워 내줍니다. 열무김치·파절이·계란찜이 함께 나오는 구성.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "또순이네", "cat": "korean", "menu": "된장찌개", "resv": false, "ct": "", "note": "된장찌개로 이름난 백반집. 마곡 점심 목록에 빠지지 않고 등장합니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "봄담아", "cat": "korean", "menu": "샤브샤브", "resv": false, "ct": "", "note": "샤브샤브 전문. 여럿이 천천히 먹기 좋은 점심 자리로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "예향정", "cat": "korean", "menu": "한정식·백반", "resv": false, "ct": "", "note": "마곡 점심 맛집 목록에 자주 오르는 한식집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "오복순대국", "cat": "korean", "menu": "순대국", "resv": false, "ct": "", "note": "혼밥으로도 부담 없는 순대국집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "칼스토랑", "cat": "korean", "menu": "칼국수", "resv": false, "ct": "", "note": "마곡역 국밥·면 목록 상위에 오르는 칼국수집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "함평해장", "cat": "korean", "menu": "해장국", "resv": false, "ct": "", "note": "마곡역과 발산역 중간에 있는 해장국집. 아침·해장 수요가 많습니다.", "where": "마곡역 3번 출구에서 약 400m", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "뜨돈", "cat": "snack", "menu": "돈까스", "resv": false, "ct": "", "note": "분식집 스타일 돈까스. 마곡역 분식 목록 상위권.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "마곡분식", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "이름 그대로 동네 분식집. 떡볶이 평이 좋습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "어닝바", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "떡볶이와 간단한 안주를 함께 하는 곳.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "오토김밥", "cat": "snack", "menu": "김밥·닭강정", "resv": false, "ct": "", "note": "김밥집이지만 닭강정 쪽 언급이 더 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "죠스떡볶이", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "체인 분식점. 늦게까지 여는 편이라 야식으로 자주 꼽힙니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "뽀그리회수산", "cat": "hoe", "menu": "물회", "resv": false, "ct": "", "note": "물회로 이름난 집. 마곡역에서 한 정거장 떨어진 발산역 쪽입니다.", "where": "발산역 쪽", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "수산마켓", "cat": "hoe", "menu": "회·오마카세", "resv": false, "ct": "", "note": "회 종류를 넓게 갖췄고 매운탕·튀김·물회 같은 곁들임도 함께 합니다. 우드톤 인테리어.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "안면도수산", "cat": "hoe", "menu": "회·수산", "resv": false, "ct": "", "note": "마곡역 인근 수산물집. 회와 함께 찌개류를 냅니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "활어회담", "cat": "hoe", "menu": "활어회", "resv": false, "ct": "", "note": "마곡역 횟집 목록 상위에 오르는 활어회집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "가마메시야 울림", "cat": "japanese", "menu": "가마메시", "resv": false, "ct": "", "note": "솥밥(가마메시) 전문. 마곡 일식 목록 상위권입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "마곡초밥", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "동네 초밥집. 부담 없는 가격대로 언급이 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "봉스시", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "마곡 인근 초밥집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "스시풀 마곡역", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "마곡역 인근 초밥집. 가게 이름에 역 이름이 붙어 있을 만큼 역세권입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "우미마토", "cat": "japanese", "menu": "오마카세", "resv": false, "ct": "", "note": "마곡역 쪽 오마카세. 기념일이나 접대 자리로 언급이 많습니다. 방문 전 예약 확인 권장.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "유미카츠", "cat": "japanese", "menu": "돈까스", "resv": false, "ct": "", "note": "마곡 점심 목록에 자주 오르는 돈까스집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "몽중헌 마곡", "cat": "chinese", "menu": "중식 다이닝", "resv": true, "ct": "", "note": "캐치테이블 기준 평점 4.8. 저녁 5시 30분에 문을 열고 최대 20명까지 예약을 받습니다. 상견례·접대 자리로 많이 씁니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "도화림", "cat": "chinese", "menu": "짜장면", "resv": false, "ct": "", "note": "짜장면 쪽 평이 좋은 집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "동천", "cat": "chinese", "menu": "중식", "resv": false, "ct": "", "note": "짬뽕·식사 메뉴로 언급이 많은 동네 중식당.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "서울홍성원", "cat": "chinese", "menu": "짬뽕", "resv": false, "ct": "", "note": "마곡역 짬뽕 목록 상위에 오르는 중식당.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "신선", "cat": "chinese", "menu": "해물짬뽕", "resv": false, "ct": "", "note": "해물짬뽕으로 소개된 강서구 마곡동 중식당.", "where": "강서구 마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "쓰부", "cat": "chinese", "menu": "간짜장·짬뽕", "resv": false, "ct": "", "note": "주문 즉시 볶아 내는 간짜장과 짬뽕. 요리도 1인분 단위로 시킬 수 있습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "넴넴", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "마곡 베트남 음식 목록 상위의 쌀국수집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "사이공 윤다이", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "베트남 가정식과 쌀국수를 함께 하는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "에머이", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "쌀국수 체인. 점심 회전이 빠른 편입니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "포36거리 마곡역", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "국물·볶음·비빔 쌀국수에 덮밥까지 갖춘 베트남 식당. 칠리소스가 특징입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "비마이플레이스", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "마곡 파스타 목록 상위의 이탈리안 레스토랑.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "비바나폴리", "cat": "western", "menu": "화덕피자", "resv": false, "ct": "", "note": "화덕피자 전문. 마곡 양식 목록에서 상위로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "아우어루꼴라", "cat": "western", "menu": "피자", "resv": false, "ct": "", "note": "루꼴라를 올린 피자로 알려진 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "오늘 파스타 마곡점", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "부담 없는 가격대의 파스타 체인 지점.", "where": "마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "올데이파스타", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "마곡동 이탈리아 음식점. 이름대로 종일 파스타를 냅니다.", "where": "강서구 마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "타케로스", "cat": "western", "menu": "타코", "resv": false, "ct": "", "note": "마곡역 목록에 오르는 타코 전문점. 가볍게 한 잔 곁들이기 좋습니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "트라고 마곡", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "생면 라자냐와 파스타, 와인 100여 종을 갖춘 이탈리안. 역에서 아주 가깝습니다.", "where": "마곡역 3번 출구 도보 1분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "523베이커리카페", "cat": "cafe", "menu": "베이커리 카페", "resv": false, "ct": "", "note": "방화·마곡지구 쪽 베이커리 카페로 소개되는 곳.", "where": "방화·마곡지구", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "라크레마", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "마곡역 디저트카페 목록 상위권.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "버터풀리", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "구움과자·디저트류로 언급이 많은 카페.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "브릭샌드", "cat": "cafe", "menu": "샌드위치", "resv": false, "ct": "", "note": "샌드위치와 커피. 간단한 점심 대용으로 자주 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "빵백화점 마곡점", "cat": "cafe", "menu": "베이커리 · 24시간", "resv": false, "ct": "", "note": "24시간 여는 대형 베이커리. 최대 4시간 주차 지원이 됩니다.", "where": "마곡M밸리 W타워 4차 1층", "addr": "서울 강서구 마곡중앙1로 14", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "에그 베이커리", "cat": "cafe", "menu": "치즈케이크", "resv": false, "ct": "", "note": "크럼블 치즈케이크가 여러 종류. 밤·흑임자 맘모스 치즈케이크가 대표 메뉴입니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "naver", "menus": [{"name": "밤치즈케이크", "price": 7000}, {"name": "흑임자맘모스치즈케이크", "price": 8000}]},
-  {"name": "픽트 로스터리", "cat": "cafe", "menu": "로스터리 카페", "resv": false, "ct": "", "note": "직접 로스팅하는 카페. 프렌치토스트 평이 좋습니다.", "where": "마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "야키토리잔잔 마곡나루점", "cat": "bar", "menu": "야키토리", "resv": true, "ct": "", "note": "캐치테이블 기준 오후 2시부터 새벽 2시까지 영업하고 최대 50명까지 예약을 받습니다. 저녁 기준 1~4만원대.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "구주 마곡", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "천장이 높고 주황빛 조명의 넓은 주점. 건물 주차장 2시간 무료.", "where": "퀸즈파크13 1층", "addr": "서울 강서구 마곡중앙로 55", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "이자카야 우규 마곡점", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "은은한 조명의 일식 주점. 월~토 17:00–01:00, 일 17:00–24:00 영업으로 안내됩니다.", "where": "마곡역 3번 출구 도보 7분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []},
-  {"name": "이자카야 춘", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 이름을 올린 주점.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": []}
+  {"name": "산청숯불가든 마곡", "cat": "meat", "menu": "숯불구이", "resv": true, "ct": "sancheong_mg", "note": "캐치테이블에 예약 페이지가 열려 있는 숯불구이집. 파인스퀘어 2차·3차 주차장을 쓸 수 있습니다.", "where": "마곡 파인스퀘어", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "고기꿈", "cat": "meat", "menu": "구이·회식", "resv": false, "ct": "", "note": "단체 회식 자리로 자주 꼽히는 곳. 상차림이 넉넉하다는 평이 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "금고깃집 마곡본점", "cat": "meat", "menu": "돼지구이", "resv": false, "ct": "", "note": "마곡에서 오래 자리를 지켜온 고깃집. YBD 품종 돼지를 쓰고 고기를 구워 줍니다.", "where": "마곡역–발산역 사이", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "도니랑김치생삼겹", "cat": "meat", "menu": "김치 생삼겹", "resv": false, "ct": "", "note": "묵은지와 생삼겹을 같이 굽는 구성. 김치를 좋아하면 잘 맞습니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "돼슐랭", "cat": "meat", "menu": "삼겹살", "resv": false, "ct": "", "note": "마곡나루역 삼겹살 목록 상위권에 꾸준히 이름이 보이는 집.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "마부자생삼겹살", "cat": "meat", "menu": "생삼겹살", "resv": false, "ct": "", "note": "마곡나루 쪽 생삼겹 전문. 점심 목록에도 자주 올라옵니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "오마이양대창", "cat": "meat", "menu": "양대창·순댓국", "resv": false, "ct": "", "note": "곱창·대창 구이집이면서 순댓국도 함께 하는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "특삼겹", "cat": "meat", "menu": "숙성 삼겹살", "resv": false, "ct": "", "note": "숙성 삼겹살을 직원이 직접 구워 내줍니다. 열무김치·파절이·계란찜이 함께 나오는 구성.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "또순이네", "cat": "korean", "menu": "된장찌개", "resv": false, "ct": "", "note": "된장찌개로 이름난 백반집. 마곡 점심 목록에 빠지지 않고 등장합니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "봄담아", "cat": "korean", "menu": "샤브샤브", "resv": false, "ct": "", "note": "샤브샤브 전문. 여럿이 천천히 먹기 좋은 점심 자리로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "예향정", "cat": "korean", "menu": "한정식·백반", "resv": false, "ct": "", "note": "마곡 점심 맛집 목록에 자주 오르는 한식집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "오복순대국", "cat": "korean", "menu": "순대국", "resv": false, "ct": "", "note": "혼밥으로도 부담 없는 순대국집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "칼스토랑", "cat": "korean", "menu": "칼국수", "resv": false, "ct": "", "note": "마곡역 국밥·면 목록 상위에 오르는 칼국수집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "함평해장", "cat": "korean", "menu": "해장국", "resv": false, "ct": "", "note": "마곡역과 발산역 중간에 있는 해장국집. 아침·해장 수요가 많습니다.", "where": "마곡역 3번 출구에서 약 400m", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": 6, "lat": null, "lng": null},
+  {"name": "뜨돈", "cat": "snack", "menu": "돈까스", "resv": false, "ct": "", "note": "분식집 스타일 돈까스. 마곡역 분식 목록 상위권.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "마곡분식", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "이름 그대로 동네 분식집. 떡볶이 평이 좋습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "어닝바", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "떡볶이와 간단한 안주를 함께 하는 곳.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "오토김밥", "cat": "snack", "menu": "김밥·닭강정", "resv": false, "ct": "", "note": "김밥집이지만 닭강정 쪽 언급이 더 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "죠스떡볶이", "cat": "snack", "menu": "떡볶이", "resv": false, "ct": "", "note": "체인 분식점. 늦게까지 여는 편이라 야식으로 자주 꼽힙니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "뽀그리회수산", "cat": "hoe", "menu": "물회", "resv": false, "ct": "", "note": "물회로 이름난 집. 마곡역에서 한 정거장 떨어진 발산역 쪽입니다.", "where": "발산역 쪽", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "balsan", "walk": null, "lat": null, "lng": null},
+  {"name": "수산마켓", "cat": "hoe", "menu": "회·오마카세", "resv": false, "ct": "", "note": "회 종류를 넓게 갖췄고 매운탕·튀김·물회 같은 곁들임도 함께 합니다. 우드톤 인테리어.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "안면도수산", "cat": "hoe", "menu": "회·수산", "resv": false, "ct": "", "note": "마곡역 인근 수산물집. 회와 함께 찌개류를 냅니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "활어회담", "cat": "hoe", "menu": "활어회", "resv": false, "ct": "", "note": "마곡역 횟집 목록 상위에 오르는 활어회집.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "가마메시야 울림", "cat": "japanese", "menu": "가마메시", "resv": false, "ct": "", "note": "솥밥(가마메시) 전문. 마곡 일식 목록 상위권입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "마곡초밥", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "동네 초밥집. 부담 없는 가격대로 언급이 많습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "봉스시", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "마곡 인근 초밥집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "스시풀 마곡역", "cat": "japanese", "menu": "초밥", "resv": false, "ct": "", "note": "마곡역 인근 초밥집. 가게 이름에 역 이름이 붙어 있을 만큼 역세권입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "우미마토", "cat": "japanese", "menu": "오마카세", "resv": false, "ct": "", "note": "마곡역 쪽 오마카세. 기념일이나 접대 자리로 언급이 많습니다. 방문 전 예약 확인 권장.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "유미카츠", "cat": "japanese", "menu": "돈까스", "resv": false, "ct": "", "note": "마곡 점심 목록에 자주 오르는 돈까스집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "몽중헌 마곡", "cat": "chinese", "menu": "중식 다이닝", "resv": true, "ct": "", "note": "캐치테이블 기준 평점 4.8. 저녁 5시 30분에 문을 열고 최대 20명까지 예약을 받습니다. 상견례·접대 자리로 많이 씁니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "도화림", "cat": "chinese", "menu": "짜장면", "resv": false, "ct": "", "note": "짜장면 쪽 평이 좋은 집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "동천", "cat": "chinese", "menu": "중식", "resv": false, "ct": "", "note": "짬뽕·식사 메뉴로 언급이 많은 동네 중식당.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "서울홍성원", "cat": "chinese", "menu": "짬뽕", "resv": false, "ct": "", "note": "마곡역 짬뽕 목록 상위에 오르는 중식당.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "신선", "cat": "chinese", "menu": "해물짬뽕", "resv": false, "ct": "", "note": "해물짬뽕으로 소개된 강서구 마곡동 중식당.", "where": "강서구 마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "쓰부", "cat": "chinese", "menu": "간짜장·짬뽕", "resv": false, "ct": "", "note": "주문 즉시 볶아 내는 간짜장과 짬뽕. 요리도 1인분 단위로 시킬 수 있습니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "넴넴", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "마곡 베트남 음식 목록 상위의 쌀국수집.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "사이공 윤다이", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "베트남 가정식과 쌀국수를 함께 하는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "에머이", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "쌀국수 체인. 점심 회전이 빠른 편입니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "포36거리 마곡역", "cat": "asian", "menu": "쌀국수", "resv": false, "ct": "", "note": "국물·볶음·비빔 쌀국수에 덮밥까지 갖춘 베트남 식당. 칠리소스가 특징입니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "비마이플레이스", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "마곡 파스타 목록 상위의 이탈리안 레스토랑.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "비바나폴리", "cat": "western", "menu": "화덕피자", "resv": false, "ct": "", "note": "화덕피자 전문. 마곡 양식 목록에서 상위로 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "아우어루꼴라", "cat": "western", "menu": "피자", "resv": false, "ct": "", "note": "루꼴라를 올린 피자로 알려진 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "오늘 파스타 마곡점", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "부담 없는 가격대의 파스타 체인 지점.", "where": "마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "올데이파스타", "cat": "western", "menu": "파스타", "resv": false, "ct": "", "note": "마곡동 이탈리아 음식점. 이름대로 종일 파스타를 냅니다.", "where": "강서구 마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "잔잔하게", "cat": "western", "menu": "파스타·와인", "resv": false, "ct": "", "note": "파스타에 와인을 곁들이는 곳. 마곡나루역 와인 목록에 함께 오릅니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "타케로스", "cat": "western", "menu": "타코", "resv": false, "ct": "", "note": "마곡역 목록에 오르는 타코 전문점. 가볍게 한 잔 곁들이기 좋습니다.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "트라고 마곡", "cat": "western", "menu": "이탈리안", "resv": false, "ct": "", "note": "생면 라자냐와 파스타, 와인 100여 종을 갖춘 이탈리안. 역에서 아주 가깝습니다.", "where": "마곡역 3번 출구 도보 1분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": 1, "lat": null, "lng": null},
+  {"name": "523베이커리카페", "cat": "cafe", "menu": "베이커리 카페", "resv": false, "ct": "", "note": "방화·마곡지구 쪽 베이커리 카페로 소개되는 곳.", "where": "방화·마곡지구", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "라크레마", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "마곡역 디저트카페 목록 상위권.", "where": "마곡역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": null, "lat": null, "lng": null},
+  {"name": "버터풀리", "cat": "cafe", "menu": "디저트 카페", "resv": false, "ct": "", "note": "구움과자·디저트류로 언급이 많은 카페.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "브릭샌드", "cat": "cafe", "menu": "샌드위치", "resv": false, "ct": "", "note": "샌드위치와 커피. 간단한 점심 대용으로 자주 꼽힙니다.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "빵백화점 마곡점", "cat": "cafe", "menu": "베이커리 · 24시간", "resv": false, "ct": "", "note": "24시간 여는 대형 베이커리. 최대 4시간 주차 지원이 됩니다.", "where": "마곡M밸리 W타워 4차 1층", "addr": "서울 강서구 마곡중앙1로 14", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "에그 베이커리", "cat": "cafe", "menu": "치즈케이크", "resv": false, "ct": "", "note": "크럼블 치즈케이크가 여러 종류. 밤·흑임자 맘모스 치즈케이크가 대표 메뉴입니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "naver", "menus": [{"name": "밤치즈케이크", "price": 7000}, {"name": "흑임자맘모스치즈케이크", "price": 8000}], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "픽트 로스터리", "cat": "cafe", "menu": "로스터리 카페", "resv": false, "ct": "", "note": "직접 로스팅하는 카페. 프렌치토스트 평이 좋습니다.", "where": "마곡동", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "야키토리잔잔 마곡나루점", "cat": "bar", "menu": "야키토리", "resv": true, "ct": "", "note": "캐치테이블 기준 오후 2시부터 새벽 2시까지 영업하고 최대 50명까지 예약을 받습니다. 저녁 기준 1~4만원대.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "902탭하우스", "cat": "bar", "menu": "수제맥주", "resv": false, "ct": "", "note": "탭으로 따라 주는 수제맥주집.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "구주 마곡", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "천장이 높고 주황빛 조명의 넓은 주점. 건물 주차장 2시간 무료.", "where": "퀸즈파크13 1층", "addr": "서울 강서구 마곡중앙로 55", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "극락전", "cat": "bar", "menu": "막걸리", "resv": false, "ct": "", "note": "막걸리와 전집. 마곡나루역 술집 목록에 오르는 곳.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "근린주옥", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 오르는 주점.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "금별맥주 마곡나루역점", "cat": "bar", "menu": "맥주·호프", "resv": false, "ct": "", "note": "마곡나루역 2번 출구에서 바로. 가볍게 한 잔 하기 좋은 동네 맥줏집입니다.", "where": "마곡나루역 2번 출구 도보 1분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": 1, "lat": null, "lng": null},
+  {"name": "땡초비어", "cat": "bar", "menu": "포차·갑오징어", "resv": false, "ct": "", "note": "갑오징어구이에 맥주. 마곡나루역 1·2번 출구에서 걸어서 5분 거리의 포차입니다.", "where": "마곡나루역 1·2번 출구 도보 5분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": 5, "lat": null, "lng": null},
+  {"name": "마곡 와인오픈", "cat": "bar", "menu": "와인바·브런치", "resv": false, "ct": "", "note": "마곡나루역과 발산역 사이 골목의 와인바. 브런치도 합니다.", "where": "마곡나루역–발산역 사이 골목", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "마곡관", "cat": "bar", "menu": "술집", "resv": false, "ct": "", "note": "마곡 일대 술집 목록에 오르는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "미사토", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 오르는 일식 주점.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "밀회관", "cat": "bar", "menu": "수제맥주", "resv": false, "ct": "", "note": "마곡나루역 수제맥주 목록 상위에 오르는 술집.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "브롱스", "cat": "bar", "menu": "피맥", "resv": false, "ct": "", "note": "피자에 맥주. 마곡나루 쪽 수제맥주 목록에 함께 오릅니다.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "수작 발산마곡점", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "발산·마곡 쪽 이자카야 체인 지점.", "where": "발산역 쪽", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "balsan", "walk": null, "lat": null, "lng": null},
+  {"name": "심야식당켬", "cat": "bar", "menu": "요리주점·전통주", "resv": false, "ct": "", "note": "전통주를 갖춘 요리주점. 마곡나루역 2번 출구에서 115m, 롯데캐슬파크 226호.", "where": "롯데캐슬파크 226호", "addr": "마곡나루역 2번 출구 115m", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": 2, "lat": null, "lng": null},
+  {"name": "아임와인땡큐", "cat": "bar", "menu": "와인바", "resv": false, "ct": "", "note": "마곡나루역 와인 목록에 오르는 와인바.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "와이와이", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 오르는 주점.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "이름없는 달밤", "cat": "bar", "menu": "술집", "resv": false, "ct": "", "note": "마곡나루역 술집 목록에 이름을 올린 주점.", "where": "마곡나루역 인근", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "narue", "walk": null, "lat": null, "lng": null},
+  {"name": "이자카야 우규 마곡점", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "은은한 조명의 일식 주점. 월~토 17:00–01:00, 일 17:00–24:00 영업으로 안내됩니다.", "where": "마곡역 3번 출구 도보 7분", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "magok", "walk": 7, "lat": null, "lng": null},
+  {"name": "이자카야 춘", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 이자카야 목록에 이름을 올린 주점.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null},
+  {"name": "호호방", "cat": "bar", "menu": "이자카야", "resv": false, "ct": "", "note": "마곡 쪽 이자카야로 함께 언급되는 곳.", "where": "마곡 일대", "addr": "", "tel": "", "photo": "", "rating": null, "reviews": null, "src": "", "menus": [], "station": "", "walk": null, "lat": null, "lng": null}
 ]
 </script>
 
@@ -1682,7 +1778,60 @@
     { id: "bar",      label: "술집" }
   ];
 
-  var state = { cat: "all", q: "", sort: "default", onlyResv: false };
+  // 역 좌표는 위키데이터 기준 대략적인 역 중심입니다. 출구마다 100m쯤 차이가 나므로
+  // 정확한 도보 거리가 아니라 "어느 역이 가까운가" 를 가르는 용도로 씁니다.
+  var STATIONS = [
+    { id: "narue",  label: "마곡나루", lat: 37.56700, lng: 126.82433, line: "l9" },
+    { id: "magok",  label: "마곡",     lat: 37.560167, lng: 126.825417, line: "l5" },
+    { id: "balsan", label: "발산",     lat: 37.55861, lng: 126.83722, line: "l5" },
+    { id: "all",    label: "전체",     lat: null, lng: null, line: "" }
+  ];
+
+  var state = { cat: "all", q: "", sort: "dist", onlyResv: false, station: "narue" };
+
+  function stationById(id) {
+    return STATIONS.filter(function (s) { return s.id === id; })[0] || STATIONS[3];
+  }
+
+  function haversine(aLat, aLng, bLat, bLng) {
+    var R = 6371000, rad = Math.PI / 180;
+    var dLat = (bLat - aLat) * rad, dLng = (bLng - aLng) * rad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(aLat * rad) * Math.cos(bLat * rad) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+  }
+
+  // 좌표가 있으면 실제 거리를, 없으면 null. 좌표가 채워지기 전에는
+  // 적어 둔 역 이름과 도보 분으로만 정렬한다.
+  function distTo(p, st) {
+    if (!st || st.lat === null) return null;
+    if (typeof p.lat !== "number" || typeof p.lng !== "number") return null;
+    return haversine(st.lat, st.lng, p.lat, p.lng);
+  }
+
+  // 좌표가 있으면 가장 가까운 역이 그 가게의 역이 된다.
+  function stationOf(p) {
+    if (typeof p.lat === "number" && typeof p.lng === "number") {
+      var best = "", bestD = Infinity;
+      STATIONS.forEach(function (st) {
+        if (st.lat === null) return;
+        var d = haversine(st.lat, st.lng, p.lat, p.lng);
+        if (d < bestD) { bestD = d; best = st.id; }
+      });
+      return best;
+    }
+    return p.station || "";
+  }
+
+  // 거리 비교용 점수. 작을수록 가깝다. 아무 단서도 없으면 맨 뒤.
+  function nearness(p, st) {
+    var d = distTo(p, st);
+    if (d !== null) return d;
+    if (typeof p.walk === "number") return p.walk * 67;   // 도보 1분 ≈ 67m
+    if (stationOf(p) === st.id) return 9000;              // 그 역이라고만 적힌 곳
+    return Infinity;
+  }
 
   // 카테고리별 별점 TOP 5. 별점이 있는 곳만 순위에 들어가고,
   // 같으면 리뷰가 많은 쪽이 앞선다.
@@ -1714,17 +1863,56 @@
   var countEl = document.getElementById("count");
   var qEl     = document.getElementById("q");
   var resvEl  = document.getElementById("only-resv");
+  var unknownEl = document.getElementById("unknown");
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var timer   = null;
 
+  function inStation(p) {
+    return state.station === "all" || stationOf(p) === state.station;
+  }
+
   function countOf(id) {
-    if (id === "all") return PLACES.length;
     var n = 0;
-    for (var i = 0; i < PLACES.length; i++) if (PLACES[i].cat === id) n++;
+    for (var i = 0; i < PLACES.length; i++) {
+      var p = PLACES[i];
+      if (!inStation(p)) continue;
+      if (id === "all" || p.cat === id) n++;
+    }
     return n;
   }
 
-  function buildRail() {
+  function buildStations() {
+    var box = document.getElementById("stations");
+    STATIONS.forEach(function (st) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "st-btn";
+      b.dataset.st = st.id;
+      b.setAttribute("aria-pressed", String(st.id === state.station));
+      var dot = st.line
+        ? '<span class="dot" style="background:var(--line' +
+          (st.line === "l9" ? "9" : "5") + ')" aria-hidden="true"></span>'
+        : "";
+      b.innerHTML = dot + "<span>" + st.label + (st.id === "all" ? "" : "역") + "</span>";
+      b.addEventListener("click", function () { selectStation(st.id); });
+      box.appendChild(b);
+    });
+  }
+
+  function selectStation(id) {
+    if (state.station === id) return;
+    state.station = id;
+    var btns = document.querySelectorAll(".st-btn");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute("aria-pressed", String(btns[i].dataset.st === id));
+    }
+    try { localStorage.setItem("magok.station", id); } catch (e) {}
+    buildRail(true);
+    reload();
+  }
+
+  function buildRail(rebuild) {
+    if (rebuild) railEl.innerHTML = "";
     CATS.forEach(function (c) {
       var b = document.createElement("button");
       b.type = "button";
@@ -1751,13 +1939,25 @@
   function filtered() {
     var q = state.q.trim().toLowerCase();
     var out = PLACES.filter(function (p) {
+      if (!inStation(p)) return false;
       if (state.cat !== "all" && p.cat !== state.cat) return false;
       if (state.onlyResv && !p.resv) return false;
       if (!q) return true;
       return (p.name + " " + p.menu + " " + p.note + " " + p.where + " " + (p.addr || ""))
         .toLowerCase().indexOf(q) !== -1;
     });
-    if (state.sort === "name") {
+    if (state.sort === "dist") {
+      var st = stationById(state.station);
+      if (st.id === "all") {
+        out = out.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
+      } else {
+        out = out.slice().sort(function (a, b) {
+          var d = nearness(a, st) - nearness(b, st);
+          if (d) return d;
+          return a.name.localeCompare(b.name, "ko");
+        });
+      }
+    } else if (state.sort === "name") {
       out = out.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); });
     } else if (state.sort === "rating") {
       // 별점 없는 곳은 뒤로 보낸다 — 0점으로 취급하지 않는다.
@@ -1779,6 +1979,14 @@
     var k = encodeURIComponent(p.name);
     return "https://app.catchtable.co.kr/ct/map/COMMON?showTabs=true&serviceType=INTEGRATION" +
            "&keyword=" + k + "&keywordSearch=" + k;
+  }
+
+  function distLabel(p, st) {
+    if (!st || st.id === "all") return "";
+    var d = distTo(p, st);
+    if (d !== null) return d < 1000 ? d + "m" : (d / 1000).toFixed(1) + "km";
+    if (typeof p.walk === "number") return "도보 " + p.walk + "분";
+    return "";
   }
 
   function metaRow(key, value, href) {
@@ -1947,7 +2155,17 @@
 
     var meta = document.createElement("div");
     meta.className = "meta";
-    meta.appendChild(metaRow("위치", p.where));
+
+    var whereRow = metaRow("위치", p.where);
+    var st = stationById(state.station);
+    var label = distLabel(p, st);
+    if (label) {
+      var tag = document.createElement("span");
+      tag.className = "dist";
+      tag.textContent = label;
+      whereRow.appendChild(tag);
+    }
+    meta.appendChild(whereRow);
     if (p.addr) meta.appendChild(metaRow("주소", p.addr));
     if (p.tel)  meta.appendChild(metaRow("전화", p.tel, "tel:" + p.tel.replace(/[^0-9+]/g, "")));
     el.appendChild(meta);
@@ -2015,7 +2233,16 @@
       rows.forEach(function (p) { frag.appendChild(cardEl(p)); });
       listEl.appendChild(frag);
     }
-    countEl.innerHTML = label + (state.onlyResv ? " · 예약 가능" : "") + " · <b>" + rows.length + "</b>곳";
+    var stName = state.station === "all" ? "전체" : stationById(state.station).label + "역";
+    countEl.innerHTML = stName + " · " + label +
+      (state.onlyResv ? " · 예약 가능" : "") + " · <b>" + rows.length + "</b>곳";
+
+    var unknown = PLACES.filter(function (p) { return !stationOf(p); }).length;
+    unknownEl.hidden = !(state.station !== "all" && unknown);
+    if (!unknownEl.hidden) {
+      unknownEl.textContent = "가까운 역을 아직 못 정한 곳이 " + unknown +
+        "곳 있습니다. '전체'를 누르면 같이 보입니다.";
+    }
   }
 
   function reload() {
@@ -2026,7 +2253,7 @@
     timer = setTimeout(paint, 230);
   }
 
-  var SORTS = ["default", "rating", "name"];
+  var SORTS = ["dist", "rating", "name"];
   SORTS.forEach(function (id) {
     document.getElementById("sort-" + id).addEventListener("click", function () { setSort(id); });
   });
@@ -2056,8 +2283,11 @@
   try {
     var saved = localStorage.getItem("magok.cat");
     if (saved && CATS.some(function (c) { return c.id === saved; })) state.cat = saved;
+    var savedSt = localStorage.getItem("magok.station");
+    if (savedSt && STATIONS.some(function (c) { return c.id === savedSt; })) state.station = savedSt;
   } catch (e) {}
 
+  buildStations();
   buildRail();
   paint();
 

@@ -32,14 +32,30 @@ playwright 가 필요합니다. 없으면 `npm i playwright` 로 설치하세요
 **끝났다고 보고할 때는 결과물의 위치를 항상 같이 적으세요.** 사용자가 어디를 열어
 봐야 하는지 매번 되묻지 않게 합니다. 해당되는 것만 골라서:
 
+**공개용 주소는 GitHub Pages 입니다. 맨 위에 이것부터 적으세요.**
+
+```
+https://webyigit.github.io/wweebbyyii/magok-matjip/
+```
+
+남한테 보낼 주소는 이거 하나입니다. 로그인도 클로드 계정도 필요 없고, 주소가 안
+바뀌고, 링크를 누르면 진짜 브라우저 탭에서 열립니다.
+
+아티팩트 주소(https://claude.ai/artifact/ScD8Rzzh5T1doVNziLhB7j)는 **작업 중에
+바로 확인하는 용도**입니다. 페이지를 틀(iframe) 안에서 보여주기 때문에 바깥 링크가
+막힐 수 있어서, 남한테 보내는 주소로는 쓰지 마세요.
+
 | 무엇 | 어디 |
 |---|---|
-| 페이지 파일 | `docs/magok-matjip/index.html` |
-| 아티팩트 | https://claude.ai/artifact/ScD8Rzzh5T1doVNziLhB7j |
-| GitHub Pages | https://webyigit.github.io/wweebbyyii/magok-matjip/ |
+| **공개용** | https://webyigit.github.io/wweebbyyii/magok-matjip/ |
+| 작업 중 확인 | https://claude.ai/artifact/ScD8Rzzh5T1doVNziLhB7j |
 | 저장소 | https://github.com/webyigit/wweebbyyii (`main`) |
+| 페이지 파일 | `docs/magok-matjip/index.html` |
 
 고친 파일이 위 표에 없으면 그 경로를 그대로 적으면 됩니다.
+
+Pages 는 저장소 Settings → Pages 에서 Source 가 `main` / `/docs` 여야 뜹니다.
+`docs/magok-matjip/` 폴더가 주소 뒤의 `/magok-matjip/` 이 됩니다.
 
 **URL 은 `https://` 부터 끝까지 그대로 적으세요.** 마크다운 링크(`[여기](...)`)나
 백틱으로 감싸면 터미널이 링크로 못 알아봐서 클릭해도 브라우저가 안 열립니다.

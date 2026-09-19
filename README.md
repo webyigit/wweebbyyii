@@ -80,9 +80,13 @@ blog_naver/
 
 # 마곡 맛집 페이지
 
+공개 주소:
+
+    https://webyigit.github.io/wweebbyyii/magok-matjip/
+
 `docs/magok-matjip/index.html` — 마곡역·마곡나루역 주변 식당을 종류별로 묶은 한 장짜리
 정적 페이지입니다. 빌드 과정이 없어서 파일을 그대로 열어도 되고, GitHub Pages를 `docs/`
-폴더로 켜면 바로 공개됩니다.
+폴더로 켜면 바로 공개됩니다 (Settings → Pages → Source 를 `main` / `/docs` 로).
 
 가게 데이터는 파일 안의 `<script type="application/json" id="places-data">` 블록에 들어
 있습니다. 직접 고쳐도 되고, 아래 스크립트로 네이버·캐치테이블에서 받아와 채워도 됩니다.
@@ -109,10 +113,17 @@ blog_naver/
 
 ## 폰트
 
-본문은 프리텐다드(Pretendard)입니다. CDN을 쓰지 않고 `docs/magok-matjip/fonts/`에 넣은
-가변 폰트를 `@font-face`로 직접 물립니다. 유니코드 범위별로 92개 파일로 쪼갠 서브셋이라
-브라우저가 실제 화면에 쓰는 글자 파일만 내려받습니다 (전체 3.1MB 중 보통 400KB 안팎).
-폰트는 SIL Open Font License 1.1이고 전문은 `docs/magok-matjip/fonts/OFL.txt`에 있습니다.
+본문은 **Noto Sans KR**(구글 폰트)이고, 못 받아오면 맥은 Apple SD Gothic Neo, 윈도우는
+맑은 고딕, 그다음 같이 실어 둔 프리텐다드(Pretendard) 순으로 떨어집니다.
+
+구글 폰트는 `media="print"` 로 걸었다가 `onload` 에서 `all` 로 바꿔 물립니다. 그냥
+`<link rel="stylesheet">` 로 걸면 구글 폰트가 느리거나 막힌 곳에서 **첫 화면이 그 한 줄을
+기다리느라 통째로 멈춥니다.** 실제로 겪은 문제라 검증 30번이 이걸 지킵니다.
+
+프리텐다드는 `docs/magok-matjip/fonts/`에 넣은 가변 폰트를 `@font-face`로 직접 물립니다.
+유니코드 범위별로 92개 파일로 쪼갠 서브셋이라 브라우저가 실제 화면에 쓰는 글자 파일만
+내려받습니다 (전체 3.1MB 중 보통 400KB 안팎). SIL Open Font License 1.1이고 전문은
+`docs/magok-matjip/fonts/OFL.txt`에 있습니다.
 
 ## 한 번에 갱신 (윈도우)
 

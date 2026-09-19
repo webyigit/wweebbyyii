@@ -177,9 +177,12 @@ def main() -> None:
                                     cwd=ROOT, capture_output=True, text=True).stdout.strip()
             run(["git", "push", "-u", "origin", branch or "HEAD"], allow_fail=True)
 
-    hr("끝")
+    hr("끝 — 지금 채워진 상태")
+    run([PY, "status.py"], allow_fail=True)
+
     page = ROOT / "docs" / "magok-matjip" / "index.html"
-    print(f"페이지를 브라우저로 열어 확인하세요:\n  {page}")
+    print(f"\n페이지를 브라우저로 열어 확인하세요:\n  {page}")
+    print("공개 주소: https://webyigit.github.io/wweebbyyii/magok-matjip/")
 
 
 if __name__ == "__main__":

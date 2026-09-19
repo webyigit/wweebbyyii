@@ -83,8 +83,13 @@ Pages 는 저장소 Settings → Pages 에서 Source 가 `main` / `/docs` 여야
 
 ## 데이터에 대한 원칙
 
-**별점·가격·메뉴·사진을 지어내지 마세요.** 비어 있으면 비워 두고, 화면에는 왜 비었는지
-안내가 나가게 합니다. 실제 가게 정보라 틀린 값을 넣으면 그 가게에 피해가 갑니다.
+**별점·가격·메뉴·사진·도보 시간을 지어내지 마세요.** 비어 있으면 비워 두고, 화면에는 왜
+비었는지 안내가 나가게 합니다. 실제 가게 정보라 틀린 값을 넣으면 그 가게에 피해가 갑니다.
+
+도보 시간은 좌표에서 계산합니다(직선거리 × 1.3 ÷ 분당 80m). **좌표가 없으면 '도보 시간
+미확인' 이 맞습니다** — 대충 찍어 넣지 마세요. 지금 몇 곳이나 찼는지는 `python status.py`
+로 봅니다. 이 컨테이너는 게이트웨이가 네이버를 막으므로 크롤링은 사용자 PC 에서만
+됩니다. 여기서 받아오려고 시도하지 말고, 사용자에게 `update.bat` 을 안내하세요.
 
 데이터는 `index.html` 안 `<script type="application/json" id="places-data">` 블록에
 있고, `fetch_places.py` / `crawl_naver_place.py` 가 이 블록을 다시 씁니다. 직접 써 둔
@@ -96,6 +101,7 @@ Pages 는 저장소 Settings → Pages 에서 Source 가 `main` / `/docs` 여야
 |---|---|
 | `docs/magok-matjip/index.html` | 페이지 전체 (데이터·스타일·스크립트 한 파일) |
 | `verify.mjs` | 자체 검증 |
+| `status.py` | 좌표·도보·별점이 몇 곳이나 찼는지 (인터넷 안 씀) |
 | `fetch_places.py` | 네이버 지역검색 API 로 가게 목록·좌표 |
 | `crawl_naver_place.py` | 네이버 플레이스에서 별점·인기메뉴·좌표 (로컬 크롬) |
 | `update.py` / `update.bat` | 위 과정을 한 번에 (윈도우용) |

@@ -534,7 +534,27 @@ def main() -> None:
     print(f"\n성공 {ok}곳, 실패 {fail}곳")
     rated = sum(1 for p in places if isinstance(p.get("rating"), (int, float)))
     menued = sum(1 for p in places if p.get("menus"))
-    print(f"전체 기준 — 별점 {rated}곳, 메뉴 {menued}곳")
+    coord = sum(1 for p in places
+                if isinstance(p.get("lat"), (int, float))
+                and isinstance(p.get("lng"), (int, float)))
+    walked = sum(1 for p in places if isinstance(p.get("walk"), (int, float)))
+    total = len(places)
+    print(f"전체 기준 — 별점 {rated}곳, 메뉴 {menued}곳, "
+          f"좌표 {coord}곳, 도보 시간 {walked}곳 (전체 {total}곳)")
+
+    # 페이지에 '도보 시간 미확인' 이 왜 남는지 여기서 바로 알 수 있게 한다.
+    # 도보 분은 좌표에서 계산하므로, 좌표가 없으면 그 자리는 계속 비어 있다.
+    if walked < total:
+        missing = [p["name"] for p in places if not isinstance(p.get("walk"), (int, float))]
+        print(f"\n도보 시간이 아직 없는 곳 {len(missing)}곳 "
+              f"— 좌표를 못 받아서입니다. 페이지에는 '도보 시간 미확인' 으로 나갑니다.")
+        for name in missing[:10]:
+            print(f"  · {name}")
+        if len(missing) > 10:
+            print(f"  … 외 {len(missing) - 10}곳")
+        print("\n다시 돌리면 실패한 곳만 다시 시도합니다:  python crawl_naver_place.py")
+    else:
+        print("\n도보 시간이 모든 가게에 채워졌습니다.")
 
     if args.dry_run:
         print("\n--dry-run 이라 파일은 그대로 둡니다.")

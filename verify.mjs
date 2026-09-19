@@ -49,9 +49,9 @@ function buildFixture() {
   }
 
   const block = "[\n" + data.map(x => "  " + JSON.stringify(x)).join(",\n") + "\n]";
-  const html =
-    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
-    raw.replace(RE, (_, a, __, c) => a + block + c);
+  // 파일을 있는 그대로 쓴다. viewport 를 덧붙이던 예전 방식은 GitHub Pages 가
+  // 내보내는 것과 다른 문서를 검사하게 만들어, doctype 누락 같은 문제를 가렸다.
+  const html = raw.replace(RE, (_, a, __, c) => a + block + c);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "magok-verify-"));
   const file = path.join(dir, "index.html");
@@ -457,7 +457,45 @@ const CHECKS = [
     await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
   }],
 
-  ["25 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["25 완전한 HTML 문서라 표준 모드로 뜬다", async (p) => {
+    // doctype 이 없으면 쿼크 모드가 되고, 그때 표는 색을 상속하지 않는다
+    // (UA 규칙 table { color: -internal-quirk-inherit }). 라이트에서 글자가 사라졌다.
+    const d = await p.evaluate(() => ({
+      mode: document.compatMode,
+      lang: document.documentElement.lang,
+      charset: document.characterSet,
+      title: document.title,
+      viewport: !!document.querySelector('meta[name="viewport"]'),
+    }));
+    ok(d.mode === "CSS1Compat", `쿼크 모드로 뜸 (${d.mode}) — doctype 확인`);
+    ok(d.charset.toLowerCase() === "utf-8", `문자셋이 ${d.charset}`);
+    ok(d.lang === "ko", `lang 이 '${d.lang}'`);
+    ok(d.title.length > 0, "제목이 비어 있음");
+    ok(d.viewport, "viewport 메타가 없음");
+  }],
+
+  ["26 표 글자가 라이트에서 어둡고 다크에서 밝다", async (p) => {
+    const L = async () => p.evaluate(() => {
+      const f = s => { const [r, g, b] = s.match(/\d+/g).map(Number);
+                       return 0.299 * r + 0.587 * g + 0.114 * b; };
+      return { name: f(getComputedStyle(document.querySelector(".places tbody .name")).color),
+               body: f(getComputedStyle(document.body).backgroundColor) };
+    });
+    await p.click('#theme button[data-theme="light"]'); await p.waitForTimeout(300);
+    let m = await L();
+    ok(m.body > 200 && m.name < 90,
+       `라이트에서 안 읽힘 — 배경 ${Math.round(m.body)} 글자 ${Math.round(m.name)}`);
+
+    await p.click('#theme button[data-theme="dark"]'); await p.waitForTimeout(300);
+    m = await L();
+    ok(m.body < 80 && m.name > 150,
+       `다크에서 안 읽힘 — 배경 ${Math.round(m.body)} 글자 ${Math.round(m.name)}`);
+
+    await p.click('#theme button[data-theme="auto"]'); await p.waitForTimeout(200);
+    await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+  }],
+
+  ["27 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };

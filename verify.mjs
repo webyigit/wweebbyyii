@@ -92,17 +92,33 @@ const CHECKS = [
     }
   }],
 
-  ["03 역 4개가 모두 선택되고 개수가 바뀐다", async (p) => {
+  ["03 역이 모두 선택되고 개수가 바뀐다", async (p) => {
     await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
+
+    // 역 목록을 화면에서 읽는다. 예전에는 ["narue","magok","balsan","all"] 을
+    // 박아 뒀는데, 역을 늘려도 검증은 넷만 보고 지나갔다.
+    const ids = await p.$$eval(".st-btn", els => els.map(e => e.dataset.st));
+    ok(ids.length >= 4, `역 버튼이 ${ids.length}개뿐`);
+    ok(ids.indexOf("all") !== -1, "'전체' 버튼이 없음");
+
     const seen = new Set();
-    for (const st of ["narue", "magok", "balsan", "all"]) {
+    let nonEmpty = 0;
+    for (const st of ids) {
       await p.click(`.st-btn[data-st="${st}"]`);
       await p.waitForTimeout(PAUSE);
       ok(await pressed(p, `.st-btn[data-st="${st}"]`) === "true", `${st} 선택 안 됨`);
+      const only = await p.$$eval('.st-btn[aria-pressed="true"]', e => e.length);
+      ok(only === 1, `${st}: 동시에 ${only}개가 선택됨`);
+
       const n = (await cards(p)).length;
       seen.add(n);
-      ok(n > 0, `${st}: 결과가 0곳`);
+      if (n > 0) nonEmpty++;
+
+      // 아직 안 모은 역은 0곳이 정상이다. 다만 머리글 숫자와는 맞아야 한다.
+      const head = Number((await text(p, "#count")).match(/(\d+)곳/)[1]);
+      ok(head === n, `${st}: 머리글은 ${head}곳인데 행은 ${n}개`);
     }
+    ok(nonEmpty >= 2, `가게가 있는 역이 ${nonEmpty}곳뿐`);
     ok(seen.size > 1, "역을 바꿔도 결과 수가 전혀 안 변함");
   }],
 

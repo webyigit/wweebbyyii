@@ -41,16 +41,24 @@ import fetch_places as fp
 ROOT = Path(__file__).resolve().parent
 DEBUG_DIR = ROOT / "debug_sites"
 
-# 마곡 일대인지 대충 확인합니다. 엉뚱한 동명이인 가게를 잡으면 좌표가 서울 밖으로
-# 튀는데, 그걸 그대로 넣으면 도보 시간이 말도 안 되게 나옵니다.
-LAT_RANGE = (37.50, 37.62)
-LNG_RANGE = (126.78, 126.90)
+# 우리가 다루는 역 근처인지 대충 확인합니다. 엉뚱한 동명이인 가게를 잡으면 좌표가
+# 서울 밖으로 튀는데, 그걸 그대로 넣으면 도보 시간이 말도 안 되게 나옵니다.
+#
+# 범위를 마곡에 맞춰 박아 두면 역을 늘렸을 때 구로·서초 좌표를 전부 버리게 됩니다.
+# 그래서 REGIONS 의 역들에서 만들어 냅니다. 역에서 이 거리 안이면 받아들입니다.
+NEAR_KM = 3.0
 
 
-def in_magok(lat: float | None, lng: float | None) -> bool:
+def in_range(lat: float | None, lng: float | None) -> bool:
     if lat is None or lng is None:
         return False
-    return LAT_RANGE[0] <= lat <= LAT_RANGE[1] and LNG_RANGE[0] <= lng <= LNG_RANGE[1]
+    for slat, slng in fp.STATIONS.values():
+        # 위도 1도 ≈ 111km, 이 위도에서 경도 1도 ≈ 88km
+        dx = (lat - slat) * 111.0
+        dy = (lng - slng) * 88.0
+        if (dx * dx + dy * dy) ** 0.5 <= NEAR_KM:
+            return True
+    return False
 
 
 def to_float(v) -> float | None:
@@ -92,8 +100,8 @@ KAKAO_SEARCH = "https://m.map.kakao.com/actions/searchView?q={q}"
 KAKAO_ID_RE = re.compile(r"/(?:place|placePage)/(\d{6,})")
 
 
-def kakao_find_id(driver, name: str, debug: bool) -> str:
-    q = urllib.parse.quote(f"{name} 마곡")
+def kakao_find_id(driver, name: str, hint: str, debug: bool) -> str:
+    q = urllib.parse.quote(f"{name} {hint}".strip())
     driver.get(KAKAO_SEARCH.format(q=q))
     time.sleep(2.2)
     m = KAKAO_ID_RE.search(driver.page_source)
@@ -135,7 +143,7 @@ def kakao_place(driver, pid: str, debug: bool) -> dict:
     if lat and lat > 90:
         lat = to_float((basic.get("position") or {}).get("lat"))
         lng = to_float((basic.get("position") or {}).get("lng"))
-    if in_magok(lat, lng):
+    if in_range(lat, lng):
         out["lat"], out["lng"] = lat, lng
 
     addr = (basic.get("address") or {})
@@ -177,8 +185,8 @@ DINING_SEARCH = "https://www.diningcode.com/list.dc?query={q}"
 DINING_ID_RE = re.compile(r"profile\.php\?rid=([A-Za-z0-9]+)")
 
 
-def dining_find_id(driver, name: str, debug: bool) -> str:
-    driver.get(DINING_SEARCH.format(q=urllib.parse.quote(f"{name} 마곡")))
+def dining_find_id(driver, name: str, hint: str, debug: bool) -> str:
+    driver.get(DINING_SEARCH.format(q=urllib.parse.quote(f"{name} {hint}".strip())))
     time.sleep(2.5)
     m = DINING_ID_RE.search(driver.page_source)
     if m:
@@ -233,6 +241,20 @@ SITES = {
 
 
 # -------------------------------------------------------------------- 실행
+
+def area_hint(place: dict) -> str:
+    """검색할 때 이름 뒤에 붙일 동네 이름.
+
+    예전에는 '마곡' 이 박혀 있었습니다. 역이 구로·서초까지 늘어난 뒤로는
+    '라까사 마곡' 처럼 엉뚱한 동네로 검색하게 되므로, 가게가 속한 지역에서 뽑습니다.
+    """
+    region = fp.region_of(place.get("station") or "")
+    if region:
+        terms = fp.REGIONS[region].get("area") or []
+        if terms:
+            return terms[0]
+    return ""
+
 
 def needs(place: dict, force: bool) -> bool:
     if force:
@@ -313,7 +335,7 @@ def main() -> None:
             try:
                 for key in args.site:
                     label, find, fetch = SITES[key]
-                    pid = find(driver, name, args.debug)
+                    pid = find(driver, name, area_hint(place), args.debug)
                     if not pid:
                         bits.append(f"{label} 못 찾음")
                         continue

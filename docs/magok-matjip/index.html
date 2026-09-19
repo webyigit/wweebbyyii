@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="마곡나루·마곡·발산역 주변 식당을 분류·역·별점으로 추려 보는 목록.">
+<meta name="description" content="마곡·구로·서초 일대 전철역 주변 식당을 역·분류·별점으로 추려 보는 목록.">
 <meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap">
 <noscript><link rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap"></noscript>
-<title>마곡역 밥집 지도</title>
+<title>전철역 밥집 지도</title>
 <style>
 /* Pretendard — Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
    SIL Open Font License 1.1 — 전문은 fonts/OFL.txt 참고.
@@ -862,6 +862,9 @@
     --w-body:     400;
     --line5-ink:  #C4530F;
     --line9:      #D9A21C;
+    --sub1:      #2B5FA8;
+    --sub2:      #2E8B4F;
+    --sub3:      #C4671C;
     --air:        #2E8FA8;
     --star:       #F5A623;
     --s-naver:    #03C75A;
@@ -908,6 +911,9 @@
       --on-accent:  #2A1409;
       --line5-ink:  #FFA877;
       --line9:      #E8BC55;
+      --sub1:      #7FA9E0;
+      --sub2:      #6FC48C;
+      --sub3:      #E8A264;
       --air:        #6BB8CE;
       --star:       #FFC154;
       --naver:      #4FC57E;
@@ -941,6 +947,9 @@
     --on-accent:  #2A1409;
     --line5-ink:  #FFA877;
     --line9:    #E8BC55;
+    --sub1:    #7FA9E0;
+    --sub2:    #6FC48C;
+    --sub3:    #E8A264;
     --air:      #6BB8CE;
     --star:     #FFC154;
     --naver:    #4FC57E;
@@ -1179,6 +1188,18 @@
     white-space: nowrap;
     transition: background .14s ease, color .14s ease;
   }
+  .st-zone {
+    flex: none;
+    align-self: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--muted);
+    padding: 0 7px 0 4px;
+    white-space: nowrap;
+  }
+  .st-zone + .st-btn { margin-left: -2px; }
+
   .st-btn .dot {
     width: 8px; height: 8px; border-radius: 50%;
     flex: none; opacity: .55;
@@ -2046,14 +2067,15 @@
 <div class="wrap hide-on-detail">
   <header class="masthead">
     <div class="top-row">
-      <p class="eyebrow">서울 강서구 · 마곡지구</p>
+      <p class="eyebrow">서울 · 강서 마곡 · 구로구 · 서초구</p>
       <div class="theme" id="theme" role="group" aria-label="화면 테마"></div>
     </div>
-    <h1>마곡역 밥집 지도</h1>
+    <h1>전철역 밥집 지도</h1>
     <p class="lede">
-      마곡역·마곡나루역·발산역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
+      전철역에서 걸어갈 만한 식당을 종류별로 묶었습니다. 강서 마곡(마곡나루·마곡·발산),
+      구로구(신도림·구로·대림), 서초구(교대·서초·고속터미널·양재) 열 개 역을 다룹니다.
       기준 역을 고르면 그 역에서 가까운 순으로 목록이 다시 불러와집니다.
-      줄마다 별점·인기 메뉴·거리를 나란히 놓았고, 네이버 지도와 캐치테이블로 바로 넘어갑니다.
+      줄마다 별점·인기 메뉴·거리를 나란히 놓았고, 별점은 어디서 가져온 값인지 같이 적었습니다.
     </p>
       <svg class="hero" viewBox="0 0 268 132" role="img" aria-label="밥그릇과 초밥, 맥주잔이 놓인 그림">
         <ellipse cx="134" cy="123" rx="118" ry="7" fill="var(--line)"/>
@@ -2333,17 +2355,35 @@
 
   // 역 좌표는 위키데이터 기준 대략적인 역 중심입니다. 출구마다 100m쯤 차이가 나므로
   // 정확한 도보 거리가 아니라 "어느 역이 가까운가" 를 가르는 용도로 씁니다.
+  // 역 좌표는 역 중심이라 출구마다 100m쯤 차이가 납니다. 정확한 도보 거리를 내려는
+  // 값이 아니라 '어느 역이 가까운가' 를 가르는 용도입니다.
+  // zone 은 묶음 이름표일 뿐, 실제로 고르는 건 언제나 역 하나입니다.
   var STATIONS = [
-    { id: "narue",  label: "마곡나루", lat: 37.56700, lng: 126.82433, line: "l9" },
-    { id: "magok",  label: "마곡",     lat: 37.560167, lng: 126.825417, line: "l5" },
-    { id: "balsan", label: "발산",     lat: 37.55861, lng: 126.83722, line: "l5" },
-    { id: "all",    label: "전체",     lat: null, lng: null, line: "" }
+    { id: "narue",    label: "마곡나루",   zone: "강서 마곡", lat: 37.56700,  lng: 126.82433,  line: "l9" },
+    { id: "magok",    label: "마곡",       zone: "강서 마곡", lat: 37.560167, lng: 126.825417, line: "l5" },
+    { id: "balsan",   label: "발산",       zone: "강서 마곡", lat: 37.55861,  lng: 126.83722,  line: "l5" },
+    { id: "sindorim", label: "신도림",     zone: "구로구",   lat: 37.50550,  lng: 126.88800,  line: "l2" },
+    { id: "guro",     label: "구로",       zone: "구로구",   lat: 37.50306,  lng: 126.88222,  line: "l1" },
+    { id: "daerim",   label: "대림",       zone: "구로구",   lat: 37.48933,  lng: 126.89033,  line: "l2" },
+    { id: "gyodae",   label: "교대",       zone: "서초구",   lat: 37.49361,  lng: 127.01361,  line: "l2" },
+    { id: "seocho",   label: "서초",       zone: "서초구",   lat: 37.49194,  lng: 127.00806,  line: "l2" },
+    { id: "express",  label: "고속터미널", zone: "서초구",   lat: 37.50594,  lng: 127.00447,  line: "l3" },
+    { id: "yangjae",  label: "양재",       zone: "서초구",   lat: 37.48444,  lng: 127.03389,  line: "l3" },
+    { id: "all",      label: "전체",       zone: "",         lat: null,      lng: null,       line: "" }
   ];
+
+  var LINE_TOKEN = { l1: "--sub1", l2: "--sub2", l3: "--sub3", l5: "--line5", l9: "--line9" };
 
   var state = { cat: "all", q: "", sort: "dist", onlyResv: false, station: "narue" };
 
+  function stationAll() {
+    return STATIONS.filter(function (s) { return s.id === "all"; })[0];
+  }
+
   function stationById(id) {
-    return STATIONS.filter(function (s) { return s.id === id; })[0] || STATIONS[3];
+    // 예전에는 STATIONS[3] 을 기본값으로 박아 뒀다. 역을 늘리자마자 엉뚱한 역이
+    // 기본이 되는 구조라 이름으로 찾게 바꿨다.
+    return STATIONS.filter(function (s) { return s.id === id; })[0] || stationAll();
   }
 
   function haversine(aLat, aLng, bLat, bLng) {
@@ -2588,17 +2628,31 @@
 
   function buildStations() {
     var box = document.getElementById("stations");
+    var zone = null;
     STATIONS.forEach(function (st) {
+      // 역이 열 개를 넘어가서 어느 동네 역인지 알기 어렵다. 동네가 바뀌는 자리에
+      // 이름표를 하나 끼워 넣는다. 고르는 건 여전히 역 하나다.
+      if (st.zone && st.zone !== zone) {
+        zone = st.zone;
+        var tag = document.createElement("span");
+        tag.className = "st-zone";
+        tag.setAttribute("aria-hidden", "true");
+        tag.textContent = zone;
+        box.appendChild(tag);
+      }
       var b = document.createElement("button");
       b.type = "button";
       b.className = "st-btn";
       b.dataset.st = st.id;
+      b.dataset.zone = st.zone || "";
       b.setAttribute("aria-pressed", String(st.id === state.station));
-      var dot = st.line
-        ? '<span class="dot" style="background:var(--line' +
-          (st.line === "l9" ? "9" : "5") + ')" aria-hidden="true"></span>'
+      var token = LINE_TOKEN[st.line];
+      var dot = token
+        ? '<span class="dot" style="background:var(' + token + ')" aria-hidden="true"></span>'
         : "";
       b.innerHTML = dot + "<span>" + st.label + (st.id === "all" ? "" : "역") + "</span>";
+      b.setAttribute("aria-label",
+        st.id === "all" ? "전체 역" : (st.zone ? st.zone + " " : "") + st.label + "역");
       b.addEventListener("click", function () { selectStation(st.id); });
       box.appendChild(b);
     });
@@ -2743,7 +2797,7 @@
   // 별점을 어디서 가져온 값인지. 출처마다 기준이 다르므로 반드시 같이 보여 준다.
   // 예전에는 상세에 '네이버 플레이스' 가 박혀 있었는데, 다른 데서 받아온 점수까지
   // 네이버 것처럼 보이게 만드는 거짓 표시였다.
-  var SRC_NAMES = { naver: "네이버 플레이스", catchtable: "캐치테이블" };
+  var SRC_NAMES = { naver: "네이버 플레이스", catchtable: "캐치테이블", kakao: "카카오맵" };
   function srcLabel(p) {
     if (!p.src) return "";
     return SRC_NAMES[p.src] || p.src;

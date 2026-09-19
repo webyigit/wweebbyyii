@@ -60,8 +60,6 @@ NAVER_LOCAL_API = "https://openapi.naver.com/v1/search/local.json"
 # 2개뿐이라 모자랐습니다). 역마다 같은 분류를 훑도록 만들어 내서 한쪽으로 쏠리지
 # 않게 합니다. 역을 늘리거나 분류를 더할 때도 여기만 고치면 됩니다.
 
-STATION_TERMS = ["마곡역", "마곡나루역", "발산역"]
-
 CATEGORY_TERMS = [
     ("삼겹살", "meat"),
     ("고깃집", "meat"),
@@ -91,21 +89,27 @@ CATEGORY_TERMS = [
     ("와인바", "bar"),
 ]
 
-# 역 이름을 안 붙이고 동네 이름으로 훑는 것도 조금 남겨 둡니다. 역 이름으로는
-# 안 걸리는데 '마곡'으로는 걸리는 가게가 있습니다.
-AREA_QUERIES = [
-    ("마곡 베트남음식", "asian"),
-    ("마곡 이탈리안", "western"),
-    ("마곡 디저트카페", "cafe"),
-    ("마곡지구 맛집", "korean"),
-    ("발산 맛집", "korean"),
-]
+# 역 이름으로는 안 걸리는데 동네 이름으로는 걸리는 가게가 있어서 조금 섞습니다.
+AREA_CATEGORIES = [("맛집", "korean"), ("술집", "bar"), ("카페", "cafe")]
 
-QUERIES = [
-    (f"{station} {term}", cat)
-    for station in STATION_TERMS
-    for term, cat in CATEGORY_TERMS
-] + AREA_QUERIES
+
+def build_queries() -> list[tuple[str, str]]:
+    """REGIONS 의 모든 역 × 분류로 질의를 만듭니다.
+
+    예전에는 질의를 손으로 적어 뒀는데, 그중 '발산' 이 들어간 게 하나도 없어서
+    발산역 가게가 통째로 빠졌습니다. 역을 늘릴 때 질의를 같이 안 늘리는 실수를
+    구조적으로 막으려고 만들어 내는 방식으로 바꿨습니다.
+    """
+    out: list[tuple[str, str]] = []
+    for region in REGIONS.values():
+        for label, _lat, _lng, _line in region["stations"].values():
+            for term, cat in CATEGORY_TERMS:
+                out.append((f"{label}역 {term}", cat))
+        for area in region["area"]:
+            for term, cat in AREA_CATEGORIES:
+                out.append((f"{area} {term}", cat))
+    return out
+
 
 # 네이버 분류 문자열 -> 페이지 카테고리. 위에서부터 먼저 걸리는 것을 쓴다.
 CATEGORY_RULES = [
@@ -212,11 +216,63 @@ def guess_category(naver_category: str, fallback: str) -> str:
 
 
 # 역 좌표 (위키데이터 기준 대략적인 역 중심)
-STATIONS = {
-    "narue":  (37.56700, 126.82433),
-    "magok":  (37.560167, 126.825417),
-    "balsan": (37.55861, 126.83722),
+# 지역 -> 그 지역에서 훑을 역들.
+#
+# 역 좌표는 역 중심이라 출구마다 100m쯤 차이가 납니다. **정확한 도보 거리를 내려는
+# 값이 아니라 '어느 역이 가까운가' 를 가르는 용도입니다.** 마곡 3역은 위키데이터,
+# 나머지는 위키백과 좌표를 두 출처로 교차 확인해 적었습니다.
+REGIONS = {
+    "magok": {
+        "label": "강서 마곡",
+        "area": ["마곡", "마곡지구", "발산"],
+        "stations": {
+            "narue":  ("마곡나루", 37.56700,  126.82433, "l9"),
+            "magok":  ("마곡",     37.560167, 126.825417, "l5"),
+            "balsan": ("발산",     37.55861,  126.83722, "l5"),
+        },
+    },
+    "guro": {
+        "label": "구로구",
+        "area": ["구로", "신도림"],
+        "stations": {
+            "sindorim": ("신도림", 37.50550, 126.88800, "l2"),
+            "guro":     ("구로",   37.50306, 126.88222, "l1"),
+            "daerim":   ("대림",   37.48933, 126.89033, "l2"),
+        },
+    },
+    "seocho": {
+        "label": "서초구",
+        "area": ["서초", "양재", "반포"],
+        "stations": {
+            "gyodae":  ("교대",       37.49361, 127.01361, "l2"),
+            "seocho":  ("서초",       37.49194, 127.00806, "l2"),
+            "express": ("고속터미널", 37.50594, 127.00447, "l3"),
+            "yangjae": ("양재",       37.48444, 127.03389, "l3"),
+        },
+    },
 }
+
+# 아래 둘은 예전 코드가 그대로 쓰던 모양입니다. REGIONS 에서 만들어 냅니다.
+STATIONS = {
+    sid: (lat, lng)
+    for r in REGIONS.values()
+    for sid, (_label, lat, lng, _line) in r["stations"].items()
+}
+
+STATION_REGION = {
+    sid: rid
+    for rid, r in REGIONS.items()
+    for sid in r["stations"]
+}
+
+
+def region_of(station: str) -> str:
+    """역이 속한 지역. 모르면 빈 문자열."""
+    return STATION_REGION.get(station, "")
+
+
+# REGIONS 가 만들어진 뒤에야 질의를 낼 수 있습니다.
+QUERIES = build_queries()
 
 
 def wgs84(value) -> float | None:

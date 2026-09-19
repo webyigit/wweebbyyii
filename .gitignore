@@ -17,3 +17,5 @@ debug_dom*.html
 # 검증 스크립트용 (playwright)
 node_modules
 package-lock.json
+
+debug_sites/

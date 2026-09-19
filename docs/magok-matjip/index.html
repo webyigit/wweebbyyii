@@ -1569,6 +1569,16 @@
   }
 
   .where-main { color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; }
+  .where-main .walk { color: var(--line5-ink); font-weight: 700; white-space: nowrap; }
+  .where-unknown {
+    display: inline-block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border-radius: 5px;
+    padding: 2px 6px;
+  }
   .where-sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
   .dist {
     display: inline-block;
@@ -2175,6 +2185,12 @@
         주소와 전화번호는 확인된 곳에만 적었습니다.
       </p>
       <p>
+        <strong>도보 시간</strong>은 가게 좌표와 역 좌표 사이 직선거리에 1.3을 곱하고
+        분당 80m로 걷는다고 보고 계산한 값입니다. 길찾기로 낸 실제 경로가 아니라 추정이라,
+        신호등이나 골목 사정에 따라 차이가 납니다. 좌표가 없는 곳은 &lsquo;도보 시간 미확인&rsquo;으로
+        두고 지어내지 않습니다.
+      </p>
+      <p>
         점심시간에는 인근 직장인 수요로 대기가 생깁니다. 11시 30분 이전이나 오후 1시 이후가 한결 여유롭습니다.
       </p>
       </div>
@@ -2645,6 +2661,38 @@
     return hit ? hit.label : id;
   }
 
+  // 직선거리를 도보 분으로 바꾼다.
+  //   · 실제 길은 곧게 나 있지 않아 직선거리에 1.3 을 곱한다 (도심 격자 기준)
+  //   · 걷는 속도는 분당 80m (시속 4.8km)
+  // 길찾기로 낸 값이 아니라 추정이다. 화면 아래에 그렇게 적어 둔다.
+  var DETOUR = 1.3, PACE = 80;
+
+  function walkMinutes(p, st) {
+    var d = distTo(p, st);
+    if (d === null) return null;
+    return Math.max(1, Math.round(d * DETOUR / PACE));
+  }
+
+  // 좌표가 없으면 데이터에 적어 둔 도보 분을 쓴다. 그것도 없으면 모른다고 한다.
+  function walkOf(p, st) {
+    var m = walkMinutes(p, st);
+    if (m !== null) return { min: m, dist: distTo(p, st), exact: true };
+    if (typeof p.walk === "number" && (st.id === "all" || stationOf(p) === st.id)) {
+      return { min: p.walk, dist: null, exact: true };
+    }
+    return null;
+  }
+
+  // '마곡 일대' 처럼 위치를 좁혀 주지 못하는 문구는 도보 시간이 있으면 감춘다.
+  var VAGUE = /^(마곡\s*일대|마곡동|강서구 마곡동|방화·마곡지구|.*역 인근|.*역 쪽)$/;
+
+  function nearestLabel(p) {
+    var id = stationOf(p);
+    if (!id) return "";
+    var st = stationById(id);
+    return st ? st.label + "역" : "";
+  }
+
   function distLabel(p, st) {
     if (!st || st.id === "all") return "";
     var d = distTo(p, st);
@@ -2770,22 +2818,35 @@
     cell(tr, "c-menu").appendChild(menusEl(p));
 
     var whereCell = cell(tr, "c-where");
+    var st = stationById(state.station);
+    var ref = st.id === "all" ? stationById(stationOf(p) || "narue") : st;
+    var w = walkOf(p, ref);
+
     var w1 = document.createElement("div");
     w1.className = "where-main";
-    w1.textContent = p.where;
-    whereCell.appendChild(w1);
-    if (p.addr) {
+    if (w) {
+      w1.innerHTML = (nearestLabel(p) || ref.label + "역") +
+        ' <b class="walk">도보 ' + w.min + '분</b>';
+    } else {
+      w1.textContent = p.where;
+      var unk = document.createElement("span");
+      unk.className = "where-unknown";
+      unk.textContent = "도보 시간 미확인";
+      whereCell.appendChild(w1);
+      whereCell.appendChild(unk);
+      w1 = null;
+    }
+    if (w1) whereCell.appendChild(w1);
+
+    var sub = [];
+    if (w && w.dist !== null) sub.push(w.dist < 1000 ? w.dist + "m" : (w.dist / 1000).toFixed(1) + "km");
+    if (p.addr) sub.push(p.addr);
+    else if (w && !VAGUE.test(p.where)) sub.push(p.where);
+    if (sub.length) {
       var w2 = document.createElement("div");
       w2.className = "where-sub";
-      w2.textContent = p.addr;
+      w2.textContent = sub.join(" · ");
       whereCell.appendChild(w2);
-    }
-    var label = distLabel(p, stationById(state.station));
-    if (label) {
-      var d = document.createElement("span");
-      d.className = "dist";
-      d.textContent = label;
-      whereCell.appendChild(d);
     }
 
     var go = cell(tr, "c-go");
@@ -2850,9 +2911,10 @@
     STATIONS.forEach(function (st) {
       if (st.lat === null) return;
       var d = haversine(st.lat, st.lng, p.lat, p.lng);
+      var m = Math.max(1, Math.round(d * DETOUR / PACE));
       var span = el("span");
-      span.innerHTML = st.label + "역 <b>" +
-        (d < 1000 ? d + "m" : (d / 1000).toFixed(1) + "km") + "</b>";
+      span.innerHTML = st.label + "역 <b>도보 " + m + "분</b> · " +
+        (d < 1000 ? d + "m" : (d / 1000).toFixed(1) + "km");
       box.appendChild(span);
     });
     return box;
@@ -3025,7 +3087,9 @@
     rows.appendChild(infoRow("위치", p.where));
     if (p.addr) rows.appendChild(infoRow("주소", p.addr));
     if (p.tel) rows.appendChild(infoRow("전화", p.tel, "tel:" + p.tel.replace(/[^0-9+]/g, "")));
-    if (typeof p.walk === "number") rows.appendChild(infoRow("도보", p.walk + "분"));
+    if (typeof p.walk === "number" && typeof p.lat !== "number") {
+      rows.appendChild(infoRow("도보", (nearestLabel(p) || "역") + "에서 " + p.walk + "분"));
+    }
     var walk = walkRow(p);
     if (walk) {
       var r = el("div", "d-row");

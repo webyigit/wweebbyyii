@@ -239,7 +239,7 @@ CSS 클래스명을 짚지 않기 때문에 네이버가 화면 디자인을 바
 페이지를 고친 뒤에는 반드시 돌립니다.
 
 ```bash
-node verify.mjs            # 27항목 × 화면 4종 × 2회 = 216번
+node verify.mjs            # 29항목 × 화면 4종 × 2회 = 232번
 node verify.mjs --runs=1   # 빠르게 한 번만
 node verify.mjs --runs=5   # 더 확실하게
 ```

@@ -495,7 +495,42 @@ const CHECKS = [
     await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
   }],
 
-  ["27 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["27 위치가 '도보 N분' 으로 나온다", async (p) => {
+    await p.click('.st-btn[data-st="all"]'); await p.waitForTimeout(PAUSE);
+    await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
+
+    const rows = await p.$$eval(".places tbody tr .c-where", els => els.map(c => ({
+      main: (c.querySelector(".where-main") || {}).textContent || "",
+      walk: !!c.querySelector(".walk"),
+      unknown: !!c.querySelector(".where-unknown"),
+    })));
+    ok(rows.length > 0, "위치 칸이 없음");
+
+    // 검증용 데이터는 좌표를 넣으므로 모든 줄에 도보 시간이 나와야 한다
+    const noWalk = rows.filter(r => !r.walk && !r.unknown);
+    ok(noWalk.length === 0,
+       `도보 시간도 '미확인' 표시도 없는 줄 ${noWalk.length}개`);
+
+    const withWalk = rows.filter(r => r.walk);
+    ok(withWalk.length === rows.length,
+       `좌표가 있는데 도보 시간이 빠진 줄 ${rows.length - withWalk.length}개`);
+
+    withWalk.forEach(r => ok(/도보 \d+분/.test(r.main), `형식이 다름: ${r.main}`));
+    // '마곡 일대' 같은 두루뭉술한 문구가 도보 시간과 같이 남아 있으면 안 된다
+    const vague = withWalk.filter(r => /인근|일대/.test(r.main));
+    ok(vague.length === 0, `두루뭉술한 문구가 남은 줄 ${vague.length}개: ${vague[0]?.main}`);
+  }],
+
+  ["28 상세의 역 거리도 도보 분으로 나온다", async (p) => {
+    await p.click(".places tbody tr .name-btn");
+    await p.waitForTimeout(400);
+    const chips = await p.$$eval(".d-walk span", els => els.map(e => e.textContent.trim()));
+    ok(chips.length === 3, `역 칩이 3개가 아니라 ${chips.length}개`);
+    chips.forEach(c => ok(/역 도보 \d+분 · \d+(\.\d)?(m|km)/.test(c), `형식이 다름: ${c}`));
+    await p.click("#back"); await p.waitForTimeout(400);
+  }],
+
+  ["29 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };

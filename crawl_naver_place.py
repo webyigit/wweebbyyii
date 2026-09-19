@@ -512,7 +512,8 @@ def main() -> None:
                     station = fp.nearest_station(got["lat"], got["lng"])
                     if station:
                         place["station"] = station
-                    bits.append(f"좌표({station or '?'})")
+                        place["walk"] = fp.walk_minutes(got["lat"], got["lng"], station)
+                    bits.append(f"좌표({station or '?'} 도보 {place.get('walk','?')}분)")
                 if got["photo_urls"]:
                     try:
                         place["photo"] = save_photo(got["photo_urls"], name)

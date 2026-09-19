@@ -228,6 +228,22 @@ def nearest_station(lat: float | None, lng: float | None) -> str:
     return best
 
 
+# 직선거리를 도보 분으로. 화면 쪽 계산과 같은 값을 쓴다.
+#   실제 길은 곧지 않아 1.3 을 곱하고, 분당 80m 로 걷는다고 본다.
+DETOUR, PACE = 1.3, 80
+
+
+def walk_minutes(lat: float, lng: float, station: str) -> int | None:
+    """가장 가까운 역까지 도보 몇 분인지. 길찾기가 아니라 직선거리 기반 추정."""
+    if station not in STATIONS:
+        return None
+    slat, slng = STATIONS[station]
+    dy = (lat - slat) * 111_000
+    dx = (lng - slng) * 88_000
+    metres = (dx * dx + dy * dy) ** 0.5
+    return max(1, round(metres * DETOUR / PACE))
+
+
 def short_where(road_address: str) -> str:
     """'서울특별시 강서구 마곡중앙로 55 1층' -> '강서구 마곡중앙로 55'."""
     if not road_address:
@@ -289,7 +305,8 @@ def collect_naver(cid: str, secret: str) -> dict[str, dict]:
                 "lat": lat,
                 "lng": lng,
                 "station": nearest_station(lat, lng),
-                "walk": None,
+                "walk": (walk_minutes(lat, lng, nearest_station(lat, lng))
+                         if lat is not None else None),
                 "photo": "",
                 "rating": None,
                 "reviews": None,
@@ -386,6 +403,8 @@ def merge(existing: list[dict], fetched: dict[str, dict], slugs: dict[str, str])
             if fresh.get("lat") is not None:
                 place["lat"], place["lng"] = fresh["lat"], fresh["lng"]
                 place["station"] = fresh["station"] or place.get("station", "")
+                if fresh.get("walk"):
+                    place["walk"] = fresh["walk"]
             if not place.get("where") or place["where"] == "마곡 일대":
                 place["where"] = fresh["where"]
         slug = match_slug(place["name"], slugs)

@@ -30,6 +30,17 @@ function buildFixture() {
   if (!m) throw new Error("places-data 블록을 찾지 못했습니다");
   const data = JSON.parse(m[2]);
 
+  // 역 좌표를 페이지에서 읽는다. 검증에 따로 적어 두면 둘이 어긋난다.
+  const STATION_POS = {};
+  const stRe = /\{\s*id:\s*"([a-z]+)"[^}]*?lat:\s*([\d.]+)\s*,\s*lng:\s*([\d.]+)/g;
+  let sm;
+  while ((sm = stRe.exec(raw)) !== null) {
+    STATION_POS[sm[1]] = [Number(sm[2]), Number(sm[3])];
+  }
+  if (Object.keys(STATION_POS).length < 3) {
+    throw new Error("페이지에서 역 좌표를 못 읽었습니다");
+  }
+
   const r = rng(20260918);
   const MENUS = [
     ["숙성 삼겹살 180g", 16000, 37], ["목살 180g", 16000, 21],
@@ -40,10 +51,15 @@ function buildFixture() {
     p.reviews = Math.floor(20 + r() * 2500);
     p.src = "naver";
     p.menus = MENUS.map(([name, price, hits]) => ({ name, price, hits }));
-    // 세 역 주변에 고르게 뿌린다. 한 역 근처에만 모으면 나머지 역이
-    // 0곳이 되어 역 필터 검증이 무의미해진다.
-    const HUBS = [[37.5670, 126.8243], [37.5602, 126.8254], [37.5586, 126.8372]];
-    const hub = HUBS[Math.floor(r() * HUBS.length)];
+
+    // 좌표는 그 가게가 '선언한 역' 근처에 놓는다.
+    //
+    // 예전에는 마곡 3개 지점에 무작위로 뿌렸다. 그러면 가게가 적어 둔 역과
+    // 좌표가 따로 놀아서 역 필터 검사가 뒤섞인 데이터를 보게 되고, 역을 늘린
+    // 뒤에는 새 역이 시험용 데이터에서 영원히 0곳이라 무엇을 채워 넣어도
+    // 통과할 수 없었다. 역 좌표는 페이지의 STATIONS 에서 읽어 와 어긋나지 않게 한다.
+    const hub = STATION_POS[p.station] ||
+                STATION_POS[Object.keys(STATION_POS)[Math.floor(r() * Object.keys(STATION_POS).length)]];
     p.lat = hub[0] + (r() - 0.5) * 0.004;
     p.lng = hub[1] + (r() - 0.5) * 0.004;
   }

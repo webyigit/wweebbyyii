@@ -585,6 +585,38 @@ const CHECKS = [
       getComputedStyle(document.body).fontFamily);
     ok(/Pretendard/.test(fam), `대체 글꼴이 빠짐: ${fam}`);
   }],
+
+  // 바깥 링크는 새 탭에서 열려야 한다. 같은 자리에서 열리면 아티팩트 안에서는
+  // 틀 안에 갇히고, Pages 에서는 보던 목록이 통째로 날아간다.
+  // tel: 은 반대로 새 탭을 열면 안 된다 — 전화 앱으로 넘겨야 한다.
+  ["31 바깥 링크가 새 탭에서 열린다", async (p) => {
+    const look = () => p.evaluate(() => [...document.querySelectorAll("a[href]")].map(a => ({
+      href: a.getAttribute("href") || "",
+      target: a.getAttribute("target") || "",
+      rel: a.getAttribute("rel") || "",
+    })));
+
+    const check = (list, where) => {
+      const out = list.filter(a => /^https?:/.test(a.href));
+      ok(out.length > 0, `${where}: 바깥 링크가 없음`);
+      const stuck = out.filter(a => a.target !== "_blank");
+      ok(stuck.length === 0,
+         `${where}: 같은 자리에서 열리는 링크 ${stuck.length}개 (${stuck[0]?.href})`);
+      const unsafe = out.filter(a => !/noopener/.test(a.rel));
+      ok(unsafe.length === 0,
+         `${where}: rel 에 noopener 가 없는 링크 ${unsafe.length}개 (${unsafe[0]?.href})`);
+      // tel: 은 새 탭으로 열면 빈 탭만 뜬다
+      const tel = list.filter(a => /^tel:/.test(a.href) && a.target === "_blank");
+      ok(tel.length === 0, `${where}: tel: 링크가 새 탭으로 열림`);
+    };
+
+    check(await look(), "목록");
+
+    await p.click(".places tbody tr .name-btn");
+    await p.waitForTimeout(400);
+    check(await look(), "상세");
+    await p.click("#back"); await p.waitForTimeout(400);
+  }],
 ];
 
 // ---------------------------------------------------------------- 실행

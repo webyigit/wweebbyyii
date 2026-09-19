@@ -114,12 +114,32 @@ const CHECKS = [
       seen.add(n);
       if (n > 0) nonEmpty++;
 
-      // 아직 안 모은 역은 0곳이 정상이다. 다만 머리글 숫자와는 맞아야 한다.
       const head = Number((await text(p, "#count")).match(/(\d+)곳/)[1]);
       ok(head === n, `${st}: 머리글은 ${head}곳인데 행은 ${n}개`);
     }
-    ok(nonEmpty >= 2, `가게가 있는 역이 ${nonEmpty}곳뿐`);
+    ok(nonEmpty === ids.length,
+       `가게가 하나도 없는 역이 있음 (${nonEmpty}/${ids.length}곳만 채워짐)`);
     ok(seen.size > 1, "역을 바꿔도 결과 수가 전혀 안 변함");
+  }],
+
+  // 역만 늘려 놓고 가게를 안 채우면 고를 수는 있는데 아무것도 안 나온다.
+  // 실제로 구로·서초 역을 넣고 데이터 없이 배포할 뻔했다. 어느 역이 비었는지
+  // 이름으로 찍어 준다.
+  ["03b 역마다 가게가 하나 이상 있다", async (p) => {
+    await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
+    const ids = await p.$$eval(".st-btn", els => els.map(e => e.dataset.st));
+    const empty = [];
+    for (const st of ids) {
+      if (st === "all") continue;
+      await p.click(`.st-btn[data-st="${st}"]`);
+      await p.waitForTimeout(PAUSE);
+      const n = (await cards(p)).length;
+      if (n === 0) {
+        const label = await p.$eval(`.st-btn[data-st="${st}"]`, e => e.textContent.trim());
+        empty.push(label);
+      }
+    }
+    ok(empty.length === 0, `가게가 하나도 없는 역: ${empty.join(", ")}`);
   }],
 
   ["04 역을 바꿔도 분류 선택이 유지된다", async (p) => {

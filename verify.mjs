@@ -357,7 +357,15 @@ const CHECKS = [
     ok(d.links.length >= 2, "상세 버튼이 2개 미만");
     ok(d.links[0].includes("map.naver.com") && d.links[1].includes("catchtable.co.kr"),
        "상세 링크 주소가 틀림");
-    ok(d.walk === 3, `역 거리 칩이 3개가 아니라 ${d.walk}개`);
+    // 3 을 박아 두면 역을 늘리자마자 깨진다. 상세에는 그 가게가 속한 동네의 역만
+    // 나와야 하므로 화면의 동네 구성에서 기대값을 뽑는다.
+    const zoneSizes = await p.$$eval(".st-btn", els => {
+      const c = {};
+      els.forEach(e => { const z = e.dataset.zone; if (z) c[z] = (c[z] || 0) + 1; });
+      return Object.keys(c).map(k => c[k]);
+    });
+    ok(zoneSizes.indexOf(d.walk) !== -1,
+       `역 거리 칩이 ${d.walk}개 — 동네별 역 수(${zoneSizes.join("/")}) 중 어느 것과도 안 맞음`);
     ok(d.map, "주변 역 그림이 없음");
 
     ok(d.sites.length === 10, `검색 사이트가 10곳이 아니라 ${d.sites.length}곳`);
@@ -560,8 +568,17 @@ const CHECKS = [
   ["28 상세의 역 거리도 도보 분으로 나온다", async (p) => {
     await p.click(".places tbody tr .name-btn");
     await p.waitForTimeout(400);
+    // 역 개수를 박아 두면 역을 늘리자마자 깨진다. 상세에는 그 가게가 속한 동네의
+    // 역만 나와야 하므로, 화면의 동네 구성에서 기대값을 뽑는다.
     const chips = await p.$$eval(".d-walk span", els => els.map(e => e.textContent.trim()));
-    ok(chips.length === 3, `역 칩이 3개가 아니라 ${chips.length}개`);
+    const zones = await p.$$eval(".st-btn", els => {
+      const c = {};
+      els.forEach(e => { const z = e.dataset.zone; if (z) c[z] = (c[z] || 0) + 1; });
+      return c;
+    });
+    const sizes = Object.keys(zones).map(k => zones[k]);
+    ok(sizes.indexOf(chips.length) !== -1,
+       `역 칩이 ${chips.length}개 — 동네별 역 수(${sizes.join("/")}) 중 어느 것과도 안 맞음`);
     chips.forEach(c => ok(/역 도보 \d+분 · \d+(\.\d)?(m|km)/.test(c), `형식이 다름: ${c}`));
     await p.click("#back"); await p.waitForTimeout(400);
   }],
@@ -709,6 +726,18 @@ for (let run = 1; run <= RUNS; run++) {
 
     for (const [name, fn] of CHECKS) {
       total++;
+      // 앞 검사가 상세 화면에 갇힌 채 끝나면 .hide-on-detail 이 목록과 조작줄을
+      // 통째로 숨긴다. 그러면 뒤따르는 검사가 전부 '안 보임' 으로 30초씩 타임아웃
+      // 나면서, 버그 하나가 마흔 건으로 불어나 진짜 원인이 파묻힌다.
+      try {
+        const stuck = await page.$eval("#detail",
+          e => e.hidden === false && e.offsetParent !== null).catch(() => false);
+        if (stuck) {
+          await page.click("#back", { timeout: 3000 }).catch(() => {});
+          await page.waitForTimeout(300);
+        }
+      } catch (e) { /* 되돌리기 실패는 검사 자체로 드러난다 */ }
+
       try {
         await fn(page, { errors, dark: view.dark, width: view.width });
         pass++;

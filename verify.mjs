@@ -617,6 +617,41 @@ const CHECKS = [
     check(await look(), "상세");
     await p.click("#back"); await p.waitForTimeout(400);
   }],
+
+  // 별점은 출처마다 기준이 다르다. 상세에 '네이버 플레이스' 가 박혀 있어서
+  // 다른 데서 받아온 점수까지 네이버 것처럼 보이던 적이 있다. 거짓 표시다.
+  ["32 별점 옆에 출처가 같이 나온다", async (p) => {
+    await p.click('.st-btn[data-st="all"]'); await p.waitForTimeout(PAUSE);
+    await p.click('.chip[data-cat="all"]'); await p.waitForTimeout(PAUSE);
+
+    const bad = await p.evaluate(() => {
+      const out = [];
+      document.querySelectorAll(".places tbody tr").forEach(tr => {
+        const box = tr.querySelector(".c-rate .stars");
+        if (!box || !box.querySelector(".sc")) return;   // 별점 없는 줄은 넘어감
+        const name = tr.querySelector(".name")?.textContent?.trim() || "?";
+        const rv = box.querySelector(".rv")?.textContent?.trim() || "";
+        if (!rv) out.push(name + ": 출처 표시가 없음");
+      });
+      return out;
+    });
+    ok(bad.length === 0, bad.slice(0, 3).join(" / "));
+
+    // 상세에서도 마찬가지. 네이버가 아닌 출처를 네이버라고 적으면 안 된다.
+    const rows = await p.$$eval(".places tbody tr",
+      els => els.map((e, i) => ({ i, has: !!e.querySelector(".c-rate .sc") })));
+    const target = rows.find(r => r.has);
+    ok(target !== undefined, "별점이 있는 줄이 하나도 없음");
+
+    const btns = await p.$$(".places tbody tr .name-btn");
+    await btns[target.i].click(); await p.waitForTimeout(400);
+    const meta = await p.$eval(".d-score .meta", e => e.textContent.trim());
+    ok(meta.length > 0, "상세에 출처 문구가 없음");
+    const src = await p.$eval("#detail", e => e.dataset.src || "");
+    ok(!/네이버/.test(meta) || src === "naver",
+       `네이버가 아닌데 네이버라고 적음: ${meta} (src=${src})`);
+    await p.click("#back"); await p.waitForTimeout(400);
+  }],
 ];
 
 // ---------------------------------------------------------------- 실행

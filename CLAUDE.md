@@ -27,6 +27,20 @@ node verify.mjs            # 30항목 × 화면 4종 × 2회 = 240번
 playwright 가 필요합니다. 없으면 `npm i playwright` 로 설치하세요.
 크롬 경로가 다르면 `CHROME_PATH` 환경변수로 지정합니다.
 
+## 작업을 마칠 때
+
+**끝났다고 보고할 때는 결과물의 위치를 항상 같이 적으세요.** 사용자가 어디를 열어
+봐야 하는지 매번 되묻지 않게 합니다. 해당되는 것만 골라서:
+
+| 무엇 | 어디 |
+|---|---|
+| 페이지 파일 | `docs/magok-matjip/index.html` |
+| 아티팩트 | https://claude.ai/artifact/ScD8Rzzh5T1doVNziLhB7j |
+| GitHub Pages | https://webyigit.github.io/wweebbyyii/magok-matjip/ |
+| 저장소 | https://github.com/webyigit/wweebbyyii (`main`) |
+
+고친 파일이 위 표에 없으면 그 경로를 그대로 적으면 됩니다.
+
 ## 검증에 항목을 추가해야 할 때
 
 **버그를 고쳤으면 그 버그를 재현하는 항목을 `verify.mjs` 에 추가하세요.** 지금 들어 있는

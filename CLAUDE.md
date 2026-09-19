@@ -101,6 +101,8 @@ Pages 는 저장소 Settings → Pages 에서 Source 가 `main` / `/docs` 여야
 |---|---|
 | `docs/magok-matjip/index.html` | 페이지 전체 (데이터·스타일·스크립트 한 파일) |
 | `verify.mjs` | 자체 검증 |
+| `fetch_public.py` | 공공데이터(서울 열린데이터광장)로 좌표·주소·폐업여부 |
+| `crawl_sites.py` | 카카오맵·다이닝코드에서 별점·메뉴 |
 | `status.py` | 좌표·도보·별점이 몇 곳이나 찼는지 (인터넷 안 씀) |
 | `fetch_places.py` | 네이버 지역검색 API 로 가게 목록·좌표 |
 | `crawl_naver_place.py` | 네이버 플레이스에서 별점·인기메뉴·좌표 (로컬 크롬) |

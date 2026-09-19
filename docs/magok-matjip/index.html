@@ -1656,7 +1656,11 @@
       position: absolute;
       top: 13px;
       right: 14px;
+      /* 위 묶음 규칙의 width:100% 를 물려받으면 번호 칸이 행 전체를 덮어
+         가게 이름 클릭을 가로챈다. 폭을 내용만큼으로 되돌린다. */
+      width: auto;
       text-align: right;
+      pointer-events: none;
     }
     .c-name { padding-right: 44px !important; }
     .stars { flex-direction: row; align-items: baseline; gap: 6px; }

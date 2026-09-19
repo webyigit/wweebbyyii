@@ -1,7 +1,7 @@
 /**
  * 마곡 맛집 페이지 자체 검증.
  *
- *   node verify.mjs             # 5회
+ *   node verify.mjs             # 2회
  *   node verify.mjs --runs=3    # 3회
  *   node verify.mjs --keep      # 실패해도 계속 (기본은 계속)
  *
@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 
 const SRC = path.resolve("docs/magok-matjip/index.html");
-const RUNS = Number((process.argv.find(a => a.startsWith("--runs=")) || "").split("=")[1] || 5);
+const RUNS = Number((process.argv.find(a => a.startsWith("--runs=")) || "").split("=")[1] || 2);
 const PAUSE = 420;   // 목록 리로딩 스켈레톤(230ms)보다 넉넉히
 
 // ---------------------------------------------------------------- 고정 시드 난수

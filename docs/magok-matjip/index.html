@@ -842,6 +842,7 @@
     --line:       #F1E0D2;
     --line5:      #E8681F;
     --on-accent:  #FFFFFF;
+    --w-body:     300;
     --line5-ink:  #C4530F;
     --line9:      #D9A21C;
     --air:        #2E8FA8;
@@ -878,13 +879,14 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --paper:      #17110D;
-      --surface:    #211913;
-      --surface-2:  #2C2119;
-      --ink:        #F6EAE0;
-      --ink-soft:   #DCC9BA;
-      --muted:      #AB9280;
-      --line:       #3A2C22;
+      --paper:      #1B1512;
+      --surface:    #261E19;
+      --surface-2:  #322620;
+      --ink:        #F8EEE6;
+      --ink-soft:   #E4D5C8;
+      --muted:      #BCA492;
+      --line:       #40322A;
+      --w-body:     400;
       --line5:      #FF8A4C;
       --on-accent:  #2A1409;
       --line5-ink:  #FFA877;
@@ -910,13 +912,14 @@
     }
   }
   :root[data-theme="dark"] {
-    --paper:    #17110D;
-    --surface:    #211913;
-    --surface-2:  #2C2119;
-    --ink:      #F6EAE0;
-    --ink-soft:   #DCC9BA;
-    --muted:    #AB9280;
-    --line:     #3A2C22;
+    --paper:    #1B1512;
+    --surface:    #261E19;
+    --surface-2:  #322620;
+    --ink:      #F8EEE6;
+    --ink-soft:   #E4D5C8;
+    --muted:    #BCA492;
+    --line:     #40322A;
+    --w-body:     400;
     --line5:    #FF8A4C;
     --on-accent:  #2A1409;
     --line5-ink:  #FFA877;
@@ -969,9 +972,54 @@
     padding-block: 34px 24px;
     border-bottom: 2px dashed var(--line);
   }
-  .masthead > .eyebrow,
+  .masthead > .top-row,
   .masthead > h1,
   .masthead > .lede { grid-column: 1; }
+
+  .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .theme {
+    display: flex;
+    gap: 2px;
+    background: var(--surface-2);
+    border-radius: 9px;
+    padding: 3px;
+  }
+  .theme button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .theme button .ic { font-size: 14px; }
+  .theme button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  }
+  .theme button:focus-visible { outline: 2px solid var(--line5); outline-offset: 1px; }
+
+  @media (max-width: 520px) {
+    .theme button span:not(.ic) { display: none; }
+    .theme button { padding: 7px 9px; }
+  }
 
   .hero {
     grid-column: 2;
@@ -1001,6 +1049,7 @@
   }
 
   .eyebrow {
+    margin: 0;
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 500;
@@ -1025,7 +1074,7 @@
     max-width: 72ch;
     color: var(--ink-soft);
     font-size: 15px;
-    font-weight: 300;
+    font-weight: var(--w-body);
   }
 
   .lines {
@@ -1137,7 +1186,7 @@
   .unknown {
     margin: 0 0 12px;
     font-size: 12px;
-    font-weight: 300;
+    font-weight: var(--w-body);
     color: var(--muted);
   }
 
@@ -1466,10 +1515,10 @@
 
   .note {
     margin: 5px 0 0;
-    font-size: 12.5px;
-    font-weight: 300;
+    font-size: 13px;
+    font-weight: var(--w-body);
     color: var(--muted);
-    line-height: 1.55;
+    line-height: 1.62;
     max-width: 68ch;
   }
 
@@ -1570,7 +1619,7 @@
     gap: 9px;
     align-items: flex-start;
     font-size: 12.5px;
-    font-weight: 300;
+    font-weight: var(--w-body);
     color: var(--muted);
     background: var(--surface);
     border: 1px dashed var(--line);
@@ -1750,7 +1799,7 @@
   .d-note {
     margin: 0;
     font-size: 14px;
-    font-weight: 300;
+    font-weight: var(--w-body);
     line-height: 1.75;
     color: var(--ink-soft);
     max-width: 72ch;
@@ -1831,7 +1880,7 @@
   .note-block {
     max-width: none;
     font-size: 12.5px;
-    font-weight: 300;
+    font-weight: var(--w-body);
     color: var(--muted);
     line-height: 1.75;
   }
@@ -1951,6 +2000,18 @@
       <circle cx="8.4" cy="13.4" r="1.1" fill="var(--surface)" opacity=".7"/>
       <circle cx="11.8" cy="16.6" r="1" fill="var(--surface)" opacity=".55"/>
     </symbol>
+    <symbol id="ic-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.6" fill="currentColor"/>
+      <path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6M5.1 5.1l1.9 1.9M17 17l1.9 1.9M18.9 5.1 17 7M7 17l-1.9 1.9"
+            stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-moon" viewBox="0 0 24 24">
+      <path d="M20.5 14.6A8.8 8.8 0 0 1 9.4 3.5a8.8 8.8 0 1 0 11.1 11.1z" fill="currentColor"/>
+    </symbol>
+    <symbol id="ic-auto" viewBox="0 0 24 24">
+      <path d="M12 3.2a8.8 8.8 0 1 0 0 17.6z" fill="currentColor"/>
+      <circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </symbol>
     <symbol id="ic-all" viewBox="0 0 24 24">
       <path d="M6.4 3.2v7.2c0 1.2.9 2.2 2.1 2.4v8.4M8.5 3.2v5.4M4.3 3.2v5.4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>
       <path d="M16.6 3.2c2 0 3.4 2.1 3.4 5s-1.1 4.2-2.3 4.4v8.6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>
@@ -1960,7 +2021,10 @@
 
 <div class="wrap hide-on-detail">
   <header class="masthead">
-    <p class="eyebrow">서울 강서구 · 마곡지구</p>
+    <div class="top-row">
+      <p class="eyebrow">서울 강서구 · 마곡지구</p>
+      <div class="theme" id="theme" role="group" aria-label="화면 테마"></div>
+    </div>
     <h1>마곡역 밥집 지도</h1>
     <p class="lede">
       마곡역·마곡나루역·발산역에서 걸어갈 만한 식당을 종류별로 묶었습니다.
@@ -2407,6 +2471,52 @@
     if (!el) return;
     var left = el.offsetLeft - (scroller.clientWidth - el.offsetWidth) / 2;
     scroller.scrollLeft = Math.max(0, left);
+  }
+
+  // ------------------------------------------------ 테마
+  //
+  // 기본은 '시스템'이고, 그때는 data-theme 를 아예 건드리지 않는다. 그래야
+  // prefers-color-scheme 과 아티팩트 화면이 얹어 주는 값이 그대로 산다.
+  // 사용자가 직접 고른 경우에만 뿌리 요소에 값을 박는다.
+
+  var THEMES = [
+    { id: "auto",  icon: "auto", label: "시스템" },
+    { id: "light", icon: "sun",  label: "라이트" },
+    { id: "dark",  icon: "moon", label: "다크" }
+  ];
+
+  function applyTheme(id) {
+    var root = document.documentElement;
+    if (id === "auto") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", id);
+
+    var btns = document.querySelectorAll("#theme button");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute("aria-pressed", String(btns[i].dataset.theme === id));
+    }
+    try { localStorage.setItem("magok.theme", id); } catch (e) {}
+  }
+
+  function buildTheme() {
+    var box = document.getElementById("theme");
+    var saved = "auto";
+    try {
+      var v = localStorage.getItem("magok.theme");
+      if (v && THEMES.some(function (t) { return t.id === v; })) saved = v;
+    } catch (e) {}
+
+    THEMES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.dataset.theme = t.id;
+      b.setAttribute("aria-pressed", String(t.id === saved));
+      b.setAttribute("aria-label", t.label + " 화면");
+      b.innerHTML = icon(t.icon) + "<span>" + t.label + "</span>";
+      b.addEventListener("click", function () { applyTheme(t.id); });
+      box.appendChild(b);
+    });
+
+    if (saved !== "auto") applyTheme(saved);
   }
 
   function buildStations() {
@@ -3081,6 +3191,7 @@
     if (savedSt && STATIONS.some(function (c) { return c.id === savedSt; })) state.station = savedSt;
   } catch (e) {}
 
+  buildTheme();
   buildStations();
   buildRail();
   paint();

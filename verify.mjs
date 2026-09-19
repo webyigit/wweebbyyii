@@ -405,7 +405,59 @@ const CHECKS = [
     ok(over <= 1, `페이지가 가로로 ${over}px 넘침`);
   }],
 
-  ["23 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
+  ["23 라이트·다크·시스템 전환이 먹는다", async (p) => {
+    const lum = async () => p.evaluate(() => {
+      const f = s => { const [r, g, b] = s.match(/\d+/g).map(Number);
+                       return 0.299 * r + 0.587 * g + 0.114 * b; };
+      return { bg: f(getComputedStyle(document.body).backgroundColor),
+               attr: document.documentElement.getAttribute("data-theme") };
+    });
+
+    const btns = await p.$$eval("#theme button", els => els.map(b => b.dataset.theme));
+    ok(btns.join(",") === "auto,light,dark", `전환 버튼이 이상함: ${btns.join(",")}`);
+
+    await p.click('#theme button[data-theme="dark"]');
+    await p.waitForTimeout(250);
+    let m = await lum();
+    ok(m.attr === "dark", "다크를 눌렀는데 data-theme 가 dark 가 아님");
+    ok(m.bg < 80, `다크인데 배경이 밝음 (${Math.round(m.bg)})`);
+
+    await p.click('#theme button[data-theme="light"]');
+    await p.waitForTimeout(250);
+    m = await lum();
+    ok(m.attr === "light", "라이트를 눌렀는데 data-theme 가 light 가 아님");
+    ok(m.bg > 200, `라이트인데 배경이 어두움 (${Math.round(m.bg)})`);
+
+    // 새로고침해도 고른 값이 남아야 한다
+    await p.reload();
+    await p.waitForTimeout(1100);
+    m = await lum();
+    ok(m.attr === "light", "새로고침 후 테마가 안 남음");
+    ok(await pressed(p, '#theme button[data-theme="light"]') === "true", "버튼 표시가 안 남음");
+
+    // 시스템으로 되돌리면 값을 빼야 한다 (화면 설정이 다시 살아나도록)
+    await p.click('#theme button[data-theme="auto"]');
+    await p.waitForTimeout(250);
+    m = await lum();
+    ok(m.attr === null, "시스템인데 data-theme 가 남아 있음");
+
+    await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+  }],
+
+  ["24 본문 글자가 다크에서 더 굵어진다", async (p) => {
+    const w = async () => p.evaluate(() =>
+      getComputedStyle(document.querySelector(".places tbody .note")).fontWeight);
+    await p.click('#theme button[data-theme="light"]'); await p.waitForTimeout(250);
+    const light = await w();
+    await p.click('#theme button[data-theme="dark"]'); await p.waitForTimeout(250);
+    const dark = await w();
+    ok(Number(dark) > Number(light),
+       `다크에서 더 굵어야 하는데 라이트 ${light} / 다크 ${dark}`);
+    await p.click('#theme button[data-theme="auto"]'); await p.waitForTimeout(200);
+    await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+  }],
+
+  ["25 다크모드에서 배경과 글자가 뒤집히지 않는다", async (p, ctx) => {
     if (!ctx.dark) return;
     const c = await p.evaluate(() => {
       const lum = s => { const [r,g,b] = s.match(/\d+/g).map(Number); return (0.299*r+0.587*g+0.114*b); };

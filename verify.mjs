@@ -266,7 +266,7 @@ const CHECKS = [
   ["14 새로고침해도 고른 분류·역이 남는다", async (p) => {
     await p.click('.st-btn[data-st="magok"]'); await p.waitForTimeout(PAUSE);
     await p.click('.chip[data-cat="korean"]'); await p.waitForTimeout(PAUSE);
-    await p.reload();
+    await p.reload({ waitUntil: "domcontentloaded" });
     await p.waitForTimeout(1200);
     ok(await pressed(p, '.chip[data-cat="korean"]') === "true", "분류가 안 남음");
     ok(await pressed(p, '.st-btn[data-st="magok"]') === "true", "역이 안 남음");
@@ -405,56 +405,69 @@ const CHECKS = [
     ok(over <= 1, `페이지가 가로로 ${over}px 넘침`);
   }],
 
-  ["23 라이트·다크·시스템 전환이 먹는다", async (p) => {
-    const lum = async () => p.evaluate(() => {
+  ["23 테마 토글 버튼이 라이트·다크를 오간다", async (p, ctx) => {
+    const state = () => p.evaluate(() => {
       const f = s => { const [r, g, b] = s.match(/\d+/g).map(Number);
                        return 0.299 * r + 0.587 * g + 0.114 * b; };
+      const btn = document.getElementById("theme-toggle");
       return { bg: f(getComputedStyle(document.body).backgroundColor),
-               attr: document.documentElement.getAttribute("data-theme") };
+               attr: document.documentElement.getAttribute("data-theme"),
+               mode: btn.dataset.mode,
+               label: btn.textContent.trim(),
+               pressed: btn.getAttribute("aria-pressed") };
     });
 
-    const btns = await p.$$eval("#theme button", els => els.map(b => b.dataset.theme));
-    ok(btns.join(",") === "auto,light,dark", `전환 버튼이 이상함: ${btns.join(",")}`);
+    const n = await p.$$eval("#theme button", els => els.length);
+    ok(n === 1, `토글이 1개가 아니라 ${n}개`);
 
-    await p.click('#theme button[data-theme="dark"]');
-    await p.waitForTimeout(250);
-    let m = await lum();
-    ok(m.attr === "dark", "다크를 눌렀는데 data-theme 가 dark 가 아님");
-    ok(m.bg < 80, `다크인데 배경이 밝음 (${Math.round(m.bg)})`);
+    // 아직 아무것도 안 골랐으면 화면 설정을 따라가고 속성을 안 건다
+    let m = await state();
+    ok(m.attr === null, `고르기 전인데 data-theme 가 '${m.attr}'`);
+    ok(m.mode === (ctx.dark ? "dark" : "light"),
+       `화면 설정(${ctx.dark ? "다크" : "라이트"})과 표시(${m.mode})가 다름`);
 
-    await p.click('#theme button[data-theme="light"]');
-    await p.waitForTimeout(250);
-    m = await lum();
-    ok(m.attr === "light", "라이트를 눌렀는데 data-theme 가 light 가 아님");
-    ok(m.bg > 200, `라이트인데 배경이 어두움 (${Math.round(m.bg)})`);
+    // 한 번 누르면 반대로 간다
+    await p.click("#theme-toggle"); await p.waitForTimeout(300);
+    const flipped = await state();
+    ok(flipped.mode !== m.mode, "눌러도 안 바뀜");
+    ok(flipped.attr === flipped.mode, `data-theme(${flipped.attr}) 와 표시(${flipped.mode}) 불일치`);
+    if (flipped.mode === "dark") ok(flipped.bg < 80, `다크인데 배경 ${Math.round(flipped.bg)}`);
+    else ok(flipped.bg > 200, `라이트인데 배경 ${Math.round(flipped.bg)}`);
+    ok(flipped.label.includes(flipped.mode === "dark" ? "다크" : "라이트"),
+       `버튼 글자가 다름: ${flipped.label}`);
 
-    // 새로고침해도 고른 값이 남아야 한다
-    await p.reload();
-    await p.waitForTimeout(1100);
-    m = await lum();
-    ok(m.attr === "light", "새로고침 후 테마가 안 남음");
-    ok(await pressed(p, '#theme button[data-theme="light"]') === "true", "버튼 표시가 안 남음");
+    // 다시 누르면 원래대로
+    await p.click("#theme-toggle"); await p.waitForTimeout(300);
+    const back = await state();
+    ok(back.mode === m.mode, "두 번 눌러도 안 돌아옴");
 
-    // 시스템으로 되돌리면 값을 빼야 한다 (화면 설정이 다시 살아나도록)
-    await p.click('#theme button[data-theme="auto"]');
-    await p.waitForTimeout(250);
-    m = await lum();
-    ok(m.attr === null, "시스템인데 data-theme 가 남아 있음");
+    // 새로고침해도 고른 값이 남는다
+    await p.click("#theme-toggle"); await p.waitForTimeout(250);
+    const picked = (await state()).mode;
+    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForTimeout(1100);
+    const after = await state();
+    ok(after.mode === picked, `새로고침 후 ${picked} 가 아니라 ${after.mode}`);
 
     await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForTimeout(1100);
   }],
 
   ["24 본문 글자가 다크에서 더 굵어진다", async (p) => {
     const w = async () => p.evaluate(() =>
       getComputedStyle(document.querySelector(".places tbody .note")).fontWeight);
-    await p.click('#theme button[data-theme="light"]'); await p.waitForTimeout(250);
-    const light = await w();
-    await p.click('#theme button[data-theme="dark"]'); await p.waitForTimeout(250);
-    const dark = await w();
+    const setMode = async (want) => {
+      for (let i = 0; i < 2; i++) {
+        const now = await p.$eval("#theme-toggle", b => b.dataset.mode);
+        if (now === want) return;
+        await p.click("#theme-toggle"); await p.waitForTimeout(280);
+      }
+    };
+    await setMode("light"); const light = await w();
+    await setMode("dark");  const dark = await w();
     ok(Number(dark) > Number(light),
        `다크에서 더 굵어야 하는데 라이트 ${light} / 다크 ${dark}`);
-    await p.click('#theme button[data-theme="auto"]'); await p.waitForTimeout(200);
     await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForTimeout(1100);
   }],
 
   ["25 완전한 HTML 문서라 표준 모드로 뜬다", async (p) => {
@@ -481,18 +494,25 @@ const CHECKS = [
       return { name: f(getComputedStyle(document.querySelector(".places tbody .name")).color),
                body: f(getComputedStyle(document.body).backgroundColor) };
     });
-    await p.click('#theme button[data-theme="light"]'); await p.waitForTimeout(300);
+    const setMode = async (want) => {
+      for (let i = 0; i < 2; i++) {
+        const now = await p.$eval("#theme-toggle", b => b.dataset.mode);
+        if (now === want) return;
+        await p.click("#theme-toggle"); await p.waitForTimeout(300);
+      }
+    };
+    await setMode("light");
     let m = await L();
     ok(m.body > 200 && m.name < 90,
        `라이트에서 안 읽힘 — 배경 ${Math.round(m.body)} 글자 ${Math.round(m.name)}`);
 
-    await p.click('#theme button[data-theme="dark"]'); await p.waitForTimeout(300);
+    await setMode("dark");
     m = await L();
     ok(m.body < 80 && m.name > 150,
        `다크에서 안 읽힘 — 배경 ${Math.round(m.body)} 글자 ${Math.round(m.name)}`);
 
-    await p.click('#theme button[data-theme="auto"]'); await p.waitForTimeout(200);
     await p.evaluate(() => { try { localStorage.removeItem("magok.theme"); } catch (e) {} });
+    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForTimeout(1100);
   }],
 
   ["27 위치가 '도보 N분' 으로 나온다", async (p) => {
@@ -540,6 +560,31 @@ const CHECKS = [
     ok(c.bg < 90, `다크인데 배경이 밝음 (${Math.round(c.bg)})`);
     ok(c.fg > 140, `다크인데 글자가 어두움 (${Math.round(c.fg)})`);
   }],
+
+  // 바깥 글꼴을 그냥 <link rel=stylesheet> 로 걸었더니, 구글 폰트가 느리거나
+  // 막힌 곳에서 첫 화면이 그 한 줄을 기다리느라 통째로 멈췄다.
+  // media=print → onload 에서 all 로 바꾸는 방식이 아니면 안 된다.
+  ["30 바깥 글꼴이 첫 화면을 막지 않는다", async (p) => {
+    const links = await p.$$eval("link[rel~='stylesheet']", els => els.map(e => ({
+      href: e.getAttribute("href") || "",
+      media: e.getAttribute("media") || "",
+      onload: e.getAttribute("onload") || "",
+      inNoscript: !!e.closest("noscript"),
+    })));
+
+    const outside = links.filter(l => /^https?:/.test(l.href));
+    ok(outside.length > 0, "바깥 글꼴 링크가 아예 없음");
+
+    const blocking = outside.filter(l =>
+      !l.inNoscript && !(l.media === "print" && /media\s*=\s*['"]all/.test(l.onload)));
+    ok(blocking.length === 0,
+       `첫 화면을 막는 바깥 스타일시트 ${blocking.length}개: ${blocking[0]?.href}`);
+
+    // 못 받아와도 읽을 수 있게, 같이 실어 둔 글꼴이 뒤에 남아 있어야 한다
+    const fam = await p.evaluate(() =>
+      getComputedStyle(document.body).fontFamily);
+    ok(/Pretendard/.test(fam), `대체 글꼴이 빠짐: ${fam}`);
+  }],
 ];
 
 // ---------------------------------------------------------------- 실행
@@ -556,6 +601,11 @@ console.log(`가게 ${fixture.count}곳 · 검증 ${CHECKS.length}항목 × 화�
 
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_PATH || "/opt/pw-browsers/chromium",
+  // 바깥 호스트는 이름부터 안 풀리게 막는다. 검사 대상은 이 파일 하나다.
+  // route 로는 preconnect 를 못 잡는데, 여기선 그 TLS 악수가 실패하고
+  // 크롬이 계속 다시 붙는 바람에 검증이 20분 넘게 멈춰 있었다.
+  // 문서는 그대로 두고 (바이트 단위로 같아야 한다) 그물만 끊는다.
+  args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost"],
 });
 
 const failures = [];

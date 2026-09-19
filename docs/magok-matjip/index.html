@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="마곡나루·마곡·발산역 주변 식당을 분류·역·별점으로 추려 보는 목록.">
 <meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 본문 글꼴은 Noto Sans KR 을 먼저 쓰고, 못 받아오면 같이 실어 둔 Pretendard 로 떨어진다.
+     media=print 로 걸었다가 onload 에서 all 로 바꾸는 건, 구글 폰트가 느리거나 막혔을 때
+     이 한 줄 때문에 첫 화면이 통째로 멈추는 걸 막기 위해서다. 실제로 이것 때문에
+     검증이 20분 넘게 걸려 있었다. -->
+<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap"></noscript>
 <title>마곡역 밥집 지도</title>
 <style>
 /* Pretendard — Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
@@ -849,7 +859,7 @@
     --line:       #F1E0D2;
     --line5:      #E8681F;
     --on-accent:  #FFFFFF;
-    --w-body:     300;
+    --w-body:     400;
     --line5-ink:  #C4530F;
     --line9:      #D9A21C;
     --air:        #2E8FA8;
@@ -879,9 +889,9 @@
     --c-cafe:     #8A5533;
     --c-bar:      #B5891B;
 
-    --font-display: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    --font-body: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    --font-mono: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --font-display: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -893,7 +903,7 @@
       --ink-soft:   #E4D5C8;
       --muted:      #BCA492;
       --line:       #40322A;
-      --w-body:     400;
+      --w-body:     500;
       --line5:      #FF8A4C;
       --on-accent:  #2A1409;
       --line5-ink:  #FFA877;
@@ -926,7 +936,7 @@
     --ink-soft:   #E4D5C8;
     --muted:    #BCA492;
     --line:     #40322A;
-    --w-body:     400;
+    --w-body:     500;
     --line5:    #FF8A4C;
     --on-accent:  #2A1409;
     --line5-ink:  #FFA877;
@@ -959,7 +969,7 @@
     color: var(--ink);
     font-family: var(--font-body);
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -991,41 +1001,32 @@
     flex-wrap: wrap;
   }
 
-  .theme {
-    display: flex;
-    gap: 2px;
-    background: var(--surface-2);
-    border-radius: 9px;
-    padding: 3px;
-  }
-  .theme button {
+  .theme { display: flex; }
+
+  .theme-toggle {
     appearance: none;
-    border: 0;
-    background: transparent;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
     font-family: var(--font-body);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    padding: 6px 10px;
-    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px 7px 11px;
     cursor: pointer;
     white-space: nowrap;
+    transition: border-color .14s ease, color .14s ease, background .14s ease;
   }
-  .theme button .ic { font-size: 14px; }
-  .theme button[aria-pressed="true"] {
-    background: var(--surface);
-    color: var(--ink);
-    font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0,0,0,.12);
-  }
-  .theme button:focus-visible { outline: 2px solid var(--line5); outline-offset: 1px; }
+  .theme-toggle .ic { font-size: 15px; color: var(--line5); }
+  .theme-toggle:hover { border-color: var(--line5); color: var(--line5-ink); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--line5); outline-offset: 2px; }
 
   @media (max-width: 520px) {
-    .theme button span:not(.ic) { display: none; }
-    .theme button { padding: 7px 9px; }
+    .theme-toggle span:not(.ic) { display: none; }
+    .theme-toggle { padding: 8px 11px; }
   }
 
   .hero {
@@ -1069,18 +1070,19 @@
   h1 {
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: clamp(32px, 6.6vw, 48px);
-    line-height: 1.14;
-    letter-spacing: -.035em;
+    font-size: clamp(30px, 6vw, 44px);
+    line-height: 1.2;
+    letter-spacing: -.015em;
     margin: 0 0 14px;
     text-wrap: balance;
   }
 
   .lede {
     margin: 0;
-    max-width: 72ch;
+    max-width: 68ch;
     color: var(--ink-soft);
     font-size: 15px;
+    line-height: 1.7;
     font-weight: var(--w-body);
   }
 
@@ -1429,7 +1431,7 @@
   .places {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13.5px;
+    font-size: 14.5px;
   }
 
   .places thead th {
@@ -1489,11 +1491,11 @@
 
   .name {
     font-family: var(--font-display);
-    font-size: 15px;
+    font-size: 16.5px;
     font-weight: 700;
-    line-height: 1.35;
+    line-height: 1.4;
     margin: 0;
-    letter-spacing: -.02em;
+    letter-spacing: -.005em;
   }
 
   .menu-tag {
@@ -1521,11 +1523,11 @@
   }
 
   .note {
-    margin: 5px 0 0;
-    font-size: 13px;
+    margin: 6px 0 0;
+    font-size: 13.5px;
     font-weight: var(--w-body);
     color: var(--muted);
-    line-height: 1.62;
+    line-height: 1.72;
     max-width: 68ch;
   }
 
@@ -1547,8 +1549,8 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
-    font-size: 12.5px;
-    line-height: 1.5;
+    font-size: 13.5px;
+    line-height: 1.6;
   }
   .menu-row .mn { color: var(--ink-soft); }
   .menu-row .hits {
@@ -1568,7 +1570,7 @@
     white-space: nowrap;
   }
 
-  .where-main { color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; }
+  .where-main { color: var(--ink-soft); font-size: 13px; line-height: 1.6; }
   .where-main .walk { color: var(--line5-ink); font-weight: 700; white-space: nowrap; }
   .where-unknown {
     display: inline-block;
@@ -1579,7 +1581,7 @@
     border-radius: 5px;
     padding: 2px 6px;
   }
-  .where-sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  .where-sub { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.55; }
   .dist {
     display: inline-block;
     margin-top: 3px;
@@ -1900,10 +1902,10 @@
   }
   .note-block {
     max-width: none;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: var(--w-body);
     color: var(--muted);
-    line-height: 1.75;
+    line-height: 1.85;
   }
   .note-block h2 {
     font-family: var(--font-mono);
@@ -2507,44 +2509,64 @@
   // prefers-color-scheme 과 아티팩트 화면이 얹어 주는 값이 그대로 산다.
   // 사용자가 직접 고른 경우에만 뿌리 요소에 값을 박는다.
 
-  var THEMES = [
-    { id: "auto",  icon: "auto", label: "시스템" },
-    { id: "light", icon: "sun",  label: "라이트" },
-    { id: "dark",  icon: "moon", label: "다크" }
-  ];
+  // 라이트 ↔ 다크 토글 하나.
+  // 아직 고른 적이 없으면 화면 설정을 따라가고, data-theme 을 걸지 않는다.
+  // 한 번 누른 뒤부터는 고른 값을 저장해 그대로 쓴다.
+
+  var darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function storedTheme() {
+    try {
+      var v = localStorage.getItem("magok.theme");
+      return v === "light" || v === "dark" ? v : null;
+    } catch (e) { return null; }
+  }
+
+  function effectiveTheme() {
+    return storedTheme() || (darkQuery.matches ? "dark" : "light");
+  }
+
+  function paintToggle() {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) return;
+    var now = effectiveTheme();
+    var next = now === "dark" ? "light" : "dark";
+    btn.innerHTML = icon(now === "dark" ? "moon" : "sun") +
+      "<span>" + (now === "dark" ? "다크" : "라이트") + "</span>";
+    btn.setAttribute("aria-label",
+      (next === "dark" ? "다크" : "라이트") + " 화면으로 바꾸기");
+    btn.setAttribute("aria-pressed", String(now === "dark"));
+    btn.dataset.mode = now;
+  }
 
   function applyTheme(id) {
     var root = document.documentElement;
-    if (id === "auto") root.removeAttribute("data-theme");
+    if (id === null) root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", id);
-
-    var btns = document.querySelectorAll("#theme button");
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].setAttribute("aria-pressed", String(btns[i].dataset.theme === id));
-    }
-    try { localStorage.setItem("magok.theme", id); } catch (e) {}
+    paintToggle();
   }
 
   function buildTheme() {
     var box = document.getElementById("theme");
-    var saved = "auto";
-    try {
-      var v = localStorage.getItem("magok.theme");
-      if (v && THEMES.some(function (t) { return t.id === v; })) saved = v;
-    } catch (e) {}
-
-    THEMES.forEach(function (t) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.dataset.theme = t.id;
-      b.setAttribute("aria-pressed", String(t.id === saved));
-      b.setAttribute("aria-label", t.label + " 화면");
-      b.innerHTML = icon(t.icon) + "<span>" + t.label + "</span>";
-      b.addEventListener("click", function () { applyTheme(t.id); });
-      box.appendChild(b);
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "theme-toggle";
+    btn.className = "theme-toggle";
+    btn.addEventListener("click", function () {
+      var next = effectiveTheme() === "dark" ? "light" : "dark";
+      try { localStorage.setItem("magok.theme", next); } catch (e) {}
+      applyTheme(next);
     });
+    box.appendChild(btn);
 
-    if (saved !== "auto") applyTheme(saved);
+    var saved = storedTheme();
+    if (saved) applyTheme(saved);
+    else paintToggle();
+
+    // 아직 고른 적이 없으면 화면 설정이 바뀔 때 같이 따라간다
+    var onChange = function () { if (!storedTheme()) paintToggle(); };
+    if (darkQuery.addEventListener) darkQuery.addEventListener("change", onChange);
+    else if (darkQuery.addListener) darkQuery.addListener(onChange);
   }
 
   function buildStations() {

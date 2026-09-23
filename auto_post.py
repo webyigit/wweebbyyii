@@ -83,7 +83,11 @@ def parse_draft(path: Path) -> dict:
         if ":" not in line:
             continue
         key, val = line.split(":", 1)
-        meta[key.strip()] = val.strip()
+        # category: "동향" 처럼 따옴표로 감싼 값은 따옴표를 떼야 드롭다운과 맞는다.
+        meta[key.strip()] = val.strip().strip('"\'')
+    # 초안 대부분이 tags 대신 keywords 로 써 있어 태그가 통째로 빠지던 것을 막는다.
+    if "tags" not in meta and "keywords" in meta:
+        meta["tags"] = meta["keywords"]
     meta["_body"] = body
     meta["_path"] = path
     return meta

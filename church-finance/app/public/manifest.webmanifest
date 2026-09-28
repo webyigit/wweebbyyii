@@ -1,0 +1,10 @@
+{
+  "name": "교회 재정관리",
+  "short_name": "재정관리",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1F3A34",
+  "lang": "ko",
+  "icons": []
+}

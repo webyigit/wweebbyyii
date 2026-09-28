@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-09-28 (14) · 앱 공개 (GitHub Pages)
+
+**한 일**: 앱을 빌드해 `docs/church-finance/` 에 넣고 `main` 에 반영 → 누구나 브라우저로 열 수 있는 주소가 생김
+- 앱 주소: https://webyigit.github.io/wweebbyyii/church-finance/
+- 다시 올릴 때: `church-finance/deploy.sh` (빌드 → docs 로 복사)
+- 데이터는 주소에 들어 있지 않음. 각 기기(브라우저)에 저장되고, 로그인하면 교회 Supabase 와만 동기화
+
+**왜**: Supabase 가입 확인 메일이 돌아올 주소(Site URL)가 필요했고, 휴대폰에서도 설치 없이 열려야 하므로
+
+**결정**: 고객 승인 받고 `main` 에 반영 (Pages 는 `main` / `/docs` 에서 뜸)
+
+---
+
 ## 2026-09-28 (13) · 클라우드 동기화
 
 **고객 제공**: Supabase 프로젝트 주소와 공개키 (공개용 값 — 비밀번호·secret key 는 받지 않음)

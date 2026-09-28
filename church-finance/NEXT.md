@@ -18,10 +18,13 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 - 앱 실행: `cd church-finance/app && npm install && npm run dev` · 검사: `npm test` (단위), `npm run e2e` (브라우저 48번)
 - 2단계 진행 중: **엑셀 가져오기 완료** (개인별 헌금집계 1~6월, 실제 파일로 원 단위 검증)
   - 실제 파일 검증: `REAL_XLSX=/경로/파일.xlsx npx vitest run src/domain/importReal.test.ts` (파일은 저장소에 두지 않음)
+- **앱 공개 주소**: https://webyigit.github.io/wweebbyyii/church-finance/ (다시 올리기: `church-finance/deploy.sh` → 커밋 → main 반영)
+- 클라우드: Supabase 프로젝트 있음, 동기화 코드 완료. **고객이 할 일**: `docs/06-클라우드설정.md` 5~7번
+  - 이 작업 환경에서 실제 서버 시험을 하려면 환경 설정의 허용 도메인에 `evyiupygrwczfctryqlq.supabase.co` 추가 필요
 - **바로 다음 할 일**
-  1. 3단계 남은 것: 과목 이동(Q10) 기록, 계좌 잔액 대사(통장 잔액 vs 장부), 차입 현황
-  2. 4단계 기부금영수증 (가정별 합계, 온라인 신청서, 법정 양식, 발행대장)
-  3. 클라우드(Supabase) 연결 — 고객 계정 필요 (Q9)
+  1. 4단계 기부금영수증 (가정별 합계, 온라인 신청서, 법정 양식, 발행대장)
+  2. 3단계 남은 것: 과목 이동(Q10) 기록, 계좌 잔액 대사(통장 잔액 vs 장부), 차입 현황
+  3. 실제 Supabase 서버와 동기화 시험 (네트워크 허용 후)
 - 3단계 지출·출납 보고서 완료, 실제 출납 파일과 원 단위 일치
 - 주간 명단 가져오기 완료 (8~9월 7주). 7월 명단 파일은 없음 (Q13)
 - 실제 파일 검증 환경변수: `REAL_XLSX`, `REAL_CASHBOOK`, `REAL_WEEKLY_DIR`

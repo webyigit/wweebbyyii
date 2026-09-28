@@ -2,7 +2,9 @@ import { useState } from "react";
 import { db } from "../data/db";
 import { applyImport } from "../data/actions";
 import { planImport, type ImportPlan } from "../domain/importOfferings";
-import { readCashbookGrid, readOfferingWorkbook, type ReadResult } from "../domain/readWorkbook";
+import { readCashbookGrid, readOfferingWorkbook, readWeeklyNames, type ReadResult, type WeeklyNamesResult } from "../domain/readWorkbook";
+import { planAdjustments, type WeekLineTotal } from "../domain/cashbook";
+import { applyAdjustments } from "../data/actions";
 import ImportCashbook from "./ImportCashbook";
 import { won } from "../domain/weeklyReport";
 
@@ -15,16 +17,39 @@ export default function ImportExcel() {
   const [done, setDone] = useState("");
   const [err, setErr] = useState("");
   const [book, setBook] = useState<{ grid: unknown[][]; formulas: (string | null)[][] } | null>(null);
+  const [weekly, setWeekly] = useState<WeeklyNamesResult[]>([]);
+  const [kinds, setKinds] = useState<{ name: string; kind: string }[]>([]);
 
-  async function onFile(f: File) {
-    setErr(""); setDone(""); setPlan(null); setRead(null); setBook(null); setFileName(f.name);
+  // 여러 파일을 한 번에 골라도 됨: 파일마다 종류를 알아서 판단
+  //  - 출납 파일(기장 시트) → 주별 총액 맞추기
+  //  - 개인별 헌금집계(일자·구분·성명·금액) / 주간 주일헌금현황(과목별 명단) → 이름 있는 헌금
+  async function onFiles(files: File[]) {
+    setErr(""); setDone(""); setPlan(null); setRead(null); setBook(null); setWeekly([]); setKinds([]);
+    const found: { name: string; kind: string }[] = [];
+    setFileName(files.map((f) => f.name).join(", "));
     try {
-      const data = new Uint8Array(await f.arrayBuffer());
-      // 출납 파일(기장 시트)이면 주별 총액 맞추기로
-      const cb = readCashbookGrid(data);
-      if (cb) { setBook(cb); return; }
-      const r = readOfferingWorkbook(data);
-      if (!r.sheets.length) throw new Error("'일자 · 구분 · 성명 · 금액' 머리글이 있는 시트도, 출납 '기장' 시트도 찾지 못했습니다.");
+      const all: ReadResult = { rows: [], sheets: [] };
+      const weeks: WeeklyNamesResult[] = [];
+      for (const f of files) {
+        const data = new Uint8Array(await f.arrayBuffer());
+        const cb = readCashbookGrid(data);
+        if (cb) { setBook(cb); found.push({ name: f.name, kind: "출납 장부(기장)" }); continue; }
+        const personal = readOfferingWorkbook(data);
+        if (personal.sheets.length) {
+          all.rows.push(...personal.rows); all.sheets.push(...personal.sheets);
+          found.push({ name: f.name, kind: `개인별 헌금집계 ${personal.rows.length}건` }); continue;
+        }
+        const w = readWeeklyNames(data);
+        if (w) {
+          weeks.push(w); all.rows.push(...w.rows); all.sheets.push(...w.sheets);
+          found.push({ name: f.name, kind: `주간 명단 ${w.date} ${w.rows.length}건` }); continue;
+        }
+        found.push({ name: f.name, kind: "알 수 없는 양식 — 건너뜀" });
+      }
+      setKinds(found);
+      setWeekly(weeks.sort((a, b) => a.date.localeCompare(b.date)));
+      if (!all.rows.length) return;
+      const r = all;
       const p = planImport(r.rows, {
         households: await db.households.toArray(), members: await db.members.toArray(),
         aliases: await db.aliases.toArray(), offerings: await db.offerings.toArray(),
@@ -40,7 +65,15 @@ export default function ImportExcel() {
     setBusy(true);
     try {
       const r = await applyImport(plan);
-      setDone(`헌금 ${r.offerings.toLocaleString()}건, 새 가정 ${r.households}개를 가져왔습니다.`);
+      // 예전에 출납 장부를 넣었으면, 새 명단을 반영해 '명단 없는 총액'을 자동으로 다시 계산
+      const saved = (await db.meta.get("bookTotals"))?.value as WeekLineTotal[] | undefined;
+      let again = "";
+      if (saved?.length) {
+        const adj = planAdjustments(saved, await db.offerings.toArray(), await db.categories.toArray());
+        await applyAdjustments(adj);
+        again = ` 출납 장부 기준 총액도 다시 맞췄습니다${adj.over.length ? ` (명단이 장부보다 큰 곳 ${adj.over.length}개 — 확인 필요)` : ""}.`;
+      }
+      setDone(`헌금 ${r.offerings.toLocaleString()}건, 새 가정 ${r.households}개를 가져왔습니다.${again}`);
       setPlan(null);
     } catch (e) {
       setErr("가져오지 못했습니다 (아무것도 저장되지 않음): " + String((e as Error).message ?? e));
@@ -60,22 +93,47 @@ export default function ImportExcel() {
         파일은 이 기기 안에서만 읽습니다. 같은 파일을 다시 넣어도 겹치지 않습니다.
       </p>
       <label className="file">
-        <input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-        <span className="primary-like">엑셀 파일 고르기</span> {fileName}
+        <input type="file" accept=".xlsx,.xls" multiple onChange={(e) => e.target.files?.length && onFiles([...e.target.files])} />
+        <span className="primary-like">엑셀 파일 고르기 (여러 개 가능)</span> {fileName}
       </label>
       {err && <p className="warn">{err}</p>}
       {done && <p className="ok">✔ {done}</p>}
 
       {book && <ImportCashbook key={fileName} grid={book.grid} formulas={book.formulas} fileName={fileName} />}
 
+      {kinds.length > 1 && (
+        <ul className="muted files">{kinds.map((k) => <li key={k.name}>{k.name} → <span className={k.kind.startsWith("알 수 없는") ? "warn" : ""}>{k.kind}</span></li>)}</ul>
+      )}
+
+      {weekly.length > 0 && (
+        <div className="card">
+          <h3>주간 명단 {weekly.length}주 — 과목별 제목 금액과 대조</h3>
+          <table className="list">
+            <thead><tr><th>주일</th><th className="num">명단</th><th className="num">읽은 합계</th><th /></tr></thead>
+            <tbody>
+              {weekly.map((w) => {
+                const bad = w.sections.filter((s) => s.title !== null && s.title !== s.parsed);
+                return (
+                  <tr key={w.date}>
+                    <td>{w.date}</td><td className="num">{w.rows.length}건</td>
+                    <td className="num">{won(w.rows.reduce((a, r) => a + r.amount, 0))}</td>
+                    <td className={bad.length ? "warn" : "ok"}>{bad.length ? `✘ ${bad.map((b) => `${b.label} 제목 ${won(b.title ?? 0)} / 읽음 ${won(b.parsed)}`).join(", ")}` : "✔"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {read && plan && (
         <>
-          <div className="card">
+          {read.sheets.some((s) => !weekly.some((w) => s.name.endsWith(w.date))) && <div className="card">
             <h3>월별 대조 — 시트에 적힌 합계와 비교</h3>
             <table className="list">
               <thead><tr><th>시트</th><th className="num">건수</th><th className="num">읽은 합계</th><th className="num">시트 합계</th><th /></tr></thead>
               <tbody>
-                {read.sheets.filter((s) => s.rows > 0 || s.headerTotal).map((s) => {
+                {read.sheets.filter((s) => (s.rows > 0 || s.headerTotal) && !weekly.some((w) => s.name.endsWith(w.date))).map((s) => {
                   const sum = read.rows.filter((r) => r.sheet === s.name).reduce((a, r) => a + (Number.isFinite(r.amount) ? r.amount : 0), 0);
                   const same = s.headerTotal === undefined || s.headerTotal === sum;
                   return (
@@ -88,7 +146,7 @@ export default function ImportExcel() {
                 })}
               </tbody>
             </table>
-          </div>
+          </div>}
 
           <div className="card">
             <h3>가져올 내용</h3>

@@ -87,3 +87,69 @@ export function readCashbookGrid(data: ArrayBuffer | Uint8Array): { grid: unknow
   }
   return { grid, formulas };
 }
+
+export interface WeeklyNamesResult extends ReadResult {
+  date: string;
+  sections: { label: string; title: number | null; parsed: number }[]; // 제목 줄 금액 vs 읽은 합계 (대조용)
+}
+
+/**
+ * 주간 '주일헌금현황' 한 장 → SheetRow[].
+ * 과목 제목 줄(예: `십일조헌금 | 4,820,000`) 다음 줄이 `성명 | 금액 (| 내용)` 머리글이면 그 아래 명단을 읽는다.
+ * 기관헌금은 머리글이 부서 이름(유치부 | 금액 | 아동부 | 금액 …)이고 바로 아래 줄이 금액.
+ */
+export function readWeeklyNames(data: ArrayBuffer | Uint8Array): WeeklyNamesResult | null {
+  const wb = XLSX.read(data, { type: "array", cellDates: true });
+  for (const sheet of wb.SheetNames) {
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheet], { header: 1, raw: true, defval: null, blankrows: true });
+    const flat = (r: unknown[] | undefined) => (r ?? []).map((c) => (typeof c === "string" ? c.replace(/\s/g, "") : c));
+    const isTitleSheet = grid.slice(0, 6).some((r) => flat(r).some((c) => typeof c === "string" && c.includes("헌금현황")));
+    if (!isTitleSheet) continue;
+    let date = "";
+    for (const r of grid.slice(0, 8)) for (const c of r ?? []) if (!date && c instanceof Date) date = toYmd(c);
+    if (!date) continue;
+
+    const rows: SheetRow[] = [];
+    const sections: WeeklyNamesResult["sections"] = [];
+    for (let i = 0; i < grid.length - 1; i++) {
+      const r = flat(grid[i]);
+      const first = r.findIndex((c) => c !== null && c !== "");
+      if (first < 0 || typeof r[first] !== "string") continue;
+      const label = r[first] as string;
+      const next = flat(grid[i + 1]);
+      const titleAmt = typeof r[first + 1] === "number" ? (r[first + 1] as number) : null;
+      const nameCols = next.map((c, j) => (c === "성명" ? j : -1)).filter((j) => j >= 0);
+      const deptHead = next.filter((c) => typeof c === "string" && /부$/.test(c)).length >= 2 && next.includes("금액");
+      if (!nameCols.length && !deptHead) continue;
+
+      let parsed = 0;
+      if (deptHead) {
+        // 기관헌금: 부서 이름 오른쪽 칸이 금액, 금액은 바로 아래 줄
+        const amounts = flat(grid[i + 2]);
+        next.forEach((c, j) => {
+          if (typeof c === "string" && /부$/.test(c) && typeof amounts[j + 1] === "number" && (amounts[j + 1] as number) > 0) {
+            rows.push({ sheet: `${sheet} ${date}`, row: i + 3, date, label, name: c, amount: amounts[j + 1] as number });
+            parsed += amounts[j + 1] as number;
+          }
+        });
+      } else {
+        const groups = nameCols.map((j) => ({ name: j, amount: next.indexOf("금액", j), note: next[next.indexOf("금액", j) + 1] === "내용" ? next.indexOf("금액", j) + 1 : -1 }));
+        // 명단은 머리글 다음 줄부터 첫 빈 줄까지
+        for (let k = i + 2; k < grid.length; k++) {
+          const row = grid[k] ?? [];
+          if (flat(row).every((c) => c === null || c === "")) break;
+          for (const g of groups) {
+            const name = row[g.name], amt = row[g.amount];
+            if (typeof name === "string" && name.trim() && typeof amt === "number" && amt > 0) {
+              rows.push({ sheet: `${sheet} ${date}`, row: k + 1, date, label, name: name.trim(), amount: amt, note: g.note >= 0 && row[g.note] ? String(row[g.note]).trim() : undefined });
+              parsed += amt;
+            }
+          }
+        }
+      }
+      sections.push({ label, title: titleAmt, parsed });
+    }
+    return { rows, sheets: [{ name: `${sheet} ${date}`, rows: rows.length }], date, sections };
+  }
+  return null;
+}

@@ -44,6 +44,11 @@ describe("가져오기 계획", () => {
     expect(p.households).toHaveLength(1);
     expect(p.households[0].names).toEqual(["홍길동", "김영희", "홍아들"]);
   });
+  it("기관헌금의 부서 이름은 가정이 되지 않음", () => {
+    const p = planImport([row({ label: "기관헌금", name: "유치부" }), row({ label: "기관헌금", name: "중고등부" })], EMPTY);
+    expect(p.households).toHaveLength(0);
+    expect(p.offerings.map((o) => o.donorText)).toEqual(["유치부", "중고등부"]);
+  });
   it("무명은 가정에 연결하지 않음", () => {
     const p = planImport([row({ name: "무명1" }), row({ name: "무명" })], EMPTY);
     expect(p.households).toHaveLength(0);
@@ -88,5 +93,52 @@ describe("엑셀 파일 읽기", () => {
     expect(r.sheets).toEqual([{ name: "1월", rows: 2, headerTotal: 15000 }]);
     expect(r.rows[0]).toMatchObject({ date: "2026-01-04", label: "십일조", name: "홍길동,김영희", amount: 10000 });
     expect(r.rows[1].note).toBe("감사");
+  });
+});
+
+describe("주간 주일헌금현황 명단 읽기", async () => {
+  const { readWeeklyNames } = await import("./readWorkbook");
+  // 실제 양식과 같은 배치 (이름은 가짜)
+  const aoa: unknown[][] = [
+    ["주 일 헌 금 현 황"], [], [null, null, null, null, null, new Date(Date.UTC(2026, 7, 30))],
+    [], [],
+    ["주일헌금", 695000],
+    [],
+    ["십일조 헌금", 430000],
+    ["성    명", "금  액", "성    명", "금  액"],
+    ["홍길동,김영희", 300000, "이몽룡", 100000],
+    ["무명1", 30000, null, null],
+    [],
+    ["기타 감사헌금", 70000],
+    ["성    명", "금  액", "내 용", "성    명", "금  액", " 내 용"],
+    ["홍길동,김영희", 50000, "여호와이레", "성춘향", 20000, "건강 감사"],
+    [],
+    ["신년감사", null],
+    ["성    명", "금  액"],
+    [], [],
+    ["기관헌금", 40000],
+    ["유치부", "금  액", " 아동부", "금  액", "중고등부", "금  액"],
+    [null, 7000, null, 3000, null, 30000],
+    [],
+    ["꽃꽃이헌금", 100000],
+    ["성    명", "금  액", " 내  용"],
+    ["성춘향", 100000, "감사"],
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "주일헌금");
+  const r = readWeeklyNames(XLSX.write(wb, { type: "array", bookType: "xlsx" }))!;
+
+  it("날짜·과목·이름·금액·내용", () => {
+    expect(r.date).toBe("2026-08-30");
+    expect(r.rows.map((x) => [mapCategory(x.label), x.name, x.amount, x.note ?? ""])).toEqual([
+      ["G-TITHE", "홍길동,김영희", 300000, ""], ["G-TITHE", "이몽룡", 100000, ""], ["G-TITHE", "무명1", 30000, ""],
+      ["G-THANKS-ETC", "홍길동,김영희", 50000, "여호와이레"], ["G-THANKS-ETC", "성춘향", 20000, "건강 감사"],
+      ["G-DEPT", "유치부", 7000, ""], ["G-DEPT", "아동부", 3000, ""], ["G-DEPT", "중고등부", 30000, ""],
+      ["S-FLOWER", "성춘향", 100000, "감사"],
+    ]);
+  });
+  it("과목마다 제목 줄 금액과 읽은 합계가 같다 (주일헌금은 명단이 없어 건너뜀)", () => {
+    for (const s of r.sections) if (s.title !== null) expect(s.parsed).toBe(s.title);
+    expect(r.sections.map((s) => s.label)).not.toContain("주일헌금");
   });
 });

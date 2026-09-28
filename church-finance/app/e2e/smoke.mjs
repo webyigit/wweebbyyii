@@ -3,7 +3,7 @@
 // 가짜 이름만 사용.
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as XLSX from "xlsx";
@@ -21,6 +21,15 @@ const FIXTURE = join(tmpdir(), "cf-e2e-fixture.xlsx");
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "1월");
   writeFileSync(FIXTURE, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
+// 주간 주일헌금현황 흉내 (1/4 주): 십일조 명단 120,000 → 장부와 딱 맞게 됨
+const WEEKLY = join(tmpdir(), "cf-e2e-weekly.xlsx");
+{
+  const aoa = [["주 일 헌 금 현 황"], [], [null, null, null, null, null, new Date(Date.UTC(2026, 0, 4))], [],
+    ["십일조 헌금", 20000], ["성    명", "금  액", "성    명", "금  액"], ["정도령", 20000, null, null]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "주일헌금");
+  writeFileSync(WEEKLY, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
 // 출납 파일 흉내: 기장 시트 (1/4 십일조 120,000 = 명단 100,000 + 명단 없음 20,000, 주일헌금 500,000)
 const BOOK = join(tmpdir(), "cf-e2e-book.xlsx");
@@ -71,6 +80,8 @@ const gridRow = async (page, text) => {
   await row.first().waitFor();
   return row.first().locator("td").allInnerTexts();
 };
+// 실제 사용자는 한글 이름 파일을 고른다 → 파일 내용을 한글 이름으로 넘김 (경로로 넘기면 이 검사 도구가 한글 이름 파일을 빠뜨림)
+const asFile = (path, name) => ({ name, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: readFileSync(path) });
 const eq = (a, b, what) => { if (a !== b) throw new Error(`${what}: 기대 ${JSON.stringify(b)}, 실제 ${JSON.stringify(a)}`); };
 
 for (let round = 1; round <= ROUNDS; round++) {
@@ -175,7 +186,7 @@ for (let round = 1; round <= ROUNDS; round++) {
 
     await check("엑셀 가져오기: 월 합계 대조 ✔, 표기가 달라도 한 가정, 4건 저장", async () => {
       await go(page, "import");
-      await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+      await page.locator('input[type="file"]').setInputFiles(asFile(FIXTURE, "2026년도 개인별 헌금집계.xlsx"));
       const row = page.locator("tr", { hasText: "1월" });
       await row.waitFor();
       if (!(await row.innerText()).includes("✔")) throw new Error("월 합계 대조 실패: " + (await row.innerText()));
@@ -186,7 +197,7 @@ for (let round = 1; round <= ROUNDS; round++) {
 
     await check("같은 파일을 다시 넣으면 모두 건너뜀 (겹치지 않음)", async () => {
       await page.locator('input[type="file"]').setInputFiles([]);
-      await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+      await page.locator('input[type="file"]').setInputFiles(asFile(FIXTURE, "2026년도 개인별 헌금집계.xlsx"));
       await page.getByText("이미 들어와 있어 건너뜀 4건").waitFor();
       if (await page.getByRole("button", { name: /건 가져오기/ }).isEnabled()) throw new Error("0건인데 가져오기 버튼이 눌림");
     });
@@ -209,7 +220,7 @@ for (let round = 1; round <= ROUNDS; round++) {
       for (let k = 0; k < 2; k++) {
         await go(page, "import");
         await page.locator('input[type="file"]').setInputFiles([]);
-        await page.locator('input[type="file"]').setInputFiles(BOOK);
+        await page.locator('input[type="file"]').setInputFiles(asFile(BOOK, "★ 01-04_수입지출내역.xlsx"));
         await page.getByText("딱 맞는 칸 2").waitFor(); // 1/11 십일조, 1/4 꽃꽂이
         await page.getByRole("button", { name: "주별 총액 반영 (2칸)" }).click();
         await page.getByText("명단 없는 총액 2칸을 반영했습니다").waitFor();
@@ -219,6 +230,21 @@ for (let round = 1; round <= ROUNDS; round++) {
       eq((await gridRow(page, "십일조"))[4], "120,000", "1/4 십일조 (장부)");
       eq((await gridRow(page, "주일헌금"))[4], "500,000", "1/4 주일헌금 (장부)");
       await page.locator(".detail", { hasText: "십일조" }).getByText("(명단 없는 총액)").waitFor();
+    });
+
+    await check("주간 명단을 더 넣으면 명단 없는 총액이 자동으로 줄어듦 (합계는 장부 그대로)", async () => {
+      await go(page, "import");
+      await page.locator('input[type="file"]').setInputFiles([]);
+      await page.locator('input[type="file"]').setInputFiles(asFile(WEEKLY, "01-04_주일헌금현황.xlsx"));
+      await page.locator("tr", { hasText: "2026-01-04" }).getByText("✔").waitFor();
+      await page.getByRole("button", { name: "1건 가져오기" }).click();
+      await page.getByText("출납 장부 기준 총액도 다시 맞췄습니다").waitFor();
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-04");
+      eq((await gridRow(page, "십일조"))[4], "120,000", "1/4 십일조 (장부 그대로)");
+      const tithe = page.locator(".detail", { hasText: "십일조" });
+      await tithe.getByText("정도령").waitFor();
+      eq(await tithe.getByText("(명단 없는 총액)").count(), 0, "명단 없는 총액 (이제 없어야 함)");
     });
 
     await check("가로 스크롤이 생기지 않는다", async () => {

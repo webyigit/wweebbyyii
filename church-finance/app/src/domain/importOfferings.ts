@@ -118,7 +118,9 @@ export function planImport(
   for (const h of hh) for (const t of h.texts) byText.set(t, h);
 
   // 2) 여러 이름 표기부터 가정으로 묶는다 (이름이 많은 것부터 → "a,b,c" 가 먼저 생기고 "a,b" 는 거기에 붙음)
-  const texts = [...new Set(good.filter((r) => r.name && !isAnonymous(r.name)).map((r) => cleanText(r.name)))];
+  // 기관헌금은 이름 칸에 부서(유치부 등)가 적히므로 가정으로 묶지 않는다
+  const personal = (r: { code: string; name: string }) => r.code !== "G-DEPT" && !!r.name && !isAnonymous(r.name);
+  const texts = [...new Set(good.filter(personal).map((r) => cleanText(r.name)))];
   const multi = texts.filter((t) => splitNames(t).length > 1).sort((a, b) => splitNames(b).length - splitNames(a).length);
   let seq = 0;
   for (const t of multi) {
@@ -153,7 +155,7 @@ export function planImport(
     seen.set(base, n);
     const importKey = `${base}|${n}`;
     if (already.has(importKey)) { duplicates++; continue; }
-    const h = text && !isAnonymous(text) ? byText.get(text) : undefined;
+    const h = personal(r) ? byText.get(text) : undefined;
     offerings.push({ src: r, categoryCode: r.code, householdKey: h?.key, donorText: text, importKey });
   }
 

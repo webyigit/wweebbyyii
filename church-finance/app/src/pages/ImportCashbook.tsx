@@ -55,6 +55,8 @@ export default function ImportCashbook({ grid, formulas, fileName }: { grid: unk
         <button className="primary" disabled={busy || unknown.length > 0} onClick={async () => {
           setBusy(true);
           await applyAdjustments(plan);
+          // 나중에 명단을 더 넣으면 자동으로 다시 맞추도록 장부 총액을 기억
+          await db.meta.put({ key: "bookTotals", value: totals });
           setDone(`명단 없는 총액 ${plan.adds.length}칸을 반영했습니다. 이제 주일헌금현황이 출납 장부와 같습니다${plan.over.length ? " (위 확인 필요한 주 제외)" : ""}.`);
           setBusy(false);
         }}>{busy ? "반영 중…" : `주별 총액 반영 (${plan.adds.length}칸)`}</button>

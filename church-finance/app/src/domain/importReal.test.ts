@@ -130,3 +130,42 @@ describe.skipIf(!FILE || !BOOK)("실제 출납 파일 기장 시트", async () =
     expect(ok).toBeGreaterThan(100);
   });
 });
+
+// 주간 명단 파일 폴더까지 주면: 과목별 제목 금액 대조 + 장부(기장)와 주별 대조
+//   REAL_WEEKLY_DIR=/경로/폴더
+const WDIR = process.env.REAL_WEEKLY_DIR;
+describe.skipIf(!WDIR || !BOOK)("실제 주간 주일헌금현황 파일", async () => {
+  const { readdirSync } = await import("node:fs");
+  const { readWeeklyNames, readCashbookGrid } = await import("./readWorkbook");
+  const { readCashbookTotals } = await import("./cashbook");
+  const { DEFAULT_CATEGORIES } = await import("./categories");
+  const { mapCategory } = await import("./importOfferings");
+  const files = WDIR ? readdirSync(WDIR).filter((f) => f.endsWith(".xlsx")) : [];
+  const weeks = files.map((f) => readWeeklyNames(readFileSync(`${WDIR}/${f}`))!);
+  const book = BOOK ? readCashbookTotals(readCashbookGrid(readFileSync(BOOK))!.grid, DEFAULT_CATEGORIES).totals : [];
+  const lineOf = new Map(DEFAULT_CATEGORIES.map((c) => [c.code, c.line]));
+
+  it("모든 파일에서 날짜를 찾고, 과목마다 제목 금액 = 읽은 합계", () => {
+    expect(weeks.every(Boolean)).toBe(true);
+    for (const w of weeks) {
+      const bad = w.sections.filter((s) => s.title !== null && s.title !== s.parsed);
+      console.log(`${w.date}: ${w.rows.length}명 ${w.sections.length}과목, 제목과 다른 과목 ${bad.length}` + bad.map((b) => ` [${b.label} 제목 ${b.title} / 읽음 ${b.parsed}]`).join(""));
+      expect(bad).toEqual([]);
+      expect(w.rows.every((r) => mapCategory(r.label))).toBe(true);
+    }
+  });
+
+  it("주간 명단 합계 vs 장부(기장) — 주일헌금 제외 과목별", () => {
+    let same = 0, diff = 0;
+    for (const w of weeks) {
+      const by = new Map<string, number>();
+      for (const r of w.rows) { const l = lineOf.get(mapCategory(r.label)!)!; by.set(l, (by.get(l) ?? 0) + r.amount); }
+      for (const t of book.filter((b) => b.date === w.date && b.line !== "G-SUNDAY")) {
+        const have = by.get(t.line) ?? 0;
+        if (have === t.amount) same++; else { diff++; console.log(`  ${w.date} ${t.line}: 명단 ${have.toLocaleString()} / 장부 ${t.amount.toLocaleString()}`); }
+      }
+    }
+    console.log(`주·과목 대조: 같음 ${same}, 다름 ${diff}`);
+    expect(same).toBeGreaterThan(0);
+  });
+});

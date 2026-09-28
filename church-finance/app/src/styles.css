@@ -111,3 +111,5 @@ table.grid tr.sum td { background: #f4f8f6; font-weight: 700; }
 select { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px; max-width: 100%; background: #fff; }
 input.rule-amt { width: 110px; }
 .fixed-due button.primary { margin-top: 8px; }
+.donor.mini input { width: 140px; }
+table.bank select { max-width: 150px; }

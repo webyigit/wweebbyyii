@@ -4,6 +4,7 @@ import Dexie, { type Table } from "dexie";
 import { DEFAULT_CATEGORIES } from "../domain/categories";
 import type { Budget, DonorAlias, Expense, ExpenseItem, FixedRule, Household, IncomeCategory, Member, Offering, OpeningBalance, Row } from "../domain/types";
 import { DEFAULT_EXPENSE_ITEMS } from "../domain/expenseCategories";
+import type { BankTxn } from "../domain/bank";
 
 export class FinanceDB extends Dexie {
   categories!: Table<IncomeCategory, string>;
@@ -17,6 +18,8 @@ export class FinanceDB extends Dexie {
   expenses!: Table<Expense, string>;
   fixedRules!: Table<FixedRule, string>;
   openings!: Table<OpeningBalance, [number, string]>;
+  bankTxns!: Table<BankTxn & { appliedAs?: string }, string>;
+  bankRules!: Table<{ content: string; itemCode: string }, string>;
 
   constructor(name = "church-finance") {
     super(name);
@@ -35,6 +38,11 @@ export class FinanceDB extends Dexie {
       expenses: "id, date, itemCode, dirty",
       fixedRules: "id, weekOfMonth, dirty",
       openings: "[year+key], year",
+    });
+    // 3판: 통장 거래내역 (중복 방지) + 출금 분류 규칙 (거래내용 → 지출 항목)
+    this.version(3).stores({
+      bankTxns: "key, sunday",
+      bankRules: "content",
     });
   }
 }

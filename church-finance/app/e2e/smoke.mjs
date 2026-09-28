@@ -31,6 +31,21 @@ const WEEKLY = join(tmpdir(), "cf-e2e-weekly.xlsx");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "주일헌금");
   writeFileSync(WEEKLY, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
+// 농협 거래내역 흉내 (가짜): 수요일 입금·출금 → 2/8 주일로
+const NH = (rows) => {
+  const aoa = [[], [null, "거래일시", "출금금액", "입금금액", "거래후잔액", null, "거래내용", "거래기록사항", "거래점"], ...rows];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "거래내역");
+  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+};
+const NH1 = join(tmpdir(), "cf-e2e-nh1.xlsx"), NH2 = join(tmpdir(), "cf-e2e-nh2.xlsx");
+writeFileSync(NH1, NH([
+  [null, "2026-02-04 09:30:01", 0, 30000, 1030000, null, "길동영희십일조", "신한 0267623", "PC신한은행"],
+  [null, "2026-02-04 09:31:07", 0, 5000, 1035000, null, "민수지영주일", "카카오", "폰카카오"],
+  [null, "2026-02-04 10:00:00", 0, 1000, 1036000, null, "모르는사람", "하나", "PC하나은행"],
+  [null, "2026-02-05 12:00:00", 500, 0, 1035500, null, "이체수수료", "", "NH"],
+]));
+writeFileSync(NH2, NH([[null, "2026-02-12 12:00:00", 500, 0, 1035000, null, "이체수수료", "", "NH"]]));
 // 출납 파일 흉내: 기장 시트 (1/4 십일조 120,000 = 명단 100,000 + 명단 없음 20,000, 주일헌금 500,000)
 const BOOK = join(tmpdir(), "cf-e2e-book.xlsx");
 {
@@ -86,7 +101,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
+const TAB = { entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -298,8 +313,37 @@ for (let round = 1; round <= ROUNDS; round++) {
       await page.getByText("이번 주 지출 2건 — 일반 4,000,000").waitFor();
     });
 
+    await check("통장 내역: 입금 메모로 헌금자·과목 자동, 모르는 건 체크 안 됨, 출금은 항목 골라 지출로", async () => {
+      await go(page, "bank");
+      await page.locator('input[type="file"]').setInputFiles(asFile(NH1, "농협 거래내역조회.xlsx"));
+      await page.getByText("입금 3건 — 자동으로 맞춘 것 2건").waitFor();
+      const rows = page.locator("table.bank").first().locator("tbody tr");
+      eq(await rows.nth(0).locator('input[type="checkbox"]').isChecked(), true, "길동영희십일조 체크");
+      eq(await rows.nth(2).locator('input[type="checkbox"]').isChecked(), false, "모르는사람 체크");
+      const donor = await rows.nth(0).locator(".donor input").inputValue();
+      if (!donor.includes("홍길동")) throw new Error("가정 이름이 안 나옴: " + donor);
+      await page.locator("table.bank").nth(1).locator("select").selectOption({ label: "공공요금" });
+      await page.getByRole("button", { name: /선택한 3건 반영/ }).click();
+      await page.getByText("온라인 헌금 2건 추가").waitFor();
+      await page.locator('input[type="file"]').setInputFiles([]);
+      await page.locator('input[type="file"]').setInputFiles(asFile(NH1, "농협 거래내역조회.xlsx"));
+      await page.getByText("이미 올린 거래 3건은 건너뜀").waitFor();
+      await page.locator('input[type="file"]').setInputFiles([]);
+      await page.locator('input[type="file"]').setInputFiles(asFile(NH2, "농협 거래내역조회(2).xlsx"));
+      await page.getByText("예전 분류대로").waitFor();
+    });
+
+    await check("통장에서 들어온 온라인 헌금이 2/8 주일 입력 목록에 '온라인'으로", async () => {
+      await go(page, "entry");
+      await page.locator(".sunday input").fill("2026-02-08");
+      await page.locator(".chip", { hasText: "십일조" }).click();
+      const row = page.locator(".this-week tr", { hasText: "30,000" });
+      await row.waitFor();
+      if (!(await row.innerText()).includes("온라인")) throw new Error(await row.innerText());
+    });
+
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "expense", "cashbook", "people", "budget", "import"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "import"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

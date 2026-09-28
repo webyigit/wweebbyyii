@@ -41,7 +41,8 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 ## 발표자료 (구글 슬라이드)
 
 - 폴더 (늘 최신판이 여기 있음): https://drive.google.com/drive/folders/1GJjbPK6LSxm5BFxKp2sGWXj196ytT1VS
-- 현재판: https://docs.google.com/presentation/d/1MEcci-3vonrXQGE5IsVaZr8K_3YPLfGsI1OLOb3a1qQ/edit
+- 현재판 (0~5단계, 13장): https://docs.google.com/presentation/d/1fYiBUtDxvTvwOwi50meuRCM7U3lIeduP2vF35M-CmTI/edit
+  - 알려진 작은 흠: 3~4번 슬라이드 10번 동그라미 숫자 줄바꿈, 마지막 장 4번 줄과 아래 글자 겹침 → `build.py` 에는 고쳐 둠, 다음 갱신 때 반영
 - 원본 생성기: `slides/build.py` (갱신 방법은 CLAUDE.md)
 
 ## 작업 규칙 요약 (자세한 건 CLAUDE.md)

@@ -292,7 +292,7 @@ export function wonKorean(n: number): string {
       let p = part;
       for (let i = 0; i < 4 && p > 0; i++, p = Math.floor(p / 10)) {
         const d = p % 10;
-        if (d) s = digits[d] + small[i] + s;
+        if (d) s = digits[d] + small[i] + s; // 금액 표기 관례대로 '일천·일백'처럼 일을 붙임
       }
       out = s + big[group] + out;
     }

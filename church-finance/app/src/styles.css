@@ -145,3 +145,10 @@ table.form tr.sum td { font-weight: 700; }
   .receipt-page { box-shadow: none; margin: 0; width: auto; padding: 0; break-after: page; }
   .receipt-page:last-child { break-after: auto; }
 }
+
+/* 예결산·제직회 */
+input.next-budget { width: 120px; text-align: right; padding: 4px 6px; }
+.budget-balance { font-size: 14px; }
+.conclusion li { margin: 4px 0; }
+.dept-block { break-inside: avoid; margin-top: 12px; }
+@media print { input.next-budget { border: 0; padding: 0; width: auto; } }

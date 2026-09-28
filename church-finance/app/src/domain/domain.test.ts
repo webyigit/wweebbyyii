@@ -124,6 +124,17 @@ describe("금액 입력", () => {
     expect(parseAmount("")).toBeNull();
     expect(parseAmount("abc")).toBeNull();
     expect(parseAmount("만")).toBeNull();
+    // 예산처럼 큰 금액을 말하듯이
+    expect(parseAmount("1억1천만")).toBe(110_000_000);
+    expect(parseAmount("2억5천만")).toBe(250_000_000);
+    expect(parseAmount("3억7천만원")).toBe(370_000_000);
+    expect(parseAmount("천만")).toBe(10_000_000);
+    expect(parseAmount("1억")).toBe(100_000_000);
+    expect(parseAmount("3천5백")).toBe(3500);
+    expect(parseAmount("2만3천5백")).toBe(23500);
+    expect(parseAmount("1억2345만6789")).toBe(123_456_789);
+    expect(parseAmount("5천만5천")).toBe(50_005_000);
+    expect(parseAmount("1억만")).toBeNull();
   });
 });
 

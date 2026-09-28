@@ -238,5 +238,77 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
     }
     expect(results.length).toBeGreaterThan(15);
     expect(results.filter((r) => !r).length).toBe(0);
+    realInp = inp;
+  });
+
+  // 5단계: 결산예산·제직회·제직회_요약·해외선교 시트와 원 단위 비교
+  let realInp: import("./settlement").SettleInput | null = null;
+  it("결산·예산(안) / 제직회 지출 현황 / 요약 / 해외선교가 엑셀과 같음", async () => {
+    const { buildSettlement, buildSummary, buildMissionReport, periodOf } = await import("./settlement");
+    expect(realInp).not.toBeNull();
+    const inp = realInp!;
+    const x = XLSX.read(bookBuf, { type: "buffer", cellDates: true });
+    // 시트가 B열부터 시작하면 열 번호가 밀리므로 A열부터로 맞춤
+    const grid = (sh: string) => {
+      const ws = x.Sheets[sh];
+      const pad = XLSX.utils.decode_range(ws["!ref"]!).s.c;
+      return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null }).map((r) => [...Array(pad).fill(null), ...r]);
+    };
+    const norm = (v: unknown) => String(v ?? "").replace(/[\s,·()]/g, "");
+    const num = (v: unknown) => (typeof v === "number" ? v : Number(String(v ?? "").replace(/[,\s]/g, "")) || 0);
+    const results: boolean[] = [];
+    const cmp = (label: string, app: number, excel: number) => { const ok = app === excel; if (!ok) console.log(`  ✘ ${label}: 앱 ${app.toLocaleString()} / 엑셀 ${excel.toLocaleString()}`); results.push(ok); };
+    const depts = DEPARTMENTS.map((d) => ({ code: d.code, name: d.name }));
+
+    // 결산예산 시트: 기준일 9/27
+    const s = buildSettlement(2026, periodOf("ytd", 2026, "2026-09-27"), inp, depts);
+    const g = grid("결산예산");
+    const EXCEL_INCOME: Record<string, string> = { "G-TITHE": "십일조헌금", "G-SUNDAY": "주일헌금", "G-THANKS": "감사헌금", "G-EASTER": "부활절헌금", "G-HARVEST1": "맥추절헌금", "G-HARVEST2": "추수감사헌금", "G-XMAS": "성탄절헌금", "G-NEWYEAR": "신년감사헌금", "G-DEPT": "기관헌금" };
+    for (const l of s.income) {
+      const row = g.slice(0, 20).find((r) => norm(r[2]) === EXCEL_INCOME[l.code]);
+      expect(row, l.code).toBeTruthy();
+      cmp(`수입 ${l.name} 예산`, l.budget, num(row![3]));
+      cmp(`수입 ${l.name} 실적`, l.actual, num(row![4]));
+    }
+    cmp("수입 합계", s.incomeTotal.actual, num(g[4][4]));
+    const expRows = g.slice(22);
+    let items = 0;
+    for (const d of s.depts) for (const it of d.items) {
+      const row = expRows.find((r) => norm(r[2]) === norm(it.name));
+      if (!row) { console.log("  결산예산에 없는 항목: " + it.name); continue; }
+      items++;
+      cmp(`${d.name} ${it.name} 예산`, it.budget, num(row[3]));
+      cmp(`${d.name} ${it.name} 지출`, it.actual, num(row[4]));
+    }
+    cmp("지출 합계", s.expenseTotal.actual, num(expRows.find((r) => norm(r[1]) === "합계")![4]));
+    console.log(`  결산예산: 수입 ${s.income.length}줄, 지출 ${items}항목 비교`);
+    expect(items).toBeGreaterThan(55);
+
+    // 제직회 시트 (같은 기준일): 부서 소계
+    const j = grid("제직회");
+    for (const d of s.depts) {
+      const i = j.findIndex((r) => norm(r[1]) === norm(d.name));
+      if (i < 1) continue;
+      cmp(`제직회 ${d.name} 소계`, d.actual, num(j[i - 1][4]));
+    }
+
+    // 제직회_요약 (상반기)
+    const sum = buildSummary(2026, periodOf("h1", 2026, "2026-06-14"), inp); // 요약 시트 작성일 6/14 (6/21·6/28 미포함이라고 적혀 있음)
+    const y = grid("제직회_요약");
+    const val = (label: string) => num(y.find((r) => norm(r[1]).startsWith(label))![2]);
+    cmp("상반기 수입", sum.income, val("수입은"));
+    cmp("상반기 지출", sum.expense, val("지출은"));
+
+    // 해외선교 현황 (작성일 6/28)
+    const m = buildMissionReport(2026, "2026-06-28", inp);
+    const mg = grid("재직_해외선교보고");
+    const top = mg.findIndex((r) => norm(r[1]).startsWith("25년도이월금"));
+    cmp("선교 이월", m.opening, num(mg[top + 1][1]));
+    cmp("선교 수입", m.income, num(mg[top + 1][2]));
+    cmp("선교 지출", m.expense, num(mg[top + 1][4]));
+    cmp("선교 잔액", m.balance, num(mg[top + 1][5]));
+
+    console.log(`  5단계 비교 ${results.length}건, 틀림 ${results.filter((r) => !r).length}건`);
+    expect(results.filter((r) => !r).length).toBe(0);
   });
 });

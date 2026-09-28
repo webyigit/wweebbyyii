@@ -113,7 +113,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기", receipt: "기부금영수증" };
+const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기", receipt: "기부금영수증", settle: "예결산·제직회" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -446,6 +446,77 @@ for (let round = 1; round <= ROUNDS; round++) {
       await page.locator('section[data-page="receipt"] .row button', { hasText: "▶" }).click();
     });
 
+    // ── 예결산·제직회 ──
+    const mode = (name) => page.locator(".modes").getByRole("button", { name, exact: true }).click();
+    const cellsOf = async (loc) => (await loc.first().locator("td").allInnerTexts()).map((t) => t.trim());
+    await check("예결산: 올해 예산·실적, 내년 예산(안) 넣으면 증감률과 수입·지출 균형 검산", async () => {
+      await go(page, "settle");
+      const tithe = page.locator("table.settle-income tr", { hasText: "십일조" });
+      const c = await cellsOf(tithe);
+      eq(c[2], "100,000,000", "올해 예산");
+      const nextIn = page.locator('input.next-budget[data-code="G-TITHE"]');
+      await nextIn.fill("1억1천만"); await nextIn.blur();
+      await page.locator("table.settle-income tr", { hasText: "십일조" }).locator("td", { hasText: "+10.00%" }).waitFor();
+      await page.locator(".budget-balance", { hasText: "차이 110,000,000원 (수입 많음)" }).waitFor();
+      const util = page.locator('input.next-budget[data-code="FACILITY-8"]');
+      await util.fill("110000000"); await util.blur();
+      await page.locator(".budget-balance", { hasText: "수입과 지출이 맞습니다" }).waitFor();
+      // 예산 없이 쓴 담임목사 사례비(재정부)는 조정 검토 목록에
+      await page.locator('.adjust-hints tr[data-kind="noBudget"]', { hasText: "담임목사사례비" }).waitFor();
+      await page.reload(); await page.locator('section[data-page="settle"]').waitFor();
+      eq(await page.locator('input.next-budget[data-code="G-TITHE"]').inputValue(), "110,000,000", "새로고침 후 예산안");
+    });
+
+    await check("지출 현황: 부서 소계 = 그 부서 항목 합, 잔액 = 예산 − 지출", async () => {
+      await mode("지출 현황");
+      const rows = page.locator("table.spend tr");
+      await rows.first().waitFor();
+      const all = await rows.evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent.trim())));
+      const n = (t) => (t === "-" ? 0 : Number(t.replace(/,/g, "")));
+      let checked = 0;
+      for (let i = 0; i < all.length; i++) {
+        if (all[i][1] !== "소 계") continue;
+        let sum = 0;
+        for (let j = i + 1; j < all.length && all[j][1] !== "소 계" && all[j].length; j++) sum += n(all[j][3]);
+        eq(n(all[i][3]), sum, `${all[i][0]} 소계`);
+        checked++;
+      }
+      if (checked < 10) throw new Error(`부서 ${checked}개만 확인`);
+      const util = await cellsOf(page.locator("table.spend tr", { hasText: "공공요금" }));
+      eq(n(util[5]), n(util[2]) - n(util[3]), "공공요금 잔액");
+    });
+
+    await check("요약 보고: 수입 = 결산 수입 합계, 한글 금액과 결론 문장", async () => {
+      await mode("결산·예산(안)");
+      const total = (await cellsOf(page.locator("table.settle-income tr.sum")))[3];
+      await mode("요약 보고");
+      eq((await page.locator(".summary-income .amount").innerText()).trim(), total, "요약 수입");
+      if (!(await page.locator(".summary-income").innerText()).includes("원")) throw new Error("한글 금액 없음");
+      await page.locator(".conclusion li").first().waitFor();
+      if ((await page.locator(".summary").innerText()).includes("%%")) throw new Error("퍼센트 기호가 두 번 찍힘");
+      if (process.env.SHOT_DIR && vp.name === "PC") { // 화면 눈으로 확인용
+        await page.locator('section[data-page="settle"]').screenshot({ path: `${process.env.SHOT_DIR}/settle-summary.png` });
+        await mode("결산·예산(안)");
+        await page.locator('section[data-page="settle"]').screenshot({ path: `${process.env.SHOT_DIR}/settle-main.png` });
+        await mode("요약 보고");
+      }
+    });
+
+    await check("부서별 상세: 지출 한 건씩, 남은 예산 흐름 (전기요금 후 946,970)", async () => {
+      await mode("부서별 상세");
+      const row = page.locator(".detail-report tr", { hasText: "전기요금" });
+      if (!(await row.innerText()).includes("946,970")) throw new Error(await row.innerText());
+      if ((await page.locator(".detail-report").innerText()).includes("자동출금")) throw new Error("받는 사람이 기본으로 보임");
+      await page.getByLabel("받는 사람·비고 표시").check();
+      await page.locator(".detail-report td", { hasText: "자동출금" }).first().waitFor();
+    });
+
+    await check("해외선교 현황: 이월·수입·지출·잔액 표", async () => {
+      await mode("해외선교");
+      await page.locator(".mission h1", { hasText: "해외선교 현황보고" }).waitFor();
+      await page.locator(".mission td", { hasText: "이월금" }).waitFor();
+    });
+
     await check("로그인 전: '이 기기에만 저장' 표시, 계정 화면에 로그인 칸", async () => {
       await page.locator(".top .sync", { hasText: "이 기기에만 저장" }).waitFor();
       await go(page, "account");
@@ -454,7 +525,7 @@ for (let round = 1; round <= ROUNDS; round++) {
     });
 
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "receipt", "import", "account"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "receipt", "settle", "import", "account"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

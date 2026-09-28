@@ -239,8 +239,33 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
     const gRow = tot.slice(h + 1).find((r) => r.some((x) => ns(x) === "일반헌금"));
     if (gRow && cSpend >= 0) out.sheetTotals.push({ key: "G:out", label: "일반 지출 (총 시트)", amount: n(gRow[cSpend]) });
     if (gRow && cBal >= 0) out.sheetTotals.push({ key: "G:balance", label: "일반 잔액 (총 시트)", amount: n(gRow[cBal]) });
+
+    // 수입 예산 (일반헌금 줄별): '■ 일반헌금' 표 [구분 | 헌금 | 예산 | 수입 | 비율 | …]
+    const ih = tot.findIndex((r) => ns(r[1]) === "수입" && r.some((c) => ns(c) === "예산"));
+    if (ih >= 0) {
+      const cB = tot[ih].findIndex((c) => ns(c) === "예산");
+      for (const r of tot.slice(ih + 1, ih + 20)) {
+        const line = incomeLineOf(ns(r[cB - 1]));
+        if (line && typeof r[cB] === "number" && !out.budgets.some((b) => b.code === line)) out.budgets.push({ code: line, amount: n(r[cB]) });
+      }
+    }
   }
   return out;
+}
+
+/** 총 시트의 헌금 이름 → 예산 줄 코드 (신년감사·추수감사처럼 '감사'가 든 이름을 먼저 가림) */
+export function incomeLineOf(name: string): string | null {
+  if (!name) return null;
+  if (name.includes("십일조")) return "G-TITHE";
+  if (name.includes("주일")) return "G-SUNDAY";
+  if (name.includes("신년")) return "G-NEWYEAR";
+  if (name.includes("맥추")) return "G-HARVEST1";
+  if (name.includes("추수")) return "G-HARVEST2";
+  if (name.includes("부활")) return "G-EASTER";
+  if (name.includes("성탄")) return "G-XMAS";
+  if (name.includes("기관")) return "G-DEPT";
+  if (name.startsWith("감사")) return "G-THANKS";
+  return null;
 }
 
 /** 같은 파일을 다시 넣어도 겹치지 않게: 내용 키 + 같은 내용 순번 */

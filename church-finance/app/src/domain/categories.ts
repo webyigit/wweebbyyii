@@ -22,6 +22,8 @@ const rows: R[] = [
   ["S-FLOWER", "S", "특별헌금", "S-FLOWER", "꽃꽂이헌금", "꽃꽂이헌금", true, true],
   ["S-BUILD", "S", "특별헌금", "S-BUILD", "건축(E/V)헌금", "건축(E/V)헌금", true, true],
   ["M-MISSION", "M", "선교헌금", "M-MISSION", "해외선교헌금", "해외선교헌금", true, false],
+  // 한시 구호헌금 (예: 네팔 긴급구호). 필요할 때 이름을 바꿔 씀
+  ["M-RELIEF", "M", "선교헌금", "M-RELIEF", "긴급구호헌금", "긴급구호헌금", true, false],
 ];
 
 export const DEFAULT_CATEGORIES: IncomeCategory[] = rows.map(([code, fund, group, line, lineName, name, named, needsNote, active = true], i) => ({

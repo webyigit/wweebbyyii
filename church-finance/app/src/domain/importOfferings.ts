@@ -32,10 +32,11 @@ const LABELS: Record<string, string> = {
   꽃꽂이: "S-FLOWER",
   "건축(E/V)": "S-BUILD", 건축: "S-BUILD",
   해외선교: "M-MISSION",
+  긴급구호: "M-RELIEF", 네팔긴급구호: "M-RELIEF", 네팔구호: "M-RELIEF", 네팔: "M-RELIEF",
 };
 
 export function normalizeLabel(label: string): string {
-  return label.replace(/\s/g, "").replace(/헌금/g, "").replace(/꽃꽃이/g, "꽃꽂이").replace(/선선교/g, "선교");
+  return label.replace(/\s/g, "").replace(/헌금/g, "").replace(/꽃꽃이/g, "꽃꽂이").replace(/선선교/g, "선교").replace(/^맥추절$/, "맥추");
 }
 
 export function mapCategory(label: string): string | null {

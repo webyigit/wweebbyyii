@@ -71,7 +71,7 @@ export default function WeeklyReportView({ date, setDate }: { date: string; setD
             <div className="names">
               {l.details.map((d, i) => (
                 <div key={i} className="name-cell">
-                  <span>{d.donorText}{d.note && <small> · {d.note}</small>}</span>
+                  <span>{d.donorText || <span className="muted">(명단 없는 총액)</span>}{d.donorText && d.note && <small> · {d.note}</small>}</span>
                   <span className="num">{won(d.amount)}</span>
                 </div>
               ))}

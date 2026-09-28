@@ -69,3 +69,21 @@ export function readOfferingWorkbook(data: ArrayBuffer | Uint8Array): ReadResult
   }
   return { rows, sheets };
 }
+
+/** 출납 파일(`기장` 시트가 있는 파일)이면 그 시트 격자(값)와 수식 격자를, 아니면 null */
+export function readCashbookGrid(data: ArrayBuffer | Uint8Array): { grid: unknown[][]; formulas: (string | null)[][] } | null {
+  const wb = XLSX.read(data, { type: "array", cellDates: true, cellFormula: true });
+  const name = wb.SheetNames.find((n) => n.replace(/\s/g, "") === "기장");
+  if (!name) return null;
+  const ws = wb.Sheets[name];
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null, blankrows: true });
+  const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+  const formulas: (string | null)[][] = [];
+  // sheet_to_json 은 범위 첫 칸 기준이므로 같은 기준으로 맞춘다
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const row: (string | null)[] = [];
+    for (let c = range.s.c; c <= range.e.c; c++) row.push(ws[XLSX.utils.encode_cell({ r, c })]?.f ?? null);
+    formulas.push(row);
+  }
+  return { grid, formulas };
+}

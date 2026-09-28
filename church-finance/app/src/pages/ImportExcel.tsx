@@ -2,7 +2,8 @@ import { useState } from "react";
 import { db } from "../data/db";
 import { applyImport } from "../data/actions";
 import { planImport, type ImportPlan } from "../domain/importOfferings";
-import { readOfferingWorkbook, type ReadResult } from "../domain/readWorkbook";
+import { readCashbookGrid, readOfferingWorkbook, type ReadResult } from "../domain/readWorkbook";
+import ImportCashbook from "./ImportCashbook";
 import { won } from "../domain/weeklyReport";
 
 // 엑셀 '개인별 헌금집계' 가져오기. 파일은 이 기기 안에서만 읽고, 어디로도 보내지 않는다.
@@ -13,12 +14,17 @@ export default function ImportExcel() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState("");
   const [err, setErr] = useState("");
+  const [book, setBook] = useState<{ grid: unknown[][]; formulas: (string | null)[][] } | null>(null);
 
   async function onFile(f: File) {
-    setErr(""); setDone(""); setPlan(null); setRead(null); setFileName(f.name);
+    setErr(""); setDone(""); setPlan(null); setRead(null); setBook(null); setFileName(f.name);
     try {
-      const r = readOfferingWorkbook(new Uint8Array(await f.arrayBuffer()));
-      if (!r.sheets.length) throw new Error("'일자 · 구분 · 성명 · 금액' 머리글이 있는 시트를 찾지 못했습니다.");
+      const data = new Uint8Array(await f.arrayBuffer());
+      // 출납 파일(기장 시트)이면 주별 총액 맞추기로
+      const cb = readCashbookGrid(data);
+      if (cb) { setBook(cb); return; }
+      const r = readOfferingWorkbook(data);
+      if (!r.sheets.length) throw new Error("'일자 · 구분 · 성명 · 금액' 머리글이 있는 시트도, 출납 '기장' 시트도 찾지 못했습니다.");
       const p = planImport(r.rows, {
         households: await db.households.toArray(), members: await db.members.toArray(),
         aliases: await db.aliases.toArray(), offerings: await db.offerings.toArray(),
@@ -49,8 +55,9 @@ export default function ImportExcel() {
     <section className="pad" data-page="import">
       <h2>엑셀 가져오기</h2>
       <p className="muted">
-        '개인별 헌금집계' 엑셀(월별 시트: 일자 · 구분 · 성명 · 금액 · 비고)을 고르세요. 파일은 이 기기 안에서만 읽습니다.
-        같은 파일을 다시 넣어도 이미 들어온 헌금은 건너뜁니다.
+        ① 먼저 <b>'개인별 헌금집계'</b> 엑셀(월별 시트: 일자 · 구분 · 성명 · 금액)로 이름 있는 헌금을 넣고,
+        ② 다음에 <b>출납 주간 파일</b>(<code>기장</code> 시트가 있는 파일)을 넣으면 주별 총액이 장부와 같아지도록 이름 없는 금액을 채웁니다.
+        파일은 이 기기 안에서만 읽습니다. 같은 파일을 다시 넣어도 겹치지 않습니다.
       </p>
       <label className="file">
         <input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
@@ -58,6 +65,8 @@ export default function ImportExcel() {
       </label>
       {err && <p className="warn">{err}</p>}
       {done && <p className="ok">✔ {done}</p>}
+
+      {book && <ImportCashbook key={fileName} grid={book.grid} formulas={book.formulas} fileName={fileName} />}
 
       {read && plan && (
         <>

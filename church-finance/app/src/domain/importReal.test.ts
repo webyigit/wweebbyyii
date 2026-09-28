@@ -9,10 +9,11 @@ import { readOfferingWorkbook } from "./readWorkbook";
 
 const FILE = process.env.REAL_XLSX;
 
+const buf = FILE ? readFileSync(FILE) : new Uint8Array();
+const read = FILE ? readOfferingWorkbook(buf) : { rows: [], sheets: [] };
+const plan = planImport(read.rows, { households: [], members: [], aliases: [], offerings: [] });
+
 describe.skipIf(!FILE)("실제 개인별 헌금집계 엑셀", () => {
-  const buf = FILE ? readFileSync(FILE) : new Uint8Array();
-  const read = FILE ? readOfferingWorkbook(buf) : { rows: [], sheets: [] };
-  const plan = planImport(read.rows, { households: [], members: [], aliases: [], offerings: [] });
 
   it("월별 시트 합계가 시트에 적힌 합계와 원 단위까지 같다", () => {
     for (const s of read.sheets) {
@@ -64,5 +65,68 @@ describe.skipIf(!FILE)("실제 개인별 헌금집계 엑셀", () => {
     const sizes = plan.households.reduce<Record<number, number>>((m, h) => ((m[h.names.length] = (m[h.names.length] ?? 0) + 1), m), {});
     console.log(`가정 ${plan.households.length}개 (구성원 수별 ${JSON.stringify(sizes)}), 확인 필요 ${review}개, 무명 등 가정 없는 헌금 ${plan.offerings.filter((o) => !o.householdKey).length}건`);
     expect(plan.households.length).toBeGreaterThan(0);
+  });
+});
+
+// 출납 파일(`기장` 시트)까지 주면: 주별 총액 읽기 + 개인별 명단과 대조
+//   REAL_XLSX=... REAL_CASHBOOK=/경로/주간수입지출.xlsx npx vitest run src/domain/importReal.test.ts
+const BOOK = process.env.REAL_CASHBOOK;
+describe.skipIf(!FILE || !BOOK)("실제 출납 파일 기장 시트", async () => {
+  const { DEFAULT_CATEGORIES } = await import("./categories");
+  const { readCashbookTotals, planAdjustments, findManualCorrections } = await import("./cashbook");
+  const { readCashbookGrid } = await import("./readWorkbook");
+  const cb = BOOK ? readCashbookGrid(readFileSync(BOOK))! : { grid: [], formulas: [] };
+  const grid = cb.grid;
+  const { totals, unknown } = readCashbookTotals(grid, DEFAULT_CATEGORIES);
+  const fixes = findManualCorrections(grid, cb.formulas, DEFAULT_CATEGORIES);
+
+  it("주별 합 + 수식 속 수동 보정 = 기장 시트의 연 누계", () => {
+    for (const f of fixes) console.log(`수동 보정: ${f.label}(${f.line}) ${f.amount.toLocaleString()} ← ${f.formula}`);
+    expect(unknown).toEqual([]);
+    const byLine = new Map<string, number>();
+    for (const t of totals) byLine.set(t.line, (byLine.get(t.line) ?? 0) + t.amount);
+    // 시트의 연 누계 칸: '(헌금예산)' 칸 오른쪽 두 번째 열
+    const start = grid.findIndex((r) => r?.some((c) => typeof c === "string" && c.replace(/\s/g, "") === "(헌금예산)"));
+    const labelCol = grid[start].findIndex((c) => typeof c === "string" && c.replace(/\s/g, "") === "(헌금예산)");
+    const sheetTotals = new Map<string, number>();
+    const want: [string, string][] = [["십일조", "G-TITHE"], ["주일헌금", "G-SUNDAY"], ["감사헌금", "G-THANKS"], ["신년감사", "G-NEWYEAR"], ["기관", "G-DEPT"], ["부활절", "G-EASTER"], ["맥추절", "G-HARVEST1"], ["이웃사랑", "S-NEIGHBOR"], ["꽃꽂이", "S-FLOWER"], ["건축헌금", "S-BUILD"]];
+    for (const r of grid.slice(start)) {
+      const l = String(r?.[labelCol] ?? "").replace(/\s/g, "");
+      const hit = want.find(([w]) => w === l);
+      if (hit && typeof r[labelCol + 2] === "number") sheetTotals.set(hit[1], r[labelCol + 2] as number);
+    }
+    expect(sheetTotals.size).toBe(want.length);
+    for (const [line, amt] of sheetTotals) {
+      const fix = fixes.filter((f) => f.line === line).reduce((a, f) => a + f.amount, 0);
+      console.log(`${line}: 주별 합 ${(byLine.get(line) ?? 0).toLocaleString()} + 보정 ${fix.toLocaleString()} / 시트 누계 ${amt.toLocaleString()}`);
+      expect((byLine.get(line) ?? 0) + fix).toBe(amt);
+    }
+    console.log(`주 ${new Set(totals.map((t) => t.date)).size}개, 주·줄 ${totals.length}칸`);
+  });
+
+  it("개인별 명단 + 명단 없는 총액 = 장부 (명단이 장부보다 큰 주는 따로 보고)", () => {
+    const stored = plan.offerings.map((o, i) => ({ id: `o${i}`, updatedAt: 0, createdAt: i, date: o.src.date, categoryCode: o.categoryCode, donorText: o.donorText, amount: o.src.amount, method: "cash" as const, importKey: o.importKey }));
+    const adj = planAdjustments(totals, stored, DEFAULT_CATEGORIES);
+    const lineOf = new Map(DEFAULT_CATEGORIES.map((c) => [c.code, c.line]));
+    const sumBy = new Map<string, number>();
+    for (const o of [...stored, ...adj.adds]) {
+      const k = `${o.date}|${lineOf.get(o.categoryCode)}`;
+      sumBy.set(k, (sumBy.get(k) ?? 0) + o.amount);
+    }
+    const overKeys = new Set(adj.over.map((o) => `${o.date}|${o.line}`));
+    let ok = 0;
+    for (const t of totals) {
+      const k = `${t.date}|${t.line}`;
+      if (overKeys.has(k)) continue;
+      expect(sumBy.get(k)).toBe(t.amount);
+      ok++;
+    }
+    const adjSum = adj.adds.reduce((a, x) => a + x.amount, 0);
+    console.log(`주·줄 ${totals.length}칸: 딱 맞음 ${adj.matched}, 명단 없는 총액으로 채움 ${adj.adds.length}칸(${adjSum.toLocaleString()}원), 명단이 장부보다 큼 ${adj.over.length}칸`);
+    for (const o of adj.over.slice(0, 20)) console.log(`  ${o.date} ${o.line}: 명단 ${o.named.toLocaleString()} / 장부 ${o.book.toLocaleString()}`);
+    const byMonth = new Map<string, number>();
+    for (const a of adj.adds) byMonth.set(a.date.slice(0, 7) + " " + a.categoryCode, (byMonth.get(a.date.slice(0, 7) + " " + a.categoryCode) ?? 0) + a.amount);
+    console.log([...byMonth.entries()].filter(([k]) => !k.includes("SUNDAY")).slice(0, 40).map(([k, v]) => `${k}:${v.toLocaleString()}`).join("  "));
+    expect(ok).toBeGreaterThan(100);
   });
 });

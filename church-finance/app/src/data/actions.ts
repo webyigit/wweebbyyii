@@ -1,6 +1,7 @@
 import { db, newId, softDelete, touch, type FinanceDB } from "./db";
 import type { DonorAlias, Household, Member, Offering, PayMethod } from "../domain/types";
 import { offeringDate, type ImportPlan } from "../domain/importOfferings";
+import { ADJ_NOTE, type AdjustmentPlan } from "../domain/cashbook";
 
 export async function addOffering(
   o: { date: string; categoryCode: string; householdId?: string; donorText: string; amount: number; method: PayMethod; note?: string },
@@ -51,6 +52,22 @@ export async function applyImport(plan: ImportPlan, d: FinanceDB = db) {
     await d.offerings.bulkPut(offerings);
   });
   return { households: households.length, offerings: offerings.length };
+}
+
+/** 출납 기장 기준 '명단 없는 총액' 다시 계산해서 저장 (예전 보정은 지우고 새로 넣음) */
+export async function applyAdjustments(plan: AdjustmentPlan, d: FinanceDB = db) {
+  const base = Date.now();
+  await d.transaction("rw", d.offerings, async () => {
+    for (const id of plan.removeIds) {
+      const o = await d.offerings.get(id);
+      if (o) await d.offerings.put(touch({ ...o, deleted: true }));
+    }
+    await d.offerings.bulkPut(
+      plan.adds.map((a, i) =>
+        touch<Offering>({ id: newId(), updatedAt: 0, createdAt: base + i, date: a.date, categoryCode: a.categoryCode, donorText: "", amount: a.amount, method: "cash", note: ADJ_NOTE, importKey: a.importKey }),
+      ),
+    );
+  });
 }
 
 /**

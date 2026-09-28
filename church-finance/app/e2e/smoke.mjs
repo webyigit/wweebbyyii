@@ -22,6 +22,21 @@ const FIXTURE = join(tmpdir(), "cf-e2e-fixture.xlsx");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "1월");
   writeFileSync(FIXTURE, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
+// 출납 파일 흉내: 기장 시트 (1/4 십일조 120,000 = 명단 100,000 + 명단 없음 20,000, 주일헌금 500,000)
+const BOOK = join(tmpdir(), "cf-e2e-book.xlsx");
+{
+  const d = (day) => new Date(Date.UTC(2026, 0, day));
+  const aoa = [[], [null, "2026년", "예 산", 1, "전년이월액", "2026년", "진행", d(4), d(11), "1月 누계"],
+    ...Array.from({ length: 14 }, () => []),
+    [null, "수입", null, "(헌금예산)", 1],
+    [null, null, "일반헌금", "십 일 조", 1, 135000, null, 120000, 15000, 135000],
+    [null, "일", null, "주일헌금", 1, 500000, null, 500000, 0, 500000],
+    [null, null, "특별", "꽃 꽂 이", null, 50000, null, 50000, 0, 50000],
+    [null, null, null, "해외선교비", "수입", "지출"]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "기장");
+  writeFileSync(BOOK, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
 
 const ROUNDS = Number(process.argv[2] ?? 1);
 const PORT = 4179;
@@ -188,6 +203,22 @@ for (let round = 1; round <= ROUNDS; round++) {
       eq(await page.locator("table.grid tr", { hasText: "감사헌금" }).count(), 1, "감사헌금 줄 수");
       const flower = await gridRow(page, "꽃꽂이헌금");
       eq(flower[4], "50,000", "꽃꽂이");
+    });
+
+    await check("출납 기장 파일: 명단 없는 총액을 채워 장부와 같아짐, 다시 넣어도 그대로", async () => {
+      for (let k = 0; k < 2; k++) {
+        await go(page, "import");
+        await page.locator('input[type="file"]').setInputFiles([]);
+        await page.locator('input[type="file"]').setInputFiles(BOOK);
+        await page.getByText("딱 맞는 칸 2").waitFor(); // 1/11 십일조, 1/4 꽃꽂이
+        await page.getByRole("button", { name: "주별 총액 반영 (2칸)" }).click();
+        await page.getByText("명단 없는 총액 2칸을 반영했습니다").waitFor();
+      }
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-04");
+      eq((await gridRow(page, "십일조"))[4], "120,000", "1/4 십일조 (장부)");
+      eq((await gridRow(page, "주일헌금"))[4], "500,000", "1/4 주일헌금 (장부)");
+      await page.locator(".detail", { hasText: "십일조" }).getByText("(명단 없는 총액)").waitFor();
     });
 
     await check("가로 스크롤이 생기지 않는다", async () => {

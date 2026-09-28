@@ -16,9 +16,11 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 
 - 0단계 설계 완료(`docs/04`, `docs/05`), **1단계 앱 첫 동작판 완료** (`app/`, 기기 저장만)
 - 앱 실행: `cd church-finance/app && npm install && npm run dev` · 검사: `npm test` (단위), `npm run e2e` (브라우저 48번)
+- 2단계 진행 중: **엑셀 가져오기 완료** (개인별 헌금집계 1~6월, 실제 파일로 원 단위 검증)
+  - 실제 파일 검증: `REAL_XLSX=/경로/파일.xlsx npx vitest run src/domain/importReal.test.ts` (파일은 저장소에 두지 않음)
 - **바로 다음 할 일**
-  1. 클라우드(Supabase) 연결 — 고객 계정 필요 (docs/QUESTIONS.md Q9)
-  2. 2단계: 개인별 헌금집계 엑셀 → 앱 이관 도구 (실데이터는 저장소 밖에서만)
+  1. 주일헌금 총액(이름 없음)과 7~9월 헌금을 출납 주간 파일(`기장` 시트 / `MM-DD_주일헌금현황`)에서 가져오기
+  2. 클라우드(Supabase) 연결 — 고객 계정 필요 (docs/QUESTIONS.md Q9)
 - 참고 원본(구글 드라이브, 읽기만):
   - 출납: `★ 09-27_수입지출내역` (매주 복사되는 최신 파일)
   - 기장: `★★ 2026년도 개인별 헌금집계 ★★`, `MM-DD_주일헌금현황`

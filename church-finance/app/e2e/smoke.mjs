@@ -3,7 +3,25 @@
 // 가짜 이름만 사용.
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import * as XLSX from "xlsx";
+
+// 가져오기 검사용 가짜 엑셀 (실데이터 아님). 표기 흔들림(꽃꽃이, 공백, 감사헌금)을 일부러 섞음
+const FIXTURE = join(tmpdir(), "cf-e2e-fixture.xlsx");
+{
+  const d = (day) => new Date(Date.UTC(2026, 0, day));
+  const aoa = [[], [], [], [null, null, null, null, 175000],
+    [null, "일자", "구분", "성명", "금액", "비고"],
+    [null, d(4), "십일조", "박민수,최지영", 100000, null],
+    [null, d(4), "꽃꽃이", "박민수", 50000, "감사"],
+    [null, d(4), "감사헌금", "무명1", 10000, null],
+    [null, d(11), "십일조 헌금", "최지영, 박민수", 15000, null]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "1월");
+  writeFileSync(FIXTURE, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
 
 const ROUNDS = Number(process.argv[2] ?? 1);
 const PORT = 4179;
@@ -28,7 +46,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { entry: "헌금 입력", report: "주일헌금현황", people: "교인·가정", budget: "예산" };
+const TAB = { entry: "헌금 입력", report: "주일헌금현황", people: "교인·가정", budget: "예산", import: "엑셀 가져오기" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -140,8 +158,40 @@ for (let round = 1; round <= ROUNDS; round++) {
       eq(cells[6], "160,000", "총누계");
     });
 
+    await check("엑셀 가져오기: 월 합계 대조 ✔, 표기가 달라도 한 가정, 4건 저장", async () => {
+      await go(page, "import");
+      await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+      const row = page.locator("tr", { hasText: "1월" });
+      await row.waitFor();
+      if (!(await row.innerText()).includes("✔")) throw new Error("월 합계 대조 실패: " + (await row.innerText()));
+      await page.getByText("새 가정 1개").waitFor();
+      await page.getByRole("button", { name: "4건 가져오기" }).click();
+      await page.getByText("헌금 4건, 새 가정 1개를 가져왔습니다").waitFor();
+    });
+
+    await check("같은 파일을 다시 넣으면 모두 건너뜀 (겹치지 않음)", async () => {
+      await page.locator('input[type="file"]').setInputFiles([]);
+      await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+      await page.getByText("이미 들어와 있어 건너뜀 4건").waitFor();
+      if (await page.getByRole("button", { name: /건 가져오기/ }).isEnabled()) throw new Error("0건인데 가져오기 버튼이 눌림");
+    });
+
+    await check("가져온 1월 헌금이 주일헌금현황에 반영 (감사헌금은 한 줄)", async () => {
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-11");
+      const tithe = await gridRow(page, "십일조");
+      eq(tithe[4], "15,000", "1/11 십일조");
+      eq(tithe[5], "100,000", "지난주까지");
+      await page.locator(".sunday input").fill("2026-01-04");
+      const thanks = await gridRow(page, "감사헌금");
+      eq(thanks[4], "10,000", "감사헌금");
+      eq(await page.locator("table.grid tr", { hasText: "감사헌금" }).count(), 1, "감사헌금 줄 수");
+      const flower = await gridRow(page, "꽃꽂이헌금");
+      eq(flower[4], "50,000", "꽃꽂이");
+    });
+
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "people", "budget"]) {
+      for (const tab of ["entry", "report", "people", "budget", "import"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

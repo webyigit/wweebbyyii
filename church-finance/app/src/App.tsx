@@ -5,12 +5,14 @@ import OfferingEntry from "./pages/OfferingEntry";
 import WeeklyReportView from "./pages/WeeklyReportView";
 import Households from "./pages/Households";
 import Budgets from "./pages/Budgets";
+import ImportExcel from "./pages/ImportExcel";
 
 const TABS = [
   { key: "entry", label: "헌금 입력" },
   { key: "report", label: "주일헌금현황" },
   { key: "people", label: "교인·가정" },
   { key: "budget", label: "예산" },
+  { key: "import", label: "엑셀 가져오기" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -58,6 +60,7 @@ export default function App() {
         {tab === "report" && <WeeklyReportView date={date} setDate={setDate} />}
         {tab === "people" && <Households />}
         {tab === "budget" && <Budgets year={Number(date.slice(0, 4))} />}
+        {tab === "import" && <ImportExcel />}
       </main>
     </>
   );

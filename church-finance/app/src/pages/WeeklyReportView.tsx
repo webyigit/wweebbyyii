@@ -2,7 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../data/db";
 import { FUND_NAME } from "../domain/categories";
 import { yearOf } from "../domain/dates";
-import { buildWeeklyReport, pct, won, type CategoryLine } from "../domain/weeklyReport";
+import { buildWeeklyReport, pct, won, type SummaryLine } from "../domain/weeklyReport";
 import type { FundCode } from "../domain/types";
 import SundayPicker from "./SundayPicker";
 
@@ -16,7 +16,9 @@ export default function WeeklyReportView({ date, setDate }: { date: string; setD
   const r = buildWeeklyReport(date, categories, offerings, budgets);
   const y = yearOf(date);
   const funds: FundCode[] = ["G", "S", "M"];
-  const named = r.lines.filter((l) => l.details.length > 0 && l.details.some((d) => d.donorText));
+  // 명단: 이름이 적힌 과목만 (주일헌금처럼 총액만 있는 과목은 요약표에만)
+  const named = r.lines.flatMap((l) => l.categories.map((c) => ({ ...c, lineName: l.name })))
+    .filter((c) => c.details.some((d) => d.donorText));
 
   return (
     <section className="pad report" data-page="report">
@@ -57,7 +59,7 @@ export default function WeeklyReportView({ date, setDate }: { date: string; setD
                   <td className="num">{won(t.budget)}</td><td className="num">{won(t.thisWeek)}</td>
                   <td className="num">{won(t.beforeThisWeek)}</td><td className="num">{won(t.total)}</td><td className="num">{pct(t.progress)}</td>
                 </tr>,
-                ...ls.map((l) => <Line key={l.code} l={l} />),
+                ...ls.map((l) => <Line key={l.line} l={l} />),
               ];
             })}
           </tbody>
@@ -65,7 +67,7 @@ export default function WeeklyReportView({ date, setDate }: { date: string; setD
 
         {named.map((l) => (
           <div key={l.code} className="detail">
-            <h3>{l.name} <span>{won(l.thisWeek)}</span>{l.thisWeekOnline > 0 && <small> (현금 {won(l.thisWeekCash)} / 온라인 {won(l.thisWeekOnline)})</small>}</h3>
+            <h3>{l.name}{l.name !== l.lineName && <small className="muted"> ({l.lineName})</small>} <span>{won(l.thisWeek)}</span>{l.thisWeekOnline > 0 && <small> (현금 {won(l.thisWeekCash)} / 온라인 {won(l.thisWeekOnline)})</small>}</h3>
             <div className="names">
               {l.details.map((d, i) => (
                 <div key={i} className="name-cell">
@@ -81,7 +83,7 @@ export default function WeeklyReportView({ date, setDate }: { date: string; setD
   );
 }
 
-function Line({ l }: { l: CategoryLine }) {
+function Line({ l }: { l: SummaryLine }) {
   return (
     <tr>
       <td /><td>{l.group}</td><td>{l.name}</td>

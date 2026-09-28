@@ -9,7 +9,9 @@ export default function Budgets({ year }: { year: number }) {
   const categories = useLiveQuery(() => db.categories.orderBy("sort").toArray(), []) ?? [];
   const budgets = useLiveQuery(() => db.budgets.where("year").equals(year).toArray(), [year]) ?? [];
   const of = (code: string) => budgets.find((b) => b.code === code)?.amount ?? 0;
-  const total = categories.filter((c) => c.fund === "G").reduce((s, c) => s + of(c.code), 0);
+  // 예산은 요약표 '줄' 단위 (감사헌금은 한 줄)
+  const lines = categories.filter((c) => c.fund === "G").filter((c, i, a) => a.findIndex((x) => x.line === c.line) === i);
+  const total = lines.reduce((s, c) => s + of(c.line), 0);
 
   return (
     <section className="pad" data-page="budget">
@@ -18,17 +20,17 @@ export default function Budgets({ year }: { year: number }) {
       <table className="list card">
         <thead><tr><th>회계</th><th>구분</th><th>항목</th><th className="num">예산</th></tr></thead>
         <tbody>
-          {categories.filter((c) => c.fund === "G").map((c) => (
-            <tr key={c.code}>
-              <td>{FUND_NAME[c.fund]}</td><td>{c.group}</td><td>{c.name}</td>
+          {lines.map((c) => (
+            <tr key={c.line}>
+              <td>{FUND_NAME[c.fund]}</td><td>{c.group}</td><td>{c.lineName}</td>
               <td className="num">
                 <input
-                  key={`${year}-${c.code}-${of(c.code)}`}
-                  className="num" defaultValue={of(c.code) ? won(of(c.code)) : ""} placeholder="0"
+                  key={`${year}-${c.line}-${of(c.line)}`}
+                  className="num" defaultValue={of(c.line) ? won(of(c.line)) : ""} placeholder="0"
                   onBlur={async (e) => {
                     const v = e.target.value.trim() ? parseAmount(e.target.value) : 0;
-                    if (v === null) { e.target.value = won(of(c.code)); return; }
-                    await db.budgets.put({ year, code: c.code, amount: v });
+                    if (v === null) { e.target.value = of(c.line) ? won(of(c.line)) : ""; return; }
+                    await db.budgets.put({ year, code: c.line, amount: v });
                   }}
                 />
               </td>

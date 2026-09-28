@@ -13,7 +13,9 @@ export interface Row {
 export interface IncomeCategory {
   code: string;
   fund: FundCode;
-  group: string; // 대분류 (일반헌금, 감사헌금, 절기헌금 …)
+  group: string; // 대분류 (일반헌금, 기타헌금, 절기헌금 …)
+  line: string; // 예산·요약표 한 줄의 코드 (감사헌금 3종은 모두 G-THANKS)
+  lineName: string;
   name: string;
   named: boolean; // 헌금자 이름을 기록하는가 (주일헌금은 false)
   needsNote: boolean; // 내용(감사 제목 등)을 적는가
@@ -24,6 +26,7 @@ export interface IncomeCategory {
 export interface Household extends Row {
   name: string; // 표시 이름 (예: "홍길동 가정")
   receiptMemberId?: string; // 기부금영수증 신청자
+  needsReview?: string; // 엑셀 가져오기에서 자동으로 판단하지 못한 이유 (사람이 확인하면 지움)
 }
 
 export interface Member extends Row {
@@ -50,10 +53,11 @@ export interface Offering extends Row {
   method: PayMethod;
   note?: string;
   createdAt: number; // 입력 순서 (명세 출력 순서)
+  importKey?: string; // 엑셀에서 가져온 기록이면 (같은 파일을 두 번 넣어도 겹치지 않게)
 }
 
 export interface Budget {
   year: number;
-  code: string; // 수입 과목 코드
+  code: string; // 수입: 요약표 줄 코드(IncomeCategory.line)
   amount: number;
 }

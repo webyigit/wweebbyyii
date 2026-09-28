@@ -14,10 +14,13 @@ export default function Households() {
   const [q, setQ] = useState("");
   const [newText, setNewText] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [onlyReview, setOnlyReview] = useState(false);
 
   const year = new Date().getFullYear();
   const yearSum = (hid: string) => offerings.filter((o) => o.householdId === hid && o.date.startsWith(String(year))).reduce((s, o) => s + o.amount, 0);
+  const reviewCount = households.filter((h) => h.needsReview).length;
   const shown = households
+    .filter((h) => !onlyReview || h.needsReview)
     .filter((h) => {
       if (!q) return true;
       const text = [h.name, ...members.filter((m) => m.householdId === h.id).map((m) => m.name)].join(" ");
@@ -34,7 +37,12 @@ export default function Households() {
           <button className="primary" disabled={!newText.trim()} onClick={async () => { await createHouseholdFromText(newText.trim()); setNewText(""); }}>등록</button>
         </div>
       </div>
-      <p className="muted">가정 {households.length} · 교인 {members.length}명 · {year}년 헌금은 가정 단위로 합산됩니다.</p>
+      <p className="muted">
+        가정 {households.length} · 교인 {members.length}명 · {year}년 헌금은 가정 단위로 합산됩니다.
+        {reviewCount > 0 && (
+          <label className="warn"> <input type="checkbox" checked={onlyReview} onChange={(e) => setOnlyReview(e.target.checked)} /> 확인 필요 {reviewCount}개만 보기</label>
+        )}
+      </p>
 
       <table className="list card">
         <thead><tr><th>가정</th><th>구성원</th><th>영수증 신청자</th><th className="num">{year}년 헌금</th><th /></tr></thead>
@@ -44,7 +52,7 @@ export default function Households() {
             const receipt = ms.find((m) => m.id === h.receiptMemberId);
             return [
               <tr key={h.id}>
-                <td>{h.name}</td>
+                <td>{h.name}{h.needsReview && <span className="badge" title={h.needsReview}>확인 필요</span>}</td>
                 <td>{ms.map((m) => m.name + (m.tag ?? "")).join(", ")}</td>
                 <td>{receipt ? receipt.name + (receipt.tag ?? "") : <span className="warn">미지정</span>}</td>
                 <td className="num">{won(yearSum(h.id))}</td>
@@ -65,6 +73,11 @@ function EditHousehold({ h, ms }: { h: Household; ms: Member[] }) {
   const saveM = (m: Member, patch: Partial<Member>) => db.members.put(touch({ ...m, ...patch }));
   return (
     <div className="edit">
+      {h.needsReview && (
+        <p className="warn">
+          {h.needsReview} <button onClick={() => saveH({ needsReview: undefined })}>확인했음</button>
+        </p>
+      )}
       <label>가정 이름 <input defaultValue={h.name} onBlur={(e) => e.target.value !== h.name && saveH({ name: e.target.value })} /></label>
       <table className="list">
         <tbody>

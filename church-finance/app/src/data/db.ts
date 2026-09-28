@@ -29,8 +29,15 @@ export class FinanceDB extends Dexie {
 
 export const db = new FinanceDB();
 
+/** 기본 과목을 넣는다. 이미 있는 과목은 담당자가 바꾼 이름·사용여부는 두고 구조(줄·순서)만 맞춘다. */
 export async function ensureSeed(d: FinanceDB = db) {
-  if ((await d.categories.count()) === 0) await d.categories.bulkAdd(DEFAULT_CATEGORIES);
+  const have = new Map((await d.categories.toArray()).map((c) => [c.code, c]));
+  await d.categories.bulkPut(
+    DEFAULT_CATEGORIES.map((c) => {
+      const old = have.get(c.code);
+      return old ? { ...c, name: old.name, active: old.active } : c;
+    }),
+  );
 }
 
 export const newId = () =>

@@ -41,7 +41,7 @@ describe("주일헌금현황", () => {
     { year: 2026, code: "G-TITHE", amount: 1_000_000 },
     { year: 2026, code: "G-SUNDAY", amount: 1_000_000 },
   ]);
-  const tithe = r.lines.find((l) => l.code === "G-TITHE")!;
+  const tithe = r.lines.find((l) => l.line === "G-TITHE")!;
 
   it("이번 주 / 지난주까지 / 누계 / 진도율", () => {
     expect(tithe.thisWeek).toBe(250000);
@@ -54,7 +54,7 @@ describe("주일헌금현황", () => {
     expect(tithe.thisWeekOnline).toBe(50000);
   });
   it("명세는 입력 순서대로", () => {
-    expect(tithe.details.map((d) => d.donorText)).toEqual(["홍길동,김영희", "이몽룡"]);
+    expect(tithe.categories[0].details.map((d) => d.donorText)).toEqual(["홍길동,김영희", "이몽룡"]);
   });
   it("회계별 합계, 이번주헌금(일반+특별)은 해외선교 제외", () => {
     expect(r.funds.G.thisWeek).toBe(945000);
@@ -64,7 +64,23 @@ describe("주일헌금현황", () => {
     expect(r.thisWeekGeneralAndSpecial).toBe(955000);
   });
   it("예산 없는 과목은 진도율 없음", () => {
-    expect(r.lines.find((l) => l.code === "S-NEIGHBOR")!.progress).toBeNull();
+    expect(r.lines.find((l) => l.line === "S-NEIGHBOR")!.progress).toBeNull();
+  });
+  it("감사헌금은 예산 한 줄, 명단은 범사·기타·일천번제 따로", () => {
+    const r2 = buildWeeklyReport("2026-09-27", DEFAULT_CATEGORIES, [
+      off({ categoryCode: "G-THANKS-BEOMSA", amount: 10000 }),
+      off({ categoryCode: "G-THANKS-1000", amount: 5000 }),
+      off({ categoryCode: "G-THANKS-GEN", date: "2026-02-01", amount: 3000 }), // 구분 없는 예전 기록
+    ], [{ year: 2026, code: "G-THANKS", amount: 100000 }]);
+    const thanks = r2.lines.filter((l) => l.name === "감사헌금");
+    expect(thanks).toHaveLength(1);
+    expect(thanks[0].thisWeek).toBe(15000);
+    expect(thanks[0].total).toBe(18000);
+    expect(thanks[0].progress).toBeCloseTo(0.18);
+    expect(thanks[0].categories.map((c) => c.name)).toEqual(["범사감사", "기타감사", "일천번제", "감사헌금(구분없음)"]);
+  });
+  it("쓰지 않는 예전 과목은 올해 기록이 없으면 안 나온다", () => {
+    expect(r.lines.find((l) => l.line === "G-THANKS")!.categories.map((c) => c.code)).not.toContain("G-THANKS-GEN");
   });
 });
 

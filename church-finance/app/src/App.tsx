@@ -12,6 +12,7 @@ import BankImport from "./pages/BankImport";
 import Account from "./pages/Account";
 import Receipts from "./pages/Receipts";
 import Settlement from "./pages/Settlement";
+import FinanceStatus from "./pages/FinanceStatus";
 import { useSync } from "./data/useSync";
 
 const TABS = [
@@ -24,8 +25,9 @@ const TABS = [
   { key: "budget", label: "예산·이월" },
   { key: "receipt", label: "기부금영수증" },
   { key: "settle", label: "예결산·제직회" },
+  { key: "status", label: "재정 현황" },
   { key: "import", label: "엑셀 가져오기" },
-  { key: "account", label: "계정" },
+  { key: "account", label: "계정·백업" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -81,6 +83,7 @@ export default function App() {
         {tab === "budget" && <Budgets year={Number(date.slice(0, 4))} />}
         {tab === "receipt" && <Receipts />}
         {tab === "settle" && <Settlement date={date} setDate={setDate} />}
+        {tab === "status" && <FinanceStatus date={date} setDate={setDate} />}
         {tab === "import" && <ImportExcel />}
         {tab === "account" && <Account sync={sync} syncNow={syncNow} />}
       </main>

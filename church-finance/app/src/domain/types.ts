@@ -91,6 +91,7 @@ export interface Offering extends Row {
   note?: string;
   createdAt: number; // 입력 순서 (명세 출력 순서)
   importKey?: string; // 엑셀에서 가져온 기록이면 (같은 파일을 두 번 넣어도 겹치지 않게)
+  transferId?: string; // 과목 이동이면 (보내는 쪽 −, 받는 쪽 + 두 줄이 같은 번호)
 }
 
 // ── 지출 ─────────────────────────────────────────────

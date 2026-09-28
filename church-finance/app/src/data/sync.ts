@@ -37,6 +37,8 @@ export const COLLECTIONS: Collection[] = [
   { name: "applicants", table: (d) => d.applicants as unknown as AnyTable, idOf: (r) => String(r.id) },
   { name: "receipts", table: (d) => d.receipts as unknown as AnyTable, idOf: (r) => String(r.id) },
   { name: "settings", table: (d) => d.settings as unknown as AnyTable, idOf: (r) => String(r.key) },
+  { name: "accounts", table: (d) => d.accounts as unknown as AnyTable, idOf: (r) => String(r.id) },
+  { name: "loans", table: (d) => d.loans as unknown as AnyTable, idOf: (r) => String(r.id) },
 ];
 
 /** 비교용 지문: 기기에서만 쓰는 칸(dirty)은 빼고, 칸 순서와 무관하게 */
@@ -57,7 +59,7 @@ export interface SyncResult { pushed: number; pulled: number; at: string }
 /** 역할별로 쓸 수 있는 종류 — 서버 규칙(supabase/schema.sql 의 can_write)과 같아야 한다 */
 export const WRITABLE: Record<string, string[]> = {
   bookkeeper: ["offerings", "households", "members", "aliases", "categories", "budgets", "applicants", "receipts", "settings"],
-  cashier: ["expenses", "fixedRules", "budgets", "openings", "bankTxns", "bankRules", "expenseItems", "offerings"],
+  cashier: ["expenses", "fixedRules", "budgets", "openings", "bankTxns", "bankRules", "expenseItems", "offerings", "accounts", "loans"],
   finance_head: [],
   pastor: [],
 };

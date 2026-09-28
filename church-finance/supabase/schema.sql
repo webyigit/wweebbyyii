@@ -65,7 +65,7 @@ language sql stable security definer set search_path = public as $$
     select 1 from public.app_users
     where lower(email) = lower(auth.jwt() ->> 'email')
       and ((role = 'bookkeeper' and col in ('offerings', 'households', 'members', 'aliases', 'categories', 'budgets', 'meta', 'applicants', 'receipts', 'settings'))
-        or (role = 'cashier' and col in ('expenses', 'fixedRules', 'budgets', 'openings', 'bankTxns', 'bankRules', 'expenseItems', 'meta', 'offerings')))
+        or (role = 'cashier' and col in ('expenses', 'fixedRules', 'budgets', 'openings', 'bankTxns', 'bankRules', 'expenseItems', 'meta', 'offerings', 'accounts', 'loans')))
   )
 $$;
 -- 출납회계가 offerings 를 쓸 수 있는 것은 '통장 내역'으로 온라인 헌금을 넣기 때문 (기장회계 확인 전제)

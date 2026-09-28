@@ -6,6 +6,7 @@ import { yearOf, weekOfMonth } from "../domain/dates";
 import { DEPARTMENTS, DEPT_NAME } from "../domain/expenseCategories";
 import { pct, won } from "../domain/weeklyReport";
 import SundayPicker from "./SundayPicker";
+import { compareWeek, readWeekSheet, type CompareRow } from "../domain/compareWeek";
 
 const CHURCH = "대한예수교장로회 남도교회 재정부";
 const dn = (c: string) => DEPT_NAME[c] ?? c;
@@ -61,6 +62,7 @@ function Week({ date, data }: { date: string; data: Data }) {
   return (
     <div className="paper">
       <Head title="금주 수입/지출 내역" date={`${date} (${weekOfMonth(date)}째 주)`} signers={["출납회계", "재정부장", "당회장"]} />
+      <CompareWithExcel date={date} week={w} />
       <p className={`no-print ${bad.length ? "warn" : "ok"}`}>{bad.length ? `✘ 검산 안 맞음: ${bad.map((b) => `${b.name} (${b.detail})`).join(", ")}` : "✔ 검산 이상 없음 (지출 합계 · 특별헌금 잔액 · 과목)"}</p>
       <h3>■ 수입/지출</h3>
       <div className="table-wrap"><table className="grid">
@@ -98,6 +100,39 @@ function Week({ date, data }: { date: string; data: Data }) {
         <ul className="small">{w.expenses.filter((e) => e.fund === "M").map((e) => <li key={e.id}>{e.description} {won(e.amount)} {e.payee && <span className="muted">· {e.payee}</span>}</li>)}</ul>
       )}
     </div>
+  );
+}
+
+/** 병행 운영: 그 주 엑셀 출납 파일을 고르면 칸마다 비교 (저장하지 않음) */
+function CompareWithExcel({ date, week }: { date: string; week: ReturnType<typeof buildCashbookWeek> }) {
+  const [res, setRes] = useState<{ file: string; sheetDate: string; rows: CompareRow[] } | null>(null);
+  const [err, setErr] = useState("");
+  const bad = res?.rows.filter((r) => !r.ok) ?? [];
+  return (
+    <details className="no-print card compare-excel">
+      <summary>엑셀과 대조 (병행 운영) {res && (bad.length ? <span className="warn">✘ {bad.length}칸 다름</span> : <span className="ok">✔ {res.rows.length}칸 모두 같음</span>)}</summary>
+      <p className="small muted">엑셀과 함께 쓰는 동안, 그 주 출납 파일(★ MM-DD_수입지출내역)을 고르면 주간 수입/지출 칸을 앱 계산과 하나하나 비교합니다. 아무것도 저장하지 않습니다.</p>
+      <label className="file"><span className="primary-like">그 주 엑셀 고르기</span>
+        <input type="file" accept=".xlsx,.xls" onChange={async (e) => {
+          setErr(""); setRes(null);
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f) return;
+          const ws = readWeekSheet(new Uint8Array(await f.arrayBuffer()));
+          if (!ws) { setErr("주간 시트(MM-DD)를 찾지 못했습니다"); return; }
+          if (ws.date && ws.date !== date) { setErr(`엑셀은 ${ws.date} 주입니다. 위에서 날짜를 ${ws.date} 로 바꾸고 다시 고르세요.`); return; }
+          setRes({ file: f.name, sheetDate: ws.date, rows: compareWeek(ws, week) });
+        }} />
+      </label>
+      {err && <p className="warn">{err}</p>}
+      {res && (
+        <table className="list small compare-table"><thead><tr><th>줄</th><th>칸</th><th className="num">엑셀</th><th className="num">앱</th><th /></tr></thead>
+          <tbody>{res.rows.map((r) => (
+            <tr key={r.label + r.field} className={r.ok ? "" : "warn"}><td>{r.label}</td><td>{r.field}</td><td className="num">{signed(r.excel)}</td><td className="num">{signed(r.app)}</td><td>{r.ok ? "✔" : `✘ ${signed(r.app - r.excel)}`}</td></tr>
+          ))}</tbody>
+        </table>
+      )}
+    </details>
   );
 }
 

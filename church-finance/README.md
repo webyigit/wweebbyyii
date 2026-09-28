@@ -11,7 +11,11 @@
 | [docs/02-지출현황분석.md](docs/02-지출현황분석.md) | 지출·고정지출·예산 과목 분석 |
 | [docs/03-주간수입지출파일-분석.md](docs/03-주간수입지출파일-분석.md) | 출납회계의 매주 파일(시트 27장) 분석 |
 | [docs/06-클라우드설정.md](docs/06-클라우드설정.md) | **Supabase 계정 만들기 안내 (교회 담당자용)** |
+| [docs/사용설명서.md](docs/사용설명서.md) | **앱 사용 설명서 — 매주·반기·연말에 누가 무엇을** |
+| [docs/07-엑셀중단계획.md](docs/07-엑셀중단계획.md) | 병행 운영 4주 → 엑셀 중단 체크리스트 |
 | [docs/QUESTIONS.md](docs/QUESTIONS.md) | 고객(재정부)에게 확인할 것 / 확인된 것 |
+
+**앱 주소**: https://webyigit.github.io/wweebbyyii/church-finance/ (PC·휴대폰, 설치 없이, 인터넷 없어도 열림)
 
 ## 한 줄 요약
 

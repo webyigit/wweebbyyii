@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { downloadWorkbook } from "../data/download";
 import { db } from "../data/db";
 import { parseAmount } from "../domain/amount";
 import { DEPARTMENTS } from "../domain/expenseCategories";
@@ -117,7 +118,7 @@ function SettleView({ year, inp, period }: ViewProps) {
     }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "결산예산");
-    XLSX.writeFile(wb, `${year}년 결산_${year + 1}년 예산(안).xlsx`);
+    downloadWorkbook(wb, `${year}년 결산_${year + 1}년 예산(안).xlsx`);
   }
   return (
     <div className="paper settle">

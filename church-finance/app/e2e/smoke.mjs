@@ -131,9 +131,9 @@ const failures = [];
 
 async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
-  catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
+  catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n").slice(0, process.env.E2E_VERBOSE ? 6 : 1).join(" / ")}${process.env.E2E_VERBOSE ? " @ " + String(e.stack).split("\n").slice(1, 4).join(" / ") : ""}`); }
 }
-const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기", receipt: "기부금영수증", settle: "예결산·제직회" };
+const TAB = { account: "계정·백업", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기", receipt: "기부금영수증", settle: "예결산·제직회", status: "재정 현황" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -145,6 +145,18 @@ const gridRow = async (page, text) => {
 };
 // 실제 사용자는 한글 이름 파일을 고른다 → 파일 내용을 한글 이름으로 넘김 (경로로 넘기면 이 검사 도구가 한글 이름 파일을 빠뜨림)
 const asFile = (path, name) => ({ name, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: readFileSync(path) });
+// 내려받기: 앱이 정한 파일 이름(한글)을 확인. 검사용 브라우저(headless)는 한글 파일 이름을 'download' 로 바꿔서
+// 실제 이름은 링크의 download 속성에서 읽는다. 내용은 받은 파일을 직접 열어 본다.
+async function download(page, clickFn) {
+  await page.evaluate(() => {
+    if (window.__dlHook) return;
+    window.__dlHook = true;
+    const orig = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { if (this.download) window.__lastDownload = this.download; return orig.call(this); };
+  });
+  const [d] = await Promise.all([page.waitForEvent("download"), clickFn()]);
+  return { name: await page.evaluate(() => window.__lastDownload), path: await d.path() };
+}
 const eq = (a, b, what) => { if (a !== b) throw new Error(`${what}: 기대 ${JSON.stringify(b)}, 실제 ${JSON.stringify(a)}`); };
 
 for (let round = 1; round <= ROUNDS; round++) {
@@ -481,6 +493,9 @@ for (let round = 1; round <= ROUNDS; round++) {
       const util = page.locator('input.next-budget[data-code="FACILITY-8"]');
       await util.fill("110000000"); await util.blur();
       await page.locator(".budget-balance", { hasText: "수입과 지출이 맞습니다" }).waitFor();
+      const xls = await download(page, () => page.getByRole("button", { name: "엑셀로 내보내기" }).click());
+      eq(xls.name, "2026년 결산_2027년 예산(안).xlsx", "결산 엑셀 파일 이름");
+      eq(XLSX.read(readFileSync(xls.path)).SheetNames[0], "결산예산", "결산 엑셀 시트");
       // 예산 없이 쓴 담임목사 사례비(재정부)는 조정 검토 목록에
       await page.locator('.adjust-hints tr[data-kind="noBudget"]', { hasText: "담임목사사례비" }).waitFor();
       await page.reload(); await page.locator('section[data-page="settle"]').waitFor();
@@ -537,6 +552,53 @@ for (let round = 1; round <= ROUNDS; round++) {
       await page.locator(".mission td", { hasText: "이월금" }).waitFor();
     });
 
+    // ── 재정 현황 ──
+    await check("재정 현황: 농협 잔액은 통장 파일에서, 현금을 적으면 장부와 원 단위로 맞음 ✔", async () => {
+      await go(page, "status");
+      await page.locator(".sunday input").fill("2026-02-08");
+      await page.getByPlaceholder(/새 통장·현금/).fill("농협 일반통장");
+      await page.locator(".accounts").getByRole("button", { name: "추가" }).click();
+      const nh = page.locator('tr[data-account="농협 일반통장"] td.num');
+      await nh.waitFor();
+      eq((await nh.innerText()).trim(), "1,035,500", "농협 잔액(2/5 거래후잔액)");
+      const book = Number((await page.locator(".book-total").innerText()).replace(/,/g, "").replace("-", "")) * ((await page.locator(".book-total").innerText()).trim().startsWith("-") ? -1 : 1);
+      await page.getByPlaceholder(/새 통장·현금/).fill("현금");
+      await page.locator(".accounts select").selectOption("cash");
+      await page.locator(".accounts").getByRole("button", { name: "추가" }).click();
+      const cash = page.locator('tr[data-account="현금"] input.num');
+      const need = book - 1_035_500;
+      await cash.fill(String(need)); await cash.blur();
+      await page.locator(".recon-result", { hasText: "원 단위까지 같습니다" }).waitFor();
+    });
+
+    await check("차입: 빌린 돈 − 갚은 돈 (1억 − 2천만 = 8천만)", async () => {
+      await page.getByPlaceholder(/빌린 곳/).fill("가짜은행");
+      await page.getByRole("button", { name: "차입 추가" }).click();
+      const loan = page.locator('details[data-lender="가짜은행"]');
+      await loan.locator("summary").click();
+      await loan.locator('input[type="date"]').fill("2026-01-01");
+      await loan.locator("select").selectOption("borrow");
+      await loan.getByPlaceholder(/금액/).fill("1억");
+      await loan.getByRole("button", { name: "기록" }).click();
+      await loan.locator('input[type="date"]').fill("2026-02-01");
+      await loan.locator("select").selectOption("repay");
+      await loan.getByPlaceholder(/금액/).fill("2천만");
+      await loan.getByRole("button", { name: "기록" }).click();
+      await page.locator(".loan-total", { hasText: "80,000,000" }).waitFor();
+    });
+
+    await check("과목 이동: 감사헌금 → 건축헌금, 목록에 남고 전체 잔액(대사)은 그대로 ✔", async () => {
+      const t = page.locator(".transfers");
+      await t.locator('input[type="date"]').fill("2026-01-04");
+      await t.locator("select").nth(0).selectOption({ label: "감사헌금" });
+      await t.locator("select").nth(1).selectOption({ label: "건축(E/V)헌금" });
+      await t.getByPlaceholder("금액").fill("10000");
+      await t.getByPlaceholder(/이유/).fill("시험 이동");
+      await t.getByRole("button", { name: "옮기기" }).click();
+      await t.locator("tr", { hasText: "감사헌금 → 건축(E/V)헌금" }).waitFor();
+      await page.locator(".recon-result", { hasText: "원 단위까지 같습니다" }).waitFor();
+    });
+
     await check("작년(2025) 총계정원장 가져오기: 올해 숫자는 그대로, 요약 보고에 '작년 같은 기간' 비교가 생김", async () => {
       await go(page, "report");
       await page.locator(".sunday input").fill("2026-01-04");
@@ -562,6 +624,35 @@ for (let round = 1; round <= ROUNDS; round++) {
       await page.locator(".sunday input").fill("2026-02-08");
     });
 
+    await check("백업: 전체 백업 받기 → 다른 브라우저(새 기기)에서 되살리면 같은 기록, 엑셀 내보내기", async () => {
+      await go(page, "account");
+      const dl = await download(page, () => page.getByRole("button", { name: "전체 백업 받기" }).click());
+      if (!/^교회재정_백업_\d{4}-\d{2}-\d{2}\.json$/.test(dl.name)) throw new Error("백업 파일 이름: " + dl.name);
+      const file = dl.path;
+      await page.locator(".backup .muted", { hasText: "마지막 백업: 오늘" }).waitFor();
+      const xl = await download(page, () => page.getByRole("button", { name: /엑셀로 내보내기/ }).click());
+      if (!/^교회재정_.*\.xlsx$/.test(xl.name)) throw new Error("엑셀 파일 이름: " + xl.name);
+      eq(XLSX.read(readFileSync(xl.path)).SheetNames.join(","), "헌금,지출,가정·교인,예산,전년이월", "내보낸 엑셀 시트");
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-04");
+      const before = await gridRow(page, "십일조");
+      // 새 기기
+      const ctx2 = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+      const p2 = await ctx2.newPage();
+      p2.on("dialog", (d) => d.accept());
+      await p2.goto(URL + "#account");
+      await p2.locator('section[data-page="account"]').waitFor();
+      await p2.locator('.backup input[type="file"]').setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: readFileSync(file) });
+      await p2.getByRole("button", { name: "되살리기", exact: true }).click();
+      await p2.locator(".backup-msg", { hasText: "되살렸습니다" }).waitFor();
+      await p2.locator(".top nav a", { hasText: "주일헌금현황" }).click();
+      await p2.locator(".sunday input").fill("2026-01-04");
+      const row = p2.locator("table.grid tr", { hasText: "십일조" }).first();
+      await row.waitFor();
+      eq(JSON.stringify(await row.locator("td").allInnerTexts()), JSON.stringify(before), "되살린 기기의 1/4 십일조 줄");
+      await ctx2.close();
+    });
+
     await check("로그인 전: '이 기기에만 저장' 표시, 계정 화면에 로그인 칸", async () => {
       await page.locator(".top .sync", { hasText: "이 기기에만 저장" }).waitFor();
       await go(page, "account");
@@ -569,8 +660,43 @@ for (let round = 1; round <= ROUNDS; round++) {
       await page.getByRole("button", { name: "처음이면 가입" }).waitFor();
     });
 
+    await check("병행 운영 대조: 그 주 엑셀과 칸마다 비교, 다른 칸만 ✘ (저장은 안 함)", async () => {
+      await go(page, "cashbook");
+      await page.locator(".sunday input").fill("2026-01-04");
+      const cells = (name) => page.locator("table.grid tr", { hasText: name }).first().locator("td").allInnerTexts();
+      const n = (t) => (t.trim() === "-" ? 0 : Number(t.replace(/,/g, "")));
+      const g = (await cells("일반 헌금")).slice(1, 5).map(n);
+      const sp = (await cells("특별 헌금")).slice(1, 5).map(n);
+      const tot = g.map((v, i) => v + sp[i]);
+      const wrong = [...g]; wrong[1] += 1000; // 수입 한 칸만 일부러 다르게
+      const aoa = [[], [null, "금주 수입/지출 내역"], [], [null, "대한예수교장로회 가짜교회", null, null, "2026-01-04 (첫째 주)"], [], [null, "■ 수입/지출"],
+        [null, "구 분", null, "지난주 잔액(A)", "수입(B)", "지출(C)", "잔액(A+B-C)"],
+        [null, "일반 헌금", null, ...wrong], [null, "특별 헌금", null, ...sp], [null, "합 계", null, ...tot]];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "01-04");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      await page.locator(".compare-excel summary").click();
+      await page.locator('.compare-excel input[type="file"]').setInputFiles({ name: "★ 01-04_수입지출내역.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: buf });
+      await page.locator(".compare-excel summary", { hasText: "1칸 다름" }).waitFor();
+      await page.locator(".compare-table tr.warn", { hasText: "일반헌금" }).waitFor();
+    });
+
+    await check("인터넷이 끊겨도 앱이 열리고 기록이 보임 (서비스 워커)", async () => {
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await page.reload(); // 서비스 워커가 화면을 맡은 뒤
+      await page.locator("header.top").waitFor();
+      await ctx.setOffline(true);
+      try {
+        await page.reload();
+        await page.locator("header.top").waitFor({ timeout: 10000 });
+        await go(page, "report");
+        await page.locator(".sunday input").fill("2026-01-04");
+        await gridRow(page, "십일조");
+      } finally { await ctx.setOffline(false); }
+    });
+
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "receipt", "settle", "import", "account"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "receipt", "settle", "status", "import", "account"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

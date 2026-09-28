@@ -2,6 +2,7 @@ import { useState } from "react";
 import { roleLabel, supabase } from "../data/cloud";
 import { writableFor } from "../data/sync";
 import type { SyncState } from "../data/useSync";
+import BackupCard from "./BackupCard";
 
 // 로그인 · 동기화 상태. 로그인하지 않아도 이 기기 안에서는 모두 쓸 수 있다.
 export default function Account({ sync, syncNow }: { sync: SyncState; syncNow: () => void }) {
@@ -43,6 +44,7 @@ export default function Account({ sync, syncNow }: { sync: SyncState; syncNow: (
             <button onClick={async () => { await supabase.auth.signOut(); syncNow(); }}>로그아웃</button>
           </div>
         </div>
+        <BackupCard />
       </section>
     );
   }
@@ -61,6 +63,7 @@ export default function Account({ sync, syncNow }: { sync: SyncState; syncNow: (
         {msg && <p className="msg">{msg}</p>}
         <p className="small muted">재정부에 등록된 이메일(기장회계·출납회계·재정부장·담임목사)만 데이터를 볼 수 있습니다.</p>
       </div>
+      <BackupCard />
     </section>
   );
 }

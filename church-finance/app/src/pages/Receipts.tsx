@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { downloadWorkbook } from "../data/download";
 import { db, touch } from "../data/db";
 import {
   changePass, getChurch, importLedger, issueReceipts, lockVault, openVault, revealId, saveApplicant, saveChurch, setShares,
@@ -323,7 +324,7 @@ function LedgerView({ year, onPrint }: { year: number; onPrint: (r: Receipt[]) =
     const ws = XLSX.utils.aoa_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${serialPrefix(year)}발행`);
-    XLSX.writeFile(wb, `${serialPrefix(year)}년도 발급_기부금영수증 발급대장.xlsx`);
+    downloadWorkbook(wb, `${serialPrefix(year)}년도 발급_기부금영수증 발급대장.xlsx`);
   }
 
   return (

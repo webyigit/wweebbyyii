@@ -5,6 +5,7 @@ import { DEFAULT_CATEGORIES } from "../domain/categories";
 import type { Applicant, Budget, DonorAlias, Receipt, Expense, ExpenseItem, FixedRule, Household, IncomeCategory, Member, Offering, OpeningBalance, Row } from "../domain/types";
 import { DEFAULT_EXPENSE_ITEMS } from "../domain/expenseCategories";
 import type { BankTxn } from "../domain/bank";
+import type { Account, Loan } from "../domain/status";
 
 export class FinanceDB extends Dexie {
   categories!: Table<IncomeCategory, string>;
@@ -23,6 +24,8 @@ export class FinanceDB extends Dexie {
   applicants!: Table<Applicant, string>;
   receipts!: Table<Receipt, string>;
   settings!: Table<{ key: string; value: unknown }, string>;
+  accounts!: Table<Account, string>;
+  loans!: Table<Loan, string>;
 
   constructor(name = "church-finance") {
     super(name);
@@ -52,6 +55,11 @@ export class FinanceDB extends Dexie {
       applicants: "id, name, dirty",
       receipts: "id, year, serial, applicantId, dirty",
       settings: "key",
+    });
+    // 5판: 재정 현황 (통장·현금 잔액, 차입)
+    this.version(5).stores({
+      accounts: "id, sort, dirty",
+      loans: "id, dirty",
     });
   }
 }

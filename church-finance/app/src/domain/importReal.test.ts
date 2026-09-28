@@ -204,7 +204,7 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
     expect(compared).toBeGreaterThan(12);
   });
 
-  it("앱이 계산한 9/27 주간 보고서·연 누계가 엑셀과 같음", () => {
+  it("앱이 계산한 9/27 주간 보고서·연 누계가 엑셀과 같음", async () => {
     const grid = readCashbookGrid(bookBuf)!.grid;
     const { totals } = readCashbookTotals(grid, DEFAULT_CATEGORIES);
     const offerings = plan.offerings.map((o, i) => ({ id: `o${i}`, updatedAt: 0, createdAt: i, date: o.src.date, categoryCode: o.categoryCode, donorText: o.donorText, amount: o.src.amount, method: "cash" as const, importKey: o.importKey }));
@@ -241,6 +241,15 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
     expect(results.length).toBeGreaterThan(15);
     expect(results.filter((r) => !r).length).toBe(0);
     realInp = inp;
+
+    // 병행 운영 대조 화면이 쓰는 비교: 9/27 시트 칸마다. 다른 곳은 Q11(이웃사랑 9/27 기장 310,000 ↔ 주간 시트 155,000) 뿐이어야 함
+    const { readWeekSheet, compareWeek } = await import("./compareWeek");
+    const ws = readWeekSheet(bookBuf)!;
+    expect(ws.date).toBe("2026-09-27");
+    const diffs = compareWeek(ws, w).filter((r) => !r.ok);
+    console.log(`  주간 대조: ${compareWeek(ws, w).length}칸 중 다름 ${diffs.length} — ` + diffs.map((d) => `${d.label} ${d.field} 엑셀 ${d.excel} / 앱 ${d.app}`).join(", "));
+    expect(compareWeek(ws, w).length).toBeGreaterThanOrEqual(24);
+    expect(diffs.every((d) => /특별헌금|이웃사랑|합계/.test(d.label) && d.field !== "지난주 잔액")).toBe(true);
   });
 
   // 5단계: 결산예산·제직회·제직회_요약·해외선교 시트와 원 단위 비교

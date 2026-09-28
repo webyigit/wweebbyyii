@@ -84,7 +84,7 @@ export function planAdjustments(totals: WeekLineTotal[], offerings: Offering[], 
   const lineOf = new Map(categories.map((c) => [c.code, c.line]));
   const named = new Map<string, number>();
   for (const o of offerings) {
-    if (o.deleted || isAdjustment(o)) continue;
+    if (o.deleted || isAdjustment(o) || o.transferId) continue; // 과목 이동은 장부 주별 칸과 따로 (연 누계에서만 옮겨짐)
     const k = `${o.date}|${lineOf.get(o.categoryCode)}`;
     named.set(k, (named.get(k) ?? 0) + o.amount);
   }

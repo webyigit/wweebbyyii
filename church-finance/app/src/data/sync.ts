@@ -59,8 +59,13 @@ export const WRITABLE: Record<string, string[]> = {
   pastor: [],
 };
 
+/** 역할이 여러 개면('bookkeeper,cashier') 각 역할이 쓸 수 있는 것을 모두 합친다 */
+export function writableFor(role: string): Set<string> {
+  return new Set(role.split(",").flatMap((r) => WRITABLE[r.trim()] ?? []));
+}
+
 export async function syncOnce(remote: Remote, d: FinanceDB = db, batch = 500, role = "bookkeeper"): Promise<SyncResult> {
-  const canWrite = new Set(WRITABLE[role] ?? []);
+  const canWrite = writableFor(role);
   const sent = ((await d.meta.get(SENT))?.value as Record<string, string>) ?? {};
 
   // 1) 보내기
@@ -115,7 +120,7 @@ export async function syncOnce(remote: Remote, d: FinanceDB = db, batch = 500, r
 /** 아직 안 올라간 기록 수 (화면 표시용) */
 export async function pendingCount(d: FinanceDB = db, role = "bookkeeper"): Promise<number> {
   const sent = ((await d.meta.get(SENT))?.value as Record<string, string>) ?? {};
-  const canWrite = new Set(WRITABLE[role] ?? []);
+  const canWrite = writableFor(role);
   let n = 0;
   for (const c of COLLECTIONS.filter((c) => canWrite.has(c.name))) for (const row of await c.table(d).toArray()) if (sent[`${c.name}|${c.idOf(row)}`] !== fingerprint(row)) n++;
   return n;

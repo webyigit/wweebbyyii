@@ -25,7 +25,7 @@ export function useSync() {
     running.current = true;
     setState((s) => ({ ...s, status: "syncing", email }));
     try {
-      const role = await myRole(email);
+      const role = await myRole();
       if (!role) {
         setState({ status: "unregistered", email, role: null, pending: 0, message: "등록되지 않은 이메일입니다. 재정부에 등록을 요청하세요." });
         return;

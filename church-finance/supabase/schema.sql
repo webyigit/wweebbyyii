@@ -8,17 +8,21 @@
 --    bookkeeper = 기장회계(헌금·교인), cashier = 출납회계(지출·통장·예산),
 --    finance_head = 재정부장(보기), pastor = 담임목사(보기)
 -- ─────────────────────────────────────────────────────────────
+--    한 사람이 두 역할을 맡아도 됩니다 (같은 이메일을 두 줄에 쓰면 두 역할 모두 가짐)
 create table if not exists public.app_users (
-  email text primary key,
+  email text not null,
   role text not null check (role in ('bookkeeper', 'cashier', 'finance_head', 'pastor')),
   name text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  primary key (email, role)
 );
 alter table public.app_users enable row level security;
 
+-- 로그인한 사람의 역할들 (쉼표로 이어서, 예: 'bookkeeper,cashier'). 등록 안 됐으면 null
 create or replace function public.my_role() returns text
 language sql stable security definer set search_path = public as $$
-  select role from public.app_users where lower(email) = lower(auth.jwt() ->> 'email')
+  select string_agg(role, ',' order by role) from public.app_users
+  where lower(email) = lower(auth.jwt() ->> 'email')
 $$;
 
 drop policy if exists "본인 역할 보기" on public.app_users;
@@ -56,12 +60,13 @@ create trigger records_stamp before insert or update on public.records
 
 -- 누가 무엇을 쓸 수 있나
 create or replace function public.can_write(col text) returns boolean
-language sql stable as $$
-  select case public.my_role()
-    when 'bookkeeper' then col in ('offerings', 'households', 'members', 'aliases', 'categories', 'budgets', 'meta')
-    when 'cashier' then col in ('expenses', 'fixedRules', 'budgets', 'openings', 'bankTxns', 'bankRules', 'expenseItems', 'meta', 'offerings')
-    else false
-  end
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.app_users
+    where lower(email) = lower(auth.jwt() ->> 'email')
+      and ((role = 'bookkeeper' and col in ('offerings', 'households', 'members', 'aliases', 'categories', 'budgets', 'meta'))
+        or (role = 'cashier' and col in ('expenses', 'fixedRules', 'budgets', 'openings', 'bankTxns', 'bankRules', 'expenseItems', 'meta', 'offerings')))
+  )
 $$;
 -- 출납회계가 offerings 를 쓸 수 있는 것은 '통장 내역'으로 온라인 헌금을 넣기 때문 (기장회계 확인 전제)
 
@@ -108,9 +113,12 @@ create trigger records_history after insert or update on public.records
 -- 4. 사용자 4명 — ★ 이메일을 실제 주소로 고쳐서 실행 ★
 --    (이메일은 이 파일이 아니라 SQL Editor 에서만 고치세요. 저장소에 올리지 않습니다.)
 -- ─────────────────────────────────────────────────────────────
-insert into public.app_users (email, role, name) values
+--    같은 이메일이 여러 줄이어도 괜찮습니다 (한 사람이 여러 역할)
+insert into public.app_users (email, role, name)
+select distinct on (lower(email), role) lower(email), role, name from (values
   ('기장회계@example.com', 'bookkeeper', '기장회계'),
   ('출납회계@example.com', 'cashier', '출납회계'),
   ('재정부장@example.com', 'finance_head', '재정부장'),
   ('담임목사@example.com', 'pastor', '담임목사')
-on conflict (email) do update set role = excluded.role, name = excluded.name;
+) as v(email, role, name)
+on conflict (email, role) do update set name = excluded.name;

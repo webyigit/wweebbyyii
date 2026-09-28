@@ -28,11 +28,16 @@ export async function currentSession(): Promise<Session | null> {
   return (await supabase.auth.getSession()).data.session;
 }
 
-/** 로그인한 사람의 역할 (등록 명단에 없으면 null) */
-export async function myRole(email: string): Promise<string | null> {
-  const { data, error } = await supabase.from("app_users").select("role,email").ilike("email", email).maybeSingle();
+/** 로그인한 사람의 역할 (여러 개면 'bookkeeper,cashier' 처럼 쉼표로, 등록 명단에 없으면 null) */
+export async function myRole(): Promise<string | null> {
+  const { data, error } = await supabase.rpc("my_role");
   if (error) throw new Error(error.message);
-  return (data?.role as string) ?? null;
+  return (data as string | null) || null;
+}
+
+/** 'bookkeeper,cashier' → '기장회계·출납회계' */
+export function roleLabel(role: string): string {
+  return role.split(",").map((r) => ROLE_NAME[r.trim()] ?? r).join("·");
 }
 
 export const ROLE_NAME: Record<string, string> = {

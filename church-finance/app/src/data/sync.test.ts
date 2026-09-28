@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FinanceDB, ensureSeed, newId, touch } from "./db";
-import { pendingCount, syncOnce, type Remote, type RemoteRecord } from "./sync";
+import { pendingCount, syncOnce, writableFor, type Remote, type RemoteRecord } from "./sync";
 import type { Offering } from "../domain/types";
 
 /** 흉내 서버: records 표 + 서버 시각 + 역할 규칙 */
@@ -89,4 +89,14 @@ describe("동기화", () => {
     await syncOnce(server.remote("bookkeeper", BK), pc, 500, "bookkeeper");
     expect(await pendingCount(pc, "bookkeeper")).toBe(0);
   }, 30000);
+});
+
+describe("역할이 여러 개인 사람", () => {
+  it("기장회계·출납회계를 함께 맡으면 두 역할이 쓸 수 있는 것을 모두 씀", () => {
+    const both = writableFor("bookkeeper,cashier");
+    expect(both.has("households")).toBe(true);
+    expect(both.has("expenses")).toBe(true);
+    expect(writableFor("finance_head,pastor").size).toBe(0);
+    expect(writableFor("cashier").has("households")).toBe(false);
+  });
 });

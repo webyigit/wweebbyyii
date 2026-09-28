@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ROLE_NAME, supabase } from "../data/cloud";
+import { roleLabel, supabase } from "../data/cloud";
+import { writableFor } from "../data/sync";
 import type { SyncState } from "../data/useSync";
 
 // 로그인 · 동기화 상태. 로그인하지 않아도 이 기기 안에서는 모두 쓸 수 있다.
@@ -29,14 +30,14 @@ export default function Account({ sync, syncNow }: { sync: SyncState; syncNow: (
       <section className="pad" data-page="account">
         <h2>계정 · 동기화</h2>
         <div className="card">
-          <p><b>{sync.email}</b> {sync.role ? `· ${ROLE_NAME[sync.role] ?? sync.role}` : ""}</p>
+          <p><b>{sync.email}</b> {sync.role ? `· ${roleLabel(sync.role)}` : ""}</p>
           <p className={sync.status === "ok" ? "ok" : sync.status === "error" || sync.status === "unregistered" ? "warn" : "muted"}>
             {{ ok: "✔ 동기화됨", syncing: "동기화 중…", offline: "인터넷 연결 없음 — 이 기기에 저장하고, 연결되면 올립니다", error: "동기화 오류", local: "", unregistered: "등록되지 않은 이메일" }[sync.status]}
             {sync.lastAt && ` · 마지막 ${new Date(sync.lastAt).toLocaleString("ko-KR")}`}
             {sync.pending > 0 && ` · 올릴 기록 ${sync.pending}건`}
           </p>
           {sync.message && <p className="warn small">{sync.message}</p>}
-          {sync.role && !["bookkeeper", "cashier"].includes(sync.role) && <p className="muted small">보기 전용 계정입니다. 입력한 내용은 이 기기에만 남고 올라가지 않습니다.</p>}
+          {sync.role && writableFor(sync.role).size === 0 && <p className="muted small">보기 전용 계정입니다. 입력한 내용은 이 기기에만 남고 올라가지 않습니다.</p>}
           <div className="row">
             <button className="primary" onClick={syncNow}>지금 동기화</button>
             <button onClick={async () => { await supabase.auth.signOut(); syncNow(); }}>로그아웃</button>

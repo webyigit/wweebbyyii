@@ -32,6 +32,7 @@ const LABELS: Record<string, string> = {
   꽃꽂이: "S-FLOWER",
   "건축(E/V)": "S-BUILD", 건축: "S-BUILD",
   해외선교: "M-MISSION",
+  "기타(보험금수령)": "G-OTHER", 보험금수령: "G-OTHER", 기타수입: "G-OTHER",
   긴급구호: "M-RELIEF", 네팔긴급구호: "M-RELIEF", 네팔구호: "M-RELIEF", 네팔: "M-RELIEF",
 };
 

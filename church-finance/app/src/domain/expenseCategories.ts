@@ -18,16 +18,35 @@ const DEPTS: [string, string, string, string[]][] = [
   ["SPECIAL-MIN", "특별사역팀", "특별사역", ["새신자양육팀", "주일예배찬양팀", "성찬팀", "홈페이지운영"]],
 ];
 
+// [부서코드, 이름, 다른 표기] — 2025년 총계정원장에만 있는 항목. 순서를 바꾸지 말 것 (코드가 순서로 정해짐)
+const PAST_ITEMS: [string, string, string[]?][] = [
+  ["SERVICE", "남선교회연합회 행사", ["남선교회연합 총회"]],
+  ["ADULT-EDU", "장년부교육비"],
+  ["ADULT-EDU", "전교인야외예배"],
+  ["SCHOOL", "성탄축하발표회"],
+  ["SPECIAL-MIN", "남도전도대"],
+  ["SPECIAL-MIN", "미디어운영팀"],
+  ["SPECIAL-MIN", "성전사랑팀"],
+  ["SPECIAL-MIN", "중보기도팀"],
+];
+
 export const DEPARTMENTS = DEPTS.map(([code, name, sheet], i) => ({ code, name, sheet, sort: i }));
 
 export const DEFAULT_EXPENSE_ITEMS: ExpenseItem[] = [
   ...DEPTS.flatMap(([dept, , , items], d) =>
     items.map((name, i) => ({ code: `${dept}-${i + 1}`, fund: "G" as const, dept, name, active: true, sort: d * 100 + i })),
   ),
+  // 지난 해에만 있던 항목 (지난 자료를 가져올 때 쓰고, 입력 화면에는 안 나옴)
+  ...PAST_ITEMS.map(([dept, name, aliases], i) => ({
+    code: `${dept}-P${i + 1}`, fund: "G" as const, dept, name, active: false, aliases,
+    sort: DEPTS.findIndex((d) => d[0] === dept) * 100 + 50 + i,
+  })),
   // 특별회계·해외선교 지출: '어느 헌금에서 나갔는지'만 고르면 됨
   { code: "X-S-NEIGHBOR", fund: "S", dept: "SPECIAL", name: "이웃사랑헌금에서", active: true, sort: 2000, incomeLine: "S-NEIGHBOR" },
   { code: "X-S-FLOWER", fund: "S", dept: "SPECIAL", name: "꽃꽂이헌금에서", active: true, sort: 2001, incomeLine: "S-FLOWER" },
   { code: "X-S-BUILD", fund: "S", dept: "SPECIAL", name: "건축(E/V)헌금에서", active: true, sort: 2002, incomeLine: "S-BUILD" },
+  { code: "X-S-WISH", fund: "S", dept: "SPECIAL", name: "소원예물에서 (2025년)", active: false, sort: 2003, incomeLine: "S-WISH" },
+  { code: "X-S-INSURANCE", fund: "S", dept: "SPECIAL", name: "보험금수령에서 (2025년)", active: false, sort: 2004, incomeLine: "S-INSURANCE" },
   { code: "X-M-MISSION", fund: "M", dept: "MISSION", name: "해외선교헌금에서 (선교사 송금 등)", active: true, sort: 3000, incomeLine: "M-MISSION" },
   { code: "X-M-RELIEF", fund: "M", dept: "MISSION", name: "긴급구호헌금에서", active: true, sort: 3001, incomeLine: "M-RELIEF" },
 ];
@@ -44,5 +63,6 @@ export function findExpenseItem(deptSheetOrName: string, itemName: string, items
   const d = DEPARTMENTS.find((x) => norm(x.sheet) === norm(deptSheetOrName) || norm(x.name) === norm(deptSheetOrName) || norm(x.name).startsWith(norm(deptSheetOrName)));
   const n = norm(itemName);
   const pool = items.filter((i) => (d ? i.dept === d.code : true));
-  return pool.find((i) => norm(i.name) === n) ?? pool.find((i) => norm(i.name).includes(n) || n.includes(norm(i.name)));
+  return pool.find((i) => norm(i.name) === n || i.aliases?.some((a) => norm(a) === n))
+    ?? pool.find((i) => norm(i.name).includes(n) || n.includes(norm(i.name)));
 }

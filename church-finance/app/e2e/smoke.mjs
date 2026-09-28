@@ -90,6 +90,26 @@ const LEDGER = join(tmpdir(), "cf-e2e-ledger.xlsx");
   writeFileSync(LEDGER, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
 
+// 2025년 총계정원장 흉내 (가짜): 한 해 묶음 파일 — 고정지출 시트 없음, 부서 시트 이름 '관리', 머리글 '날짜·적요·지출액',
+// 날짜 칸 속 해가 틀림(2024년인데 시트에는 '2025년'), 날짜가 빈 이어 쓰기 줄, 글자로 쓴 날짜('1월 12일')
+const LEDGER25 = join(tmpdir(), "cf-e2e-ledger2025.xlsx");
+{
+  const d = (day) => new Date(Date.UTC(2024, 0, day)); // 일부러 틀린 해
+  const aoa = [[], [null, "2025년", "예 산", 1, "전년이월액", "2025년", "진행", d(5), d(12), "1月 누계"],
+    ...Array.from({ length: 14 }, () => []),
+    [null, "수입", null, "(헌금예산)", 1],
+    [null, null, "일반헌금", "십 일 조", 1, 90000, null, 50000, 40000, 90000],
+    [null, "일", null, "주일헌금", 1, 300000, null, 300000, 0, 300000]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "기장");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[null, "관리부"], [],
+    ["구", "항 목", "예산액", "지출액", "잔 액"], ["분", "합 계", 1000000, 60000, 940000], [1, "공공요금", 1000000, 60000, 940000],
+    [], ["★", "항목별지출현황"], [],
+    [1, "공공요금", 1000000, 60000, 940000], ["날짜", "적 요", null, "지출액", "잔 액", null, "비 고"],
+    ["1월 12일", "전기요금", null, 50000, 950000, null, "자동출금"], [null, "수도요금", null, 10000, 940000]]), "관리");
+  writeFileSync(LEDGER25, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
+
 const ROUNDS = Number(process.argv[2] ?? 1);
 const PORT = 4179;
 const URL = `http://127.0.0.1:${PORT}/`;
@@ -515,6 +535,31 @@ for (let round = 1; round <= ROUNDS; round++) {
       await mode("해외선교");
       await page.locator(".mission h1", { hasText: "해외선교 현황보고" }).waitFor();
       await page.locator(".mission td", { hasText: "이월금" }).waitFor();
+    });
+
+    await check("작년(2025) 총계정원장 가져오기: 올해 숫자는 그대로, 요약 보고에 '작년 같은 기간' 비교가 생김", async () => {
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-04");
+      const before = await gridRow(page, "주일헌금");
+      await go(page, "import");
+      await page.locator('input[type="file"]').first().setInputFiles(asFile(LEDGER25, "총계정원장_2025.xlsx"));
+      const btn = page.getByRole("button", { name: /주별 총액 반영/ });
+      await btn.click();
+      await page.locator(".ok", { hasText: "명단 없는 총액" }).waitFor();
+      await page.getByRole("button", { name: /지출·예산·규칙 가져오기 \(2건\)/ }).click();
+      await page.locator(".ok", { hasText: "지출 2건" }).waitFor();
+      await go(page, "report");
+      await page.locator(".sunday input").fill("2026-01-04");
+      eq(JSON.stringify(await gridRow(page, "주일헌금")), JSON.stringify(before), "올해 1/4 주일헌금 줄 (작년 파일을 넣어도 그대로)");
+      await go(page, "settle");
+      await page.locator(".sunday input").fill("2026-01-18");
+      await page.locator(".modes").getByRole("button", { name: "요약 보고", exact: true }).click();
+      await page.locator(".conclusion li", { hasText: "작년 같은 기간보다" }).waitFor();
+      await page.locator(".sunday input").fill("2025-01-12");
+      await page.locator(".modes").getByRole("button", { name: "부서별 상세", exact: true }).click();
+      const util = await page.locator(".detail-report").innerText();
+      if (!util.includes("수도요금") || !util.includes("940,000")) throw new Error("2025 지출 명세(이어 쓴 줄 포함)가 안 보임");
+      await page.locator(".sunday input").fill("2026-02-08");
     });
 
     await check("로그인 전: '이 기기에만 저장' 표시, 계정 화면에 로그인 칸", async () => {

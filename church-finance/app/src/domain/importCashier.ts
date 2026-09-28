@@ -47,7 +47,13 @@ export interface CashierImport {
   /** 엑셀이 스스로 적어 둔 합계 (대조용): 부서별 지출, 특별헌금별 지출, 해외선교 지출 */
   sheetTotals: { key: string; label: string; amount: number }[];
   unknown: string[]; // 과목을 못 찾은 것
+  notes: string[]; // 알아서 맞춘 것 (환입 등) — 화면에 알림
 }
+
+/** 해마다 시트 이름이 조금씩 다름 (2025 총계정원장: 관리·재정·장년교육·선교부) */
+const SHEET_ALIASES: Record<string, string[]> = {
+  "FACILITY": ["관리"], "FINANCE": ["재정"], "ADULT-EDU": ["장년교육"], "MISSION-DOM": ["선교부", "선교"],
+};
 
 export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: ExpenseItem[] = DEFAULT_EXPENSE_ITEMS): CashierImport | null {
   const wb = XLSX.read(data, { type: "array", cellDates: true });
@@ -56,23 +62,36 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
     return k ? absGrid(wb.Sheets[k]) : null;
   };
   const book = sheet("기장");
-  if (!book || !sheet("고정지출")) return null;
+  // 출납 파일(주간) 또는 한 해 묶음 파일(총계정원장): 기장 시트 + 고정지출이나 부서 시트
+  const deptSheet = (d: (typeof DEPARTMENTS)[number]) => [d.sheet, ...(SHEET_ALIASES[d.code] ?? [])].map(sheet).find(Boolean) ?? null;
+  if (!book || !(sheet("고정지출") || DEPARTMENTS.some((d) => deptSheet(d)))) return null;
   // 파일의 해(연도): 기장 시트 날짜 줄에서
+  // "2026년" 같은 표시가 있으면 그것 (2025년 파일은 날짜 칸 속 해가 틀려 있었음), 없으면 첫 날짜의 해
+  const yearLabel = book.slice(0, 5).flat().find((c) => typeof c === "string" && /^\s*\d{4}\s*년\s*$/.test(c)) as string | undefined;
   const firstDate = book.flat().find((c) => c instanceof Date) as Date | undefined;
-  const year = firstDate ? Number(ymd(firstDate).slice(0, 4)) : new Date().getFullYear();
+  const year = yearLabel ? Number(yearLabel.replace(/\D/g, "")) : firstDate ? Number(ymd(firstDate).slice(0, 4)) : new Date().getFullYear();
 
-  const out: CashierImport = { expenses: [], budgets: [], rules: [], openings: [], sheetTotals: [], unknown: [] };
+  const out: CashierImport = { expenses: [], budgets: [], rules: [], openings: [], sheetTotals: [], unknown: [], notes: [] };
+  // 날짜 칸: 날짜 값, 또는 2025년 파일처럼 "4월 13일" 글자
+  const dateOf = (v: unknown): string => {
+    const d = ymd(v);
+    if (d) return d;
+    const m = s(v).match(/^(\d{1,2})\s*월\s*(\d{1,2})\s*일$/);
+    return m ? `${year}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}` : "";
+  };
+  const isCol = (c: unknown, ...names: string[]) => names.includes(ns(c));
 
   // ── 부서 시트: 항목 블록 [번호 | 항목 | 예산 | 지출 | 잔액] → [일자 | 내용 | 지출 | 잔액 | 비고] …
   for (const dept of DEPARTMENTS) {
-    const g = sheet(dept.sheet);
+    const g = deptSheet(dept);
     if (!g) { out.unknown.push(`시트 없음: ${dept.sheet}`); continue; }
     // 부서 합계 (4행 근처: 예산 합, 지출 합)
-    const head = g.findIndex((r) => r.some((c) => ns(c) === "구분") && r.some((c) => ns(c).includes("예산")));
+    // 머리글: '구분'(2025년 파일은 '구'와 '분'이 두 줄로 나뉨) … '예산'
+    const head = g.findIndex((r) => r.some((c) => ns(c) === "구분" || ns(c) === "구") && r.some((c) => ns(c).includes("예산")));
     let summaryEnd = 0; // 요약 표(항목별 예산) 끝 줄 — 명세 블록은 그 아래부터
     if (head >= 0) {
       const cBudget = g[head].findIndex((c) => ns(c).includes("예산"));
-      const cSpent = g[head].findIndex((c) => ns(c) === "지출");
+      const cSpent = g[head].findIndex((c) => isCol(c, "지출", "지출액"));
       out.sheetTotals.push({ key: `dept:${dept.code}`, label: dept.name, amount: n(g[head + 1]?.[cSpent]) });
       // 항목별 예산 (머리글 아래 번호 붙은 줄들)
       for (let r = head + 2; r < g.length; r++) {
@@ -95,52 +114,72 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
       let first = r + 1;
       let [cDate, cDesc, cAmt, cNote] = [1, 2, 3, 5];
       const hdr = g[r + 1];
-      if (hdr.some((c) => ns(c) === "일자")) {
-        cDate = hdr.findIndex((c) => ns(c) === "일자");
-        cDesc = hdr.findIndex((c) => ns(c) === "내용");
-        cAmt = hdr.findIndex((c) => ns(c) === "지출");
-        cNote = hdr.findIndex((c) => ns(c) === "비고");
+      if (hdr.some((c) => isCol(c, "일자", "날짜"))) {
+        cDate = hdr.findIndex((c) => isCol(c, "일자", "날짜"));
+        cDesc = hdr.findIndex((c) => isCol(c, "내용", "적요"));
+        cAmt = hdr.findIndex((c) => isCol(c, "지출", "지출액"));
+        cNote = hdr.findIndex((c) => isCol(c, "비고"));
         first = r + 2;
       } else {
         // 머리글 자리가 비어 있음 (오른쪽 먼 칸에 메모가 있을 수 있어 일자 칸만 본다): 날짜가 나올 때까지 최대 2줄 건너뜀
-        while (first < r + 3 && !ymd(g[first]?.[cDate]) && (g[first]?.[cDate] == null || g[first]?.[cDate] === "")) first++;
+        while (first < r + 3 && !dateOf(g[first]?.[cDate]) && (g[first]?.[cDate] == null || g[first]?.[cDate] === "")) first++;
       }
-      if (!ymd(g[first]?.[cDate])) {
+      if (!dateOf(g[first]?.[cDate])) {
         // 명세가 한 줄도 없는 블록이거나 요약 표의 줄 — 요약에 지출이 있다고 적혀 있는데 명세가 없으면 알림
         if (n(t[3]) > 0 && r >= summaryEnd) out.unknown.push(`${dept.name} ${s(title)}: 요약에는 지출 ${n(t[3]).toLocaleString()}원인데 명세 줄을 못 찾음`);
         continue;
       }
       const it = findExpenseItem(dept.sheet, s(title), items);
       if (!it) { out.unknown.push(`${dept.name} 항목: ${s(title)}`); continue; }
+      let lastDate = "";
+      let refund: { date: string; desc: string; row: number } | null = null;
+      const lines: CashierExpense[] = [];
       for (let k = first; k < g.length; k++) {
         const row = g[k];
-        const d = ymd(row[cDate]);
-        if (!d) break;
         const amt = n(row[cAmt]);
+        let d = dateOf(row[cDate]);
+        // 날짜 칸이 빈 줄: 내용과 금액이 있으면 윗줄과 같은 날 (2025년 파일에 있었음), 아니면 블록 끝
+        if (!d) {
+          if (lastDate && s(row[cDesc]) && amt > 0) d = lastDate;
+          else break;
+        }
+        lastDate = d;
+        if (/환입|환급|반환/.test(s(row[cDesc]))) refund = { date: d, desc: s(row[cDesc]), row: k + 1 };
         if (amt === 0) continue;
-        out.expenses.push({ date: sundayOf(d), spentOn: d, itemCode: it.code, amount: amt, description: s(row[cDesc]) || it.name, payee: s(row[cNote]) || undefined, where: `${dept.sheet} ${k + 1}행` });
+        lines.push({ date: sundayOf(d), spentOn: d, itemCode: it.code, amount: amt, description: s(row[cDesc]) || it.name, payee: s(row[cNote]) || undefined, where: `${dept.sheet} ${k + 1}행` });
+      }
+      out.expenses.push(...lines);
+      // 블록 제목 줄의 지출 합계가 기준. 명세 합과 다르면 (예: 수식에 '-934990' 처럼 환입을 직접 빼 둠) 차이를 한 줄로 넣어 맞춤
+      const blockTotal = t[3];
+      const diff = typeof blockTotal === "number" ? Math.round(blockTotal - lines.reduce((a, e) => a + e.amount, 0)) : 0;
+      if (diff !== 0 && lastDate) {
+        const at = refund ?? { date: lastDate, desc: "엑셀 합계와 차이", row: 0 };
+        out.expenses.push({ date: sundayOf(at.date), spentOn: at.date, itemCode: it.code, amount: diff, description: diff < 0 ? `환입: ${at.desc}` : `합계 보정: ${at.desc}`, where: `${dept.sheet} ${at.row || r + 1}행` });
+        out.notes.push(`${dept.name} ${s(title)}: 엑셀 합계가 명세보다 ${diff.toLocaleString()}원 → 그대로 반영${refund ? ` (${refund.desc})` : ""}`);
       }
     }
   }
 
   // ── 특별헌금 시트: 헌금별 블록, 지출 칸만 (수입은 헌금 기록으로 따로 들어옴)
   const sp = sheet("특별헌금");
-  const potCode: Record<string, string> = { 이웃사랑헌금: "X-S-NEIGHBOR", 꽃꽃이헌금: "X-S-FLOWER", 꽃꽂이헌금: "X-S-FLOWER", "건축(E/V)헌금": "X-S-BUILD" };
-  const potLine: Record<string, string> = { "X-S-NEIGHBOR": "S-NEIGHBOR", "X-S-FLOWER": "S-FLOWER", "X-S-BUILD": "S-BUILD" };
+  const potCode: Record<string, string> = { 이웃사랑헌금: "X-S-NEIGHBOR", 꽃꽃이헌금: "X-S-FLOWER", 꽃꽂이헌금: "X-S-FLOWER", "건축(E/V)헌금": "X-S-BUILD", 소원예물: "X-S-WISH", 보험금수령: "X-S-INSURANCE" };
+  const potLine: Record<string, string> = { "X-S-NEIGHBOR": "S-NEIGHBOR", "X-S-FLOWER": "S-FLOWER", "X-S-BUILD": "S-BUILD", "X-S-WISH": "S-WISH", "X-S-INSURANCE": "S-INSURANCE" };
   if (sp) {
     for (let r = 1; r < sp.length; r++) {
       const hdr = sp[r];
-      const cDate = hdr.findIndex((c) => ns(c) === "일자");
-      if (cDate < 0 || !hdr.some((c) => ns(c) === "지출")) continue;
-      const cDesc = hdr.findIndex((c) => ns(c) === "내용");
-      const cOut = hdr.findIndex((c) => ns(c) === "지출");
-      const cNote = hdr.findIndex((c) => ns(c) === "비고");
+      // 머리글: 2026 [일자 | 내용 | 지출 …], 2025 [날짜 | 적요 | 전년이월 | 수입액 | 지출액 | 잔액 | 비고] (수입·지출이 한 목록)
+      const cDate = hdr.findIndex((c) => isCol(c, "일자", "날짜"));
+      if (cDate < 0 || !hdr.some((c) => isCol(c, "지출", "지출액"))) continue;
+      const cDesc = hdr.findIndex((c) => isCol(c, "내용", "적요"));
+      const cOut = hdr.findIndex((c) => isCol(c, "지출", "지출액"));
+      const cNote = hdr.findIndex((c) => isCol(c, "비고"));
       const title = ns(sp[r - 1].find((c, i) => i > 0 && typeof c === "string" && ns(c)));
-      const code = potCode[title];
+      if (!title && !sp[r - 1].some((c, i) => i >= 2 && n(c) > 0)) continue; // 이름도 금액도 없는 빈 블록 (번호만 있음)
+      const code = potCode[title] ?? (title.includes("건축") ? "X-S-BUILD" : title.includes("이웃사랑") ? "X-S-NEIGHBOR" : title.includes("꽃") ? "X-S-FLOWER" : undefined);
       if (!code) { out.unknown.push(`특별헌금 블록: ${title}`); continue; }
       let total = 0;
       for (let k = r + 1; k < sp.length; k++) {
-        const d = ymd(sp[k][cDate]);
+        const d = dateOf(sp[k][cDate]);
         if (!d) break;
         const amt = n(sp[k][cOut]);
         if (amt === 0) continue;
@@ -153,11 +192,37 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
     const h = sp.findIndex((r) => r.some((c) => ns(c) === "전년이월"));
     if (h >= 0) {
       const cOpen = sp[h].findIndex((c) => ns(c) === "전년이월");
+      const cSpent = sp[h].findIndex((c) => isCol(c, "지출", "지출액"));
       for (let r = h + 2; r < h + 8 && r < sp.length; r++) {
         const title = ns(sp[r].find((c, i) => i > 0 && typeof c === "string" && ns(c)));
-        const code = potCode[title];
-        if (code && !out.openings.some((o) => o.key === potLine[code])) out.openings.push({ key: potLine[code], amount: n(sp[r][cOpen]) });
+        const code = potCode[title] ?? (title.includes("건축") ? "X-S-BUILD" : undefined);
+        if (!code) continue;
+        if (!out.openings.some((o) => o.key === potLine[code])) out.openings.push({ key: potLine[code], amount: n(sp[r][cOpen]) });
+        // 요약에는 지출이 있는데 명세가 없는 헌금 (2025 보험금수령: 일반회계로 옮김) → 한 줄로 넣어 합계를 맞춤
+        const detail = out.expenses.filter((e) => e.itemCode === code).reduce((a, e) => a + e.amount, 0);
+        const gap = cSpent >= 0 ? Math.round(n(sp[r][cSpent]) - detail) : 0;
+        if (gap !== 0) {
+          out.expenses.push({ date: sundayOf(`${year}-01-05`), spentOn: `${year}-01-05`, itemCode: code, amount: gap, description: `${title} 옮김 (요약표 기준, 명세 없음)`, where: `특별헌금 ${r + 1}행` });
+          out.notes.push(`특별헌금 ${title}: 명세 없이 요약표에만 지출 ${gap.toLocaleString()}원 → 연초 한 줄로 넣음 (날짜 확인 필요)`);
+        }
       }
+    }
+  }
+
+  // ── 해외선교 (2025년 총계정원장처럼 해외선교 시트가 없는 파일): 기장 시트 아래 [적요 '해외선교비N월' | 금액 | 날짜] 목록
+  if (!sheet("해외선교")) {
+    for (const [r, row] of book.entries()) {
+      const i = row.findIndex((c) => /^해외선교비/.test(ns(c)));
+      if (i < 0) continue;
+      const amt = n(row[i + 1]);
+      const m = ns(row[i]).match(/(\d{1,2})월/);
+      const raw = row[i + 2];
+      // 날짜 칸: 날짜 값 또는 엑셀 일련번호(45690 등). 없으면 그 달 말일 무렵
+      const d = dateOf(raw) || (typeof raw === "number" && raw > 40000 ? ymd(new Date(Date.UTC(1899, 11, 30) + raw * 86400000)) : "")
+        || (m ? `${year}-${m[1].padStart(2, "0")}-28` : "");
+      if (!amt || !d) continue;
+      out.expenses.push({ date: sundayOf(d), spentOn: d, itemCode: "X-M-MISSION", amount: amt, description: s(row[i]), where: `기장 ${r + 1}행` });
+      if (!/^해외선교비\d{1,2}월$/.test(ns(row[i]))) out.notes.push(`해외선교 송금 '${s(row[i])}' ${amt.toLocaleString()}원도 지출로 넣음 — 같은 달 송금과 겹치는지 확인 필요`);
     }
   }
 
@@ -199,7 +264,7 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
   }
 
   // ── 고정지출 규칙
-  const fx = sheet("고정지출")!;
+  const fx = sheet("고정지출") ?? []; // 한 해 묶음 파일에는 없음
   const hFx = fx.findIndex((r) => r.some((c) => ns(c) === "구분") && r.some((c) => ns(c) === "내용"));
   if (hFx >= 0) {
     const col = (name: string) => fx[hFx].findIndex((c) => ns(c) === name);
@@ -241,7 +306,7 @@ export function readCashierWorkbook(data: ArrayBuffer | Uint8Array, items: Expen
     if (gRow && cBal >= 0) out.sheetTotals.push({ key: "G:balance", label: "일반 잔액 (총 시트)", amount: n(gRow[cBal]) });
 
     // 수입 예산 (일반헌금 줄별): '■ 일반헌금' 표 [구분 | 헌금 | 예산 | 수입 | 비율 | …]
-    const ih = tot.findIndex((r) => ns(r[1]) === "수입" && r.some((c) => ns(c) === "예산"));
+    const ih = tot.findIndex((r) => r.some((c) => isCol(c, "수입", "수입항목")) && r.some((c) => ns(c) === "예산"));
     if (ih >= 0) {
       const cB = tot[ih].findIndex((c) => ns(c) === "예산");
       for (const r of tot.slice(ih + 1, ih + 20)) {

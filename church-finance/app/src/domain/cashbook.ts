@@ -33,7 +33,11 @@ export function readCashbookTotals(grid: unknown[][], categories: IncomeCategory
   if (dateRow < 0 || start < 0) return { totals: [], unknown: [] };
   const labelCol = grid[start].findIndex((c) => typeof c === "string" && c.replace(/\s/g, "") === "(헌금예산)");
   const sectionCol = Math.max(0, labelCol - 2);
-  const dateCols = (grid[dateRow] ?? []).map((c, i) => [i, ymd(c)] as const).filter(([, d]) => d) as [number, string][];
+  // 2025년 파일은 날짜 칸의 '해'가 틀려 있었음(보이는 건 "1월 5일"인데 속은 2024·2023년) → 시트의 "2025년" 표시를 따름
+  const yearCell = grid.slice(0, dateRow + 1).flat().find((c) => typeof c === "string" && /^\s*\d{4}\s*년\s*$/.test(c)) as string | undefined;
+  const sheetYear = yearCell ? yearCell.replace(/\D/g, "") : null;
+  const dateCols = (grid[dateRow] ?? []).map((c, i) => [i, ymd(c)] as const).filter(([, d]) => d)
+    .map(([i, d]) => [i, sheetYear ? sheetYear + d!.slice(4) : d]) as [number, string][];
   const lineOf = new Map(categories.map((c) => [c.code, c.line]));
 
   const totals: WeekLineTotal[] = [];
@@ -76,6 +80,7 @@ function adjustmentCategory(line: string, categories: IncomeCategory[]): string 
 }
 
 export function planAdjustments(totals: WeekLineTotal[], offerings: Offering[], categories: IncomeCategory[]): AdjustmentPlan {
+  const years = new Set(totals.map((t) => t.date.slice(0, 4)));
   const lineOf = new Map(categories.map((c) => [c.code, c.line]));
   const named = new Map<string, number>();
   for (const o of offerings) {
@@ -85,7 +90,8 @@ export function planAdjustments(totals: WeekLineTotal[], offerings: Offering[], 
   }
   const plan: AdjustmentPlan = {
     adds: [],
-    removeIds: offerings.filter((o) => !o.deleted && isAdjustment(o)).map((o) => o.id),
+    // 이 장부가 다루는 해의 것만 다시 계산 (작년 파일을 넣어도 올해 것은 그대로)
+    removeIds: offerings.filter((o) => !o.deleted && isAdjustment(o) && years.has(o.date.slice(0, 4))).map((o) => o.id),
     over: [],
     matched: 0,
   };
@@ -126,4 +132,10 @@ export function findManualCorrections(grid: unknown[][], formulas: (string | nul
     out.push({ line: (code && lineOf.get(code)) || label, label, amount: (m[1] === "-" ? -1 : 1) * Number(m[2]), formula: f! });
   }
   return out;
+}
+
+/** 기억해 둔 장부 총액에 새 파일의 총액을 합침: 새 파일이 다루는 해는 바꾸고, 다른 해는 그대로 */
+export function mergeBookTotals(saved: WeekLineTotal[] | undefined, fresh: WeekLineTotal[]): WeekLineTotal[] {
+  const years = new Set(fresh.map((t) => t.date.slice(0, 4)));
+  return [...(saved ?? []).filter((t) => !years.has(t.date.slice(0, 4))), ...fresh];
 }

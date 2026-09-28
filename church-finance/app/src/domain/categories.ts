@@ -18,9 +18,14 @@ const rows: R[] = [
   ["G-HARVEST1", "G", "절기헌금", "G-HARVEST1", "맥추감사절", "맥추감사절", true, false],
   ["G-HARVEST2", "G", "절기헌금", "G-HARVEST2", "추수감사절", "추수감사절", true, false],
   ["G-XMAS", "G", "절기헌금", "G-XMAS", "성탄절", "성탄절", true, false],
+  // 헌금 아닌 일반회계 수입 (예: 2025년 보험금 수령). 입력 화면에는 안 나옴
+  ["G-OTHER", "G", "기타헌금", "G-OTHER", "기타수입", "기타수입", false, true, false],
   ["S-NEIGHBOR", "S", "특별헌금", "S-NEIGHBOR", "이웃사랑헌금", "이웃사랑헌금", true, false],
   ["S-FLOWER", "S", "특별헌금", "S-FLOWER", "꽃꽂이헌금", "꽃꽂이헌금", true, true],
   ["S-BUILD", "S", "특별헌금", "S-BUILD", "건축(E/V)헌금", "건축(E/V)헌금", true, true],
+  // 2025년에만 있던 특별 항목 (다른 회계로 옮겨지며 없어짐). 입력 화면에는 안 나옴
+  ["S-WISH", "S", "특별헌금", "S-WISH", "소원예물", "소원예물", true, false, false],
+  ["S-INSURANCE", "S", "특별헌금", "S-INSURANCE", "보험금수령(특별)", "보험금수령(특별)", false, false, false],
   ["M-MISSION", "M", "선교헌금", "M-MISSION", "해외선교헌금", "해외선교헌금", true, false],
   // 한시 구호헌금 (예: 네팔 긴급구호). 필요할 때 이름을 바꿔 씀
   ["M-RELIEF", "M", "선교헌금", "M-RELIEF", "긴급구호헌금", "긴급구호헌금", true, false],

@@ -102,6 +102,7 @@ export interface ExpenseItem {
   active: boolean;
   sort: number;
   incomeLine?: string; // 특별·선교 지출이면 어느 헌금 잔액에서 빠지는지
+  aliases?: string[]; // 엑셀에 다르게 적힌 이름 (해마다 조금씩 다름)
 }
 
 export interface Expense extends Row {

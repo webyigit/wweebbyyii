@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "../data/db";
 import { applyAdjustments } from "../data/actions";
-import { findManualCorrections, planAdjustments, readCashbookTotals, type AdjustmentPlan, type ManualCorrection, type WeekLineTotal } from "../domain/cashbook";
+import { findManualCorrections, mergeBookTotals, planAdjustments, readCashbookTotals, type AdjustmentPlan, type ManualCorrection, type WeekLineTotal } from "../domain/cashbook";
 import { won } from "../domain/weeklyReport";
 import { readCashierWorkbook, type CashierImport } from "../domain/importCashier";
 import { applyCashierImport } from "../data/expenseActions";
@@ -61,7 +61,8 @@ export default function ImportCashbook({ grid, formulas, fileName, data }: { gri
           setBusy(true);
           await applyAdjustments(plan);
           // 나중에 명단을 더 넣으면 자동으로 다시 맞추도록 장부 총액을 기억
-          await db.meta.put({ key: "bookTotals", value: totals });
+          const saved = (await db.meta.get("bookTotals"))?.value as WeekLineTotal[] | undefined;
+          await db.meta.put({ key: "bookTotals", value: mergeBookTotals(saved, totals) });
           setDone(`명단 없는 총액 ${plan.adds.length}칸을 반영했습니다. 이제 주일헌금현황이 출납 장부와 같습니다${plan.over.length ? " (위 확인 필요한 주 제외)" : ""}.`);
           setBusy(false);
         }}>{busy ? "반영 중…" : `주별 총액 반영 (${plan.adds.length}칸)`}</button>
@@ -80,6 +81,7 @@ export default function ImportCashbook({ grid, formulas, fileName, data }: { gri
             })}
           </tbody></table>
           {ci.unknown.length > 0 && <p className="warn">확인 필요: {ci.unknown.join(" · ")}</p>}
+          {ci.notes.length > 0 && <ul className="small cashier-notes">{ci.notes.map((x) => <li key={x}>ℹ {x}</li>)}</ul>}
           {ciDone ? <p className="ok">✔ {ciDone}</p> : (
             <button className="primary" disabled={busy} onClick={async () => {
               setBusy(true);

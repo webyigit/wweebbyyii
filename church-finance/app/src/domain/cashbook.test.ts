@@ -75,3 +75,15 @@ describe("명단 없는 총액 보정", () => {
     expect(p.removeIds).toEqual(["adj1"]);
   });
 });
+
+describe("다른 해 장부를 넣어도 올해 것은 그대로", async () => {
+  const { planAdjustments, mergeBookTotals } = await import("./cashbook");
+  const { DEFAULT_CATEGORIES } = await import("./categories");
+  it("2025 장부 반영이 2026 '명단 없는 총액'을 지우지 않음, 기억해 둔 총액도 해별로 합침", () => {
+    const adj = (id: string, date: string) => ({ id, updatedAt: 0, createdAt: 0, date, categoryCode: "G-SUNDAY", donorText: "", amount: 1000, method: "cash" as const, importKey: `adj|${date}|G-SUNDAY` });
+    const plan = planAdjustments([{ date: "2025-01-05", line: "G-SUNDAY", amount: 500 }], [adj("a25", "2025-01-05"), adj("a26", "2026-01-04")], DEFAULT_CATEGORIES);
+    expect(plan.removeIds).toEqual(["a25"]);
+    const merged = mergeBookTotals([{ date: "2026-01-04", line: "G-SUNDAY", amount: 1 }, { date: "2025-01-05", line: "G-SUNDAY", amount: 2 }], [{ date: "2025-01-05", line: "G-SUNDAY", amount: 3 }]);
+    expect(merged).toEqual([{ date: "2026-01-04", line: "G-SUNDAY", amount: 1 }, { date: "2025-01-05", line: "G-SUNDAY", amount: 3 }]);
+  });
+});

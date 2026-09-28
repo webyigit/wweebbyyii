@@ -17,7 +17,7 @@ export default function Budgets({ year }: { year: number }) {
   const lines = categories.filter((c) => c.fund === "G").filter((c, i, a) => a.findIndex((x) => x.line === c.line) === i);
   const pots = categories.filter((c) => c.fund !== "G").filter((c, i, a) => a.findIndex((x) => x.line === c.line) === i);
   const incomeTotal = lines.reduce((s, c) => s + of(c.line), 0);
-  const gItems = items.filter((i) => i.fund === "G");
+  const gItems = items.filter((i) => i.fund === "G" && (i.active || of(i.code))); // 지난 해에만 있던 항목은 예산이 있을 때만
   const spendTotal = gItems.reduce((s, i) => s + of(i.code), 0);
 
   const Amount = ({ value, save, allowNegative }: { value: number; save: (v: number) => Promise<unknown>; allowNegative?: boolean }) => (

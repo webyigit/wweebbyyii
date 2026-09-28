@@ -89,8 +89,9 @@ export function buildSettlement(year: number, period: Period, inp: SettleInput, 
   for (const e of exps) spentOf.set(e.itemCode, (spentOf.get(e.itemCode) ?? 0) + e.amount);
   const deptList = depts.map((d) => {
     const items = gItems.filter((i) => i.dept === d.code).map((i) => ({
-      code: i.code, name: i.name, budget: c.budget(year, i.code), next: c.budget(year + 1, i.code), actual: spentOf.get(i.code) ?? 0,
-    }));
+      code: i.code, name: i.name, budget: c.budget(year, i.code), next: c.budget(year + 1, i.code), actual: spentOf.get(i.code) ?? 0, active: i.active,
+    })).filter((i) => i.active || i.budget || i.actual || i.next) // 지난 해에만 있던 항목은 숫자가 있을 때만
+      .map(({ active: _a, ...i }) => i);
     return { dept: d.code, name: d.name, items, budget: sum(items, (i) => i.budget), actual: sum(items, (i) => i.actual), next: sum(items, (i) => i.next) };
   }).filter((d) => d.items.length);
   const tot = <T extends { budget: number; actual: number; next: number }>(xs: T[]) => ({ budget: sum(xs, (x) => x.budget), actual: sum(xs, (x) => x.actual), next: sum(xs, (x) => x.next) });
@@ -159,8 +160,8 @@ export function buildDeptDetail(year: number, period: Period, inp: SettleInput, 
         left -= e.amount;
         return { date: e.date, description: e.description, amount: e.amount, remaining: left, payee: e.payee };
       });
-      return { code: i.code, name: i.name, budget, spent: sum(lines, (l) => l.amount), lines: lines.filter((l) => l.date >= period.from) };
-    });
+      return { code: i.code, name: i.name, budget, spent: sum(lines, (l) => l.amount), lines: lines.filter((l) => l.date >= period.from), active: i.active };
+    }).filter((i) => i.active || i.budget || i.spent).map(({ active: _a, ...i }) => i);
     return { dept: d.code, name: d.name, budget: sum(items, (i) => i.budget), spent: sum(items, (i) => i.spent), items };
   }).filter((d) => d.items.length);
 }

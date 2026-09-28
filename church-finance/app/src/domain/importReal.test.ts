@@ -170,6 +170,8 @@ describe.skipIf(!WDIR || !BOOK)("실제 주간 주일헌금현황 파일", async
   });
 });
 
+let realInp: import("./settlement").SettleInput | null = null; // 올해 실제 자료 (아래 테스트끼리 넘겨 씀)
+
 // 출납 파일 → 지출·예산·규칙·이월, 그리고 앱이 계산한 보고서가 엑셀 '총'·'09-27' 시트와 같은지
 describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", async () => {
   const { readCashierWorkbook } = await import("./importCashier");
@@ -242,7 +244,6 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
   });
 
   // 5단계: 결산예산·제직회·제직회_요약·해외선교 시트와 원 단위 비교
-  let realInp: import("./settlement").SettleInput | null = null;
   it("결산·예산(안) / 제직회 지출 현황 / 요약 / 해외선교가 엑셀과 같음", async () => {
     const { buildSettlement, buildSummary, buildMissionReport, periodOf } = await import("./settlement");
     expect(realInp).not.toBeNull();
@@ -265,6 +266,7 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
     const g = grid("결산예산");
     const EXCEL_INCOME: Record<string, string> = { "G-TITHE": "십일조헌금", "G-SUNDAY": "주일헌금", "G-THANKS": "감사헌금", "G-EASTER": "부활절헌금", "G-HARVEST1": "맥추절헌금", "G-HARVEST2": "추수감사헌금", "G-XMAS": "성탄절헌금", "G-NEWYEAR": "신년감사헌금", "G-DEPT": "기관헌금" };
     for (const l of s.income) {
+      if (!EXCEL_INCOME[l.code] && !l.actual && !l.budget) continue; // 올해 엑셀에 없는 줄(기타수입)
       const row = g.slice(0, 20).find((r) => norm(r[2]) === EXCEL_INCOME[l.code]);
       expect(row, l.code).toBeTruthy();
       cmp(`수입 ${l.name} 예산`, l.budget, num(row![3]));
@@ -274,6 +276,7 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
     const expRows = g.slice(22);
     let items = 0;
     for (const d of s.depts) for (const it of d.items) {
+      if (!it.actual && !it.budget) continue; // 지난 해에만 있던 항목
       const row = expRows.find((r) => norm(r[2]) === norm(it.name));
       if (!row) { console.log("  결산예산에 없는 항목: " + it.name); continue; }
       items++;
@@ -310,5 +313,98 @@ describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", asy
 
     console.log(`  5단계 비교 ${results.length}건, 틀림 ${results.filter((r) => !r).length}건`);
     expect(results.filter((r) => !r).length).toBe(0);
+  });
+});
+
+// 2025년 총계정원장 (한 해 묶음 파일) → 작년 자료. 결산예산·총 시트와, 올해 요약의 '작년 같은 기간' 숫자와 비교
+//   REAL_XLSX=... REAL_CASHBOOK=... REAL_LEDGER_2025=/경로/총계정원장_2025.xlsx npx vitest run src/domain/importReal.test.ts
+const LEDGER25 = process.env.REAL_LEDGER_2025;
+describe.skipIf(!LEDGER25 || !BOOK || !FILE)("실제 2025년 총계정원장", async () => {
+  const { readCashierWorkbook } = await import("./importCashier");
+  const { readCashbookTotals, planAdjustments } = await import("./cashbook");
+  const { readCashbookGrid } = await import("./readWorkbook");
+  const { DEFAULT_CATEGORIES } = await import("./categories");
+  const { DEFAULT_EXPENSE_ITEMS, DEPARTMENTS } = await import("./expenseCategories");
+  const { buildSettlement, buildSummary, buildMissionReport, periodOf } = await import("./settlement");
+  const buf = LEDGER25 ? readFileSync(LEDGER25) : new Uint8Array();
+
+  it("수입(기장)·지출(부서 시트)·선교 송금을 읽고, 2025 결산·총 시트와 원 단위로 같음", () => {
+    const ci = readCashierWorkbook(buf)!;
+    expect(ci).not.toBeNull();
+    for (const u of ci.unknown) console.log("  못 찾음: " + u);
+    for (const x of ci.notes) console.log("  알림: " + x);
+    expect(ci.unknown).toEqual([]);
+    const { totals, unknown } = readCashbookTotals(readCashbookGrid(buf)!.grid, DEFAULT_CATEGORIES);
+    console.log("  기장에서 못 읽은 줄: " + unknown.join(", "));
+    const adds = planAdjustments(totals, [], DEFAULT_CATEGORIES).adds;
+    const offerings = adds.map((a, i) => ({ id: `a${i}`, updatedAt: 0, createdAt: i, date: a.date, categoryCode: a.categoryCode, donorText: "", amount: a.amount, method: "cash" as const, importKey: a.importKey }));
+    const expenses = ci.expenses.map((e, i) => ({ id: `e${i}`, updatedAt: 0, createdAt: i, date: e.date, itemCode: e.itemCode, amount: e.amount, description: e.description, source: "import" as const }));
+    const inp = { categories: DEFAULT_CATEGORIES, items: DEFAULT_EXPENSE_ITEMS, offerings, expenses, budgets: ci.budgets.map((b) => ({ year: 2025, ...b })), openings: ci.openings.map((o) => ({ year: 2025, ...o })) };
+    last2025 = inp;
+    const depts = DEPARTMENTS.map((d) => ({ code: d.code, name: d.name }));
+    const s = buildSettlement(2025, periodOf("year", 2025, "2025-12-31"), inp, depts);
+    const x = XLSX.read(buf, { type: "buffer", cellDates: true });
+    const g = XLSX.utils.sheet_to_json<unknown[]>(x.Sheets["결산예산"], { header: 1, raw: true, defval: null });
+    const norm = (v: unknown) => String(v ?? "").replace(/[\s,·()]/g, "");
+    const num = (v: unknown) => (typeof v === "number" ? v : Number(String(v ?? "").replace(/[,\s]/g, "")) || 0);
+    const results: boolean[] = [];
+    const cmp = (label: string, app: number, excel: number) => { const ok = app === excel; if (!ok) console.log(`  ✘ ${label}: 앱 ${app.toLocaleString()} / 엑셀 ${excel.toLocaleString()}`); results.push(ok); };
+    const EXCEL: Record<string, string> = { "G-TITHE": "십일조헌금", "G-SUNDAY": "주일헌금", "G-THANKS": "감사헌금", "G-EASTER": "부활절헌금", "G-HARVEST1": "맥추절헌금", "G-HARVEST2": "추수감사헌금", "G-XMAS": "성탄절헌금", "G-NEWYEAR": "신년감사헌금", "G-DEPT": "기관헌금", "G-OTHER": "보험금수령" };
+    for (const l of s.income) {
+      const row = g.slice(0, 20).find((r) => norm(r[1]) === EXCEL[l.code]);
+      expect(row, l.code).toBeTruthy();
+      cmp(`수입 ${l.name} 예산`, l.budget, num(row![2]));
+      cmp(`수입 ${l.name} 실적`, l.actual, num(row![3]));
+    }
+    cmp("수입 합계", s.incomeTotal.actual, num(g.find((r) => norm(r[1]) === "합계")![3]));
+    const expRows = g.slice(22);
+    let items = 0;
+    for (const d of s.depts) for (const it of d.items) {
+      if (!it.actual && !it.budget) continue;
+      const row = expRows.find((r) => norm(r[1]) === norm(it.name) || (DEFAULT_EXPENSE_ITEMS.find((e) => e.code === it.code)?.aliases ?? []).some((a) => norm(a) === norm(r[1])));
+      if (!row) { console.log("  결산예산에 없는 항목: " + d.name + " " + it.name); continue; }
+      items++;
+      cmp(`${d.name} ${it.name} 지출`, it.actual, num(row[3]));
+    }
+    cmp("지출 합계", s.expenseTotal.actual, num(expRows.find((r) => norm(r[1]) === "합계")![3]));
+    const m = buildMissionReport(2025, "2025-12-31", inp);
+    console.log(`  2025 해외선교: 수입 ${m.income.toLocaleString()}, 송금 ${m.expense.toLocaleString()} (엑셀에 선교 이월이 없어 잔액 비교는 생략)`);
+    console.log(`  2025 비교 ${results.length}건 (지출 ${items}항목), 틀림 ${results.filter((r) => !r).length}건`);
+    expect(items).toBeGreaterThan(55);
+    expect(results.filter((r) => !r).length).toBe(0);
+  });
+
+  let last2025: import("./settlement").SettleInput | null = null;
+  it("올해 요약 보고의 '작년 같은 기간'이 엑셀 제직회_요약과 같음 (2025 상반기 수입·지출)", () => {
+    expect(last2025).not.toBeNull();
+    expect(realInp).not.toBeNull();
+    const both = { ...realInp!, offerings: [...realInp!.offerings, ...last2025!.offerings], expenses: [...realInp!.expenses, ...last2025!.expenses], budgets: [...realInp!.budgets, ...last2025!.budgets] };
+    const sum = buildSummary(2026, periodOf("h1", 2026, "2026-06-14"), both);
+    const x = XLSX.read(readFileSync(BOOK!), { type: "buffer" });
+    const y = XLSX.utils.sheet_to_json<unknown[]>(x.Sheets["제직회_요약"], { header: 1, raw: true, defval: null });
+    const val = (label: string) => { const r = y.find((row) => row.some((c) => String(c ?? "").replace(/\s/g, "") === label))!; return r.find((c) => typeof c === "number") as number; };
+    console.log(`  앱의 작년 같은 기간(일반, 1/1~6/14): 수입 ${sum.prev.income.toLocaleString()} 지출 ${sum.prev.expense.toLocaleString()} (올해 ${val("수입은").toLocaleString()} / ${val("지출은").toLocaleString()})`);
+    console.log("  결론: " + sum.sentences.join(" / "));
+    { // 엑셀 '작년' 숫자가 어떤 기간·범위인지 찾기 (조사용)
+      const inp = last2025!;
+      const cat = new Map(inp.categories.map((c) => [c.code, c.fund]));
+      const itf = new Map(inp.items.map((i) => [i.code, i.fund]));
+      for (const to of ["2025-06-15", "2025-06-22", "2025-06-29", "2025-06-30"]) {
+        const g = inp.offerings.filter((o) => o.date <= to && cat.get(o.categoryCode) === "G").reduce((a, o) => a + o.amount, 0);
+        const gs = inp.offerings.filter((o) => o.date <= to && cat.get(o.categoryCode) !== "M").reduce((a, o) => a + o.amount, 0);
+        const all = inp.offerings.filter((o) => o.date <= to).reduce((a, o) => a + o.amount, 0);
+        const eg = inp.expenses.filter((e) => e.date <= to && itf.get(e.itemCode) === "G").reduce((a, e) => a + e.amount, 0);
+        const egs = inp.expenses.filter((e) => e.date <= to && itf.get(e.itemCode) !== "M").reduce((a, e) => a + e.amount, 0);
+        console.log(`  ~${to}: 수입 일반 ${g.toLocaleString()} 일반+특별 ${gs.toLocaleString()} 전체 ${all.toLocaleString()} / 지출 일반 ${eg.toLocaleString()} 일반+특별 ${egs.toLocaleString()}`);
+      }
+    }
+    // 엑셀의 '작년' 숫자는 2025 상반기 전체(6/29까지)의 일반+특별 → 같은 방식으로 계산하면 같아야 함 (올해는 일반만·6/14까지와 비교하고 있었음: Q18)
+    const cat = new Map(last2025!.categories.map((c) => [c.code, c.fund]));
+    const itf = new Map(last2025!.items.map((i) => [i.code, i.fund]));
+    const h1In = last2025!.offerings.filter((o) => o.date <= "2025-06-30" && cat.get(o.categoryCode) !== "M").reduce((a, o) => a + o.amount, 0);
+    const h1Out = last2025!.expenses.filter((e) => e.date <= "2025-06-30" && itf.get(e.itemCode) !== "M").reduce((a, e) => a + e.amount, 0);
+    console.log(`  엑셀 방식(2025 상반기 전체, 일반+특별): 수입 ${h1In.toLocaleString()} 지출 ${h1Out.toLocaleString()}`);
+    expect(h1In).toBe(182462700);
+    expect(h1Out).toBe(172500394);
   });
 });

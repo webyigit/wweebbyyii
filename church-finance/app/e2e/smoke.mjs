@@ -101,7 +101,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
+const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -342,8 +342,15 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (!(await row.innerText()).includes("온라인")) throw new Error(await row.innerText());
     });
 
+    await check("로그인 전: '이 기기에만 저장' 표시, 계정 화면에 로그인 칸", async () => {
+      await page.locator(".top .sync", { hasText: "이 기기에만 저장" }).waitFor();
+      await go(page, "account");
+      await page.getByRole("button", { name: "로그인" }).waitFor();
+      await page.getByRole("button", { name: "처음이면 가입" }).waitFor();
+    });
+
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "import"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "import", "account"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

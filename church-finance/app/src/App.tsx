@@ -9,6 +9,8 @@ import ImportExcel from "./pages/ImportExcel";
 import Expenses from "./pages/Expenses";
 import CashbookReportView from "./pages/CashbookReportView";
 import BankImport from "./pages/BankImport";
+import Account from "./pages/Account";
+import { useSync } from "./data/useSync";
 
 const TABS = [
   { key: "entry", label: "헌금 입력" },
@@ -19,6 +21,7 @@ const TABS = [
   { key: "people", label: "교인·가정" },
   { key: "budget", label: "예산·이월" },
   { key: "import", label: "엑셀 가져오기" },
+  { key: "account", label: "계정" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 
@@ -38,6 +41,7 @@ export default function App() {
     try { sessionStorage.setItem("sunday", d); } catch { /* 저장 못 해도 동작 */ }
   };
   const [ready, setReady] = useState(false);
+  const { state: sync, syncNow } = useSync();
 
   useEffect(() => {
     ensureSeed().then(() => setReady(true));
@@ -59,7 +63,9 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <span className="sync" title="클라우드 연결은 설정 후 켜집니다">● 이 기기에 저장됨</span>
+        <a className={`sync ${sync.status}`} href="#account" title={sync.message ?? ""}>
+          ● {{ local: "이 기기에만 저장 (로그인하면 동기화)", syncing: "동기화 중…", ok: `동기화됨${sync.lastAt ? " " + new Date(sync.lastAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""}`, offline: "오프라인 — 이 기기에 저장 중", error: "동기화 오류", unregistered: "등록되지 않은 계정" }[sync.status]}
+        </a>
       </header>
       <main>
         {tab === "entry" && <OfferingEntry date={date} setDate={setDate} />}
@@ -70,6 +76,7 @@ export default function App() {
         {tab === "people" && <Households />}
         {tab === "budget" && <Budgets year={Number(date.slice(0, 4))} />}
         {tab === "import" && <ImportExcel />}
+        {tab === "account" && <Account sync={sync} syncNow={syncNow} />}
       </main>
     </>
   );

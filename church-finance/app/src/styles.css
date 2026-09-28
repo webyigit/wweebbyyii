@@ -40,7 +40,10 @@ label.file input { display: none; }
 .top nav { display: flex; gap: 4px; flex-wrap: wrap; }
 .top nav a { color: #cfe0d9; text-decoration: none; padding: 6px 10px; border-radius: 8px; }
 .top nav a.on { background: rgba(255,255,255,.15); color: #fff; }
-.top .sync { margin-left: auto; font-size: 12px; color: #cfe0d9; }
+.top .sync { margin-left: auto; font-size: 12px; color: #cfe0d9; text-decoration: none; }
+.top .sync.ok { color: #9fe0b4; }
+.top .sync.error, .top .sync.unregistered { color: #ffb4a8; }
+.login { max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
 
 .sunday { display: flex; gap: 4px; align-items: center; }
 .totals { font-size: 14px; color: var(--muted); }

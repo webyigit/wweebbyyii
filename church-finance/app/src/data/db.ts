@@ -2,7 +2,8 @@
 // 클라우드 동기화(sync.ts)가 dirty=1 인 행을 올려 보낸다.
 import Dexie, { type Table } from "dexie";
 import { DEFAULT_CATEGORIES } from "../domain/categories";
-import type { Budget, DonorAlias, Household, IncomeCategory, Member, Offering, Row } from "../domain/types";
+import type { Budget, DonorAlias, Expense, ExpenseItem, FixedRule, Household, IncomeCategory, Member, Offering, OpeningBalance, Row } from "../domain/types";
+import { DEFAULT_EXPENSE_ITEMS } from "../domain/expenseCategories";
 
 export class FinanceDB extends Dexie {
   categories!: Table<IncomeCategory, string>;
@@ -12,6 +13,10 @@ export class FinanceDB extends Dexie {
   offerings!: Table<Offering, string>;
   budgets!: Table<Budget, [number, string]>;
   meta!: Table<{ key: string; value: unknown }, string>;
+  expenseItems!: Table<ExpenseItem, string>;
+  expenses!: Table<Expense, string>;
+  fixedRules!: Table<FixedRule, string>;
+  openings!: Table<OpeningBalance, [number, string]>;
 
   constructor(name = "church-finance") {
     super(name);
@@ -23,6 +28,13 @@ export class FinanceDB extends Dexie {
       offerings: "id, date, categoryCode, householdId, [date+categoryCode], dirty",
       budgets: "[year+code], year",
       meta: "key",
+    });
+    // 2판: 지출 (3단계)
+    this.version(2).stores({
+      expenseItems: "code, dept, sort",
+      expenses: "id, date, itemCode, dirty",
+      fixedRules: "id, weekOfMonth, dirty",
+      openings: "[year+key], year",
     });
   }
 }
@@ -38,6 +50,11 @@ export async function ensureSeed(d: FinanceDB = db) {
       return old ? { ...c, name: old.name, active: old.active } : c;
     }),
   );
+  const items = new Map((await d.expenseItems.toArray()).map((c) => [c.code, c]));
+  await d.expenseItems.bulkPut(DEFAULT_EXPENSE_ITEMS.map((c) => {
+    const old = items.get(c.code);
+    return old ? { ...c, name: old.name, active: old.active } : c;
+  }));
 }
 
 export const newId = () =>

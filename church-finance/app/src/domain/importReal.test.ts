@@ -169,3 +169,74 @@ describe.skipIf(!WDIR || !BOOK)("실제 주간 주일헌금현황 파일", async
     expect(same).toBeGreaterThan(0);
   });
 });
+
+// 출납 파일 → 지출·예산·규칙·이월, 그리고 앱이 계산한 보고서가 엑셀 '총'·'09-27' 시트와 같은지
+describe.skipIf(!BOOK || !FILE)("실제 출납 파일: 지출과 보고서", async () => {
+  const { readCashierWorkbook } = await import("./importCashier");
+  const { DEFAULT_CATEGORIES } = await import("./categories");
+  const { DEFAULT_EXPENSE_ITEMS, DEPARTMENTS, DEPT_NAME } = await import("./expenseCategories");
+  const { buildCashbookWeek, buildCashbookYear } = await import("./cashbookReport");
+  const { readCashbookTotals, planAdjustments } = await import("./cashbook");
+  const { readCashbookGrid } = await import("./readWorkbook");
+  const bookBuf = BOOK ? readFileSync(BOOK) : new Uint8Array();
+  const ci = BOOK ? readCashierWorkbook(bookBuf)! : null;
+
+  it("모든 지출·규칙이 과목을 찾음, 부서·특별헌금·해외선교 합계가 엑셀과 같음", () => {
+    expect(ci).not.toBeNull();
+    console.log(`지출 ${ci!.expenses.length}건, 예산 ${ci!.budgets.length}항목, 고정지출 규칙 ${ci!.rules.length}개, 이월 ${ci!.openings.map((o) => `${o.key}=${o.amount.toLocaleString()}`).join(" ")}`);
+    for (const u of ci!.unknown) console.log("  못 찾음: " + u);
+    expect(ci!.unknown).toEqual([]);
+    const itemOf = new Map(DEFAULT_EXPENSE_ITEMS.map((i) => [i.code, i]));
+    let compared = 0;
+    for (const t of ci!.sheetTotals) {
+      let mine: number | null = null;
+      if (t.key.startsWith("dept:")) mine = ci!.expenses.filter((e) => itemOf.get(e.itemCode)?.dept === t.key.slice(5)).reduce((a, e) => a + e.amount, 0);
+      if (t.key.startsWith("pot:")) mine = ci!.expenses.filter((e) => itemOf.get(e.itemCode)?.incomeLine === t.key.slice(4)).reduce((a, e) => a + e.amount, 0);
+      if (t.key === "mission:out") mine = ci!.expenses.filter((e) => itemOf.get(e.itemCode)?.fund === "M").reduce((a, e) => a + e.amount, 0);
+      if (t.key === "G:out") mine = ci!.expenses.filter((e) => itemOf.get(e.itemCode)?.fund === "G").reduce((a, e) => a + e.amount, 0);
+      if (mine === null) continue;
+      compared++;
+      console.log(`  ${t.label}: 엑셀 ${t.amount.toLocaleString()} / 읽음 ${mine.toLocaleString()} ${mine === t.amount ? "✔" : "✘"}`);
+      expect(mine).toBe(t.amount);
+    }
+    expect(compared).toBeGreaterThan(12);
+  });
+
+  it("앱이 계산한 9/27 주간 보고서·연 누계가 엑셀과 같음", () => {
+    const grid = readCashbookGrid(bookBuf)!.grid;
+    const { totals } = readCashbookTotals(grid, DEFAULT_CATEGORIES);
+    const offerings = plan.offerings.map((o, i) => ({ id: `o${i}`, updatedAt: 0, createdAt: i, date: o.src.date, categoryCode: o.categoryCode, donorText: o.donorText, amount: o.src.amount, method: "cash" as const, importKey: o.importKey }));
+    const adj = planAdjustments(totals, offerings, DEFAULT_CATEGORIES);
+    const allOff = [...offerings, ...adj.adds.map((a, i) => ({ id: `a${i}`, updatedAt: 0, createdAt: 1e6 + i, date: a.date, categoryCode: a.categoryCode, donorText: "", amount: a.amount, method: "cash" as const, importKey: a.importKey }))];
+    // 명단이 장부보다 큰 주(2/22)는 비교를 위해 장부 기준으로 맞춤 (실제 앱에서는 '확인 필요'로 보여 줌)
+    for (const o of adj.over) allOff.push({ id: `v${o.date}`, updatedAt: 0, createdAt: 2e6, date: o.date, categoryCode: "G-THANKS-GEN", donorText: "", amount: o.book - o.named, method: "cash" as const, importKey: "test" });
+    // 엑셀 수식 속 수동 보정(Q10: 감사헌금 −617,000 → 건축헌금 +617,000)을 엑셀과 같게 반영해서 비교. 날짜는 아직 모름(연초로 둠)
+    allOff.push({ id: "q10a", updatedAt: 0, createdAt: 3e6, date: "2026-01-04", categoryCode: "G-THANKS-GEN", donorText: "", amount: -617000, method: "cash" as const, importKey: "test" });
+    allOff.push({ id: "q10b", updatedAt: 0, createdAt: 3e6, date: "2026-01-04", categoryCode: "S-BUILD", donorText: "", amount: 617000, method: "cash" as const, importKey: "test" });
+    const expenses = ci!.expenses.map((e, i) => ({ id: `e${i}`, updatedAt: 0, createdAt: i, date: e.date, itemCode: e.itemCode, amount: e.amount, description: e.description, source: "import" as const }));
+    const inp = { categories: DEFAULT_CATEGORIES, items: DEFAULT_EXPENSE_ITEMS, offerings: allOff, expenses, openings: ci!.openings.map((o) => ({ year: 2026, ...o })), budgets: ci!.budgets.map((b) => ({ year: 2026, ...b })) };
+    const dn = (c: string) => DEPT_NAME[c] ?? c;
+    const w = buildCashbookWeek("2026-09-27", inp, dn);
+    const y = buildCashbookYear("2026-09-27", inp, dn, DEPARTMENTS.map((d) => d.code));
+    const x = XLSX.read(bookBuf, { type: "buffer", cellDates: true });
+    const cell = (sh: string, a: string) => x.Sheets[sh][a]?.v as number;
+    const cmp = (label: string, app: number, excel: number) => { console.log(`  ${label}: 앱 ${app.toLocaleString()} / 엑셀 ${Number(excel).toLocaleString()} ${app === excel ? "✔" : "✘ 차이 " + (app - excel).toLocaleString()}`); return app === excel; };
+    const results = [
+      cmp("9/27 일반 지난주 잔액", w.general.opening, cell("09-27", "D8")),
+      cmp("9/27 일반 수입", w.general.income, cell("09-27", "E8")),
+      cmp("9/27 일반 지출", w.general.expense, cell("09-27", "F8")),
+      cmp("9/27 일반 잔액", w.general.closing, cell("09-27", "G8")),
+      cmp("9/27 특별 지출", w.special.expense, cell("09-27", "F9")),
+      cmp("연 일반 지출", y.general.expense, cell("총", "H5")),
+      cmp("연 일반 잔액", y.general.closing, cell("총", "I5")),
+      cmp("연 특별 지출", y.special.expense, cell("총", "H6")),
+      cmp("해외선교 잔액", y.missionPots.reduce((a, p) => a + p.closing, 0), cell("총", "J34")),
+    ];
+    for (const d of y.depts) {
+      const row = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23].find((r) => String(cell("총", `G${r}`)).replace(/\s/g, "") === d.name.replace(/\s/g, ""));
+      if (row) results.push(cmp(`부서 ${d.name} 지출`, d.spent, cell("총", `I${row}`)));
+    }
+    expect(results.length).toBeGreaterThan(15);
+    expect(results.filter((r) => !r).length).toBe(0);
+  });
+});

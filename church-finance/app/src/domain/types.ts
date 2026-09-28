@@ -56,6 +56,47 @@ export interface Offering extends Row {
   importKey?: string; // 엑셀에서 가져온 기록이면 (같은 파일을 두 번 넣어도 겹치지 않게)
 }
 
+// ── 지출 ─────────────────────────────────────────────
+export interface ExpenseItem {
+  code: string;
+  fund: FundCode;
+  dept: string; // 부서 코드 (특별·선교 지출은 SPECIAL / MISSION)
+  name: string;
+  active: boolean;
+  sort: number;
+  incomeLine?: string; // 특별·선교 지출이면 어느 헌금 잔액에서 빠지는지
+}
+
+export interface Expense extends Row {
+  date: string; // 그 주 주일 (출납 보고 기준 주)
+  itemCode: string;
+  amount: number;
+  description: string; // 내용
+  payee?: string; // 받는 사람 / 비고 (계좌 등) — 기기·클라우드 DB 에만
+  source: "fixed" | "manual" | "import";
+  fixedRuleId?: string;
+  createdAt: number;
+  importKey?: string;
+}
+
+/** 고정지출 규칙: 매월 몇째 주에 무엇을 얼마 */
+export interface FixedRule extends Row {
+  weekOfMonth: number; // 1~5
+  description: string;
+  amount: number;
+  itemCode: string;
+  payee?: string;
+  active: boolean;
+  sort: number;
+}
+
+/** 해마다 시작 잔액(전년 이월) — 회계별, 특별헌금·선교는 헌금별 */
+export interface OpeningBalance {
+  year: number;
+  key: string; // "G" 또는 수입 줄 코드(S-NEIGHBOR …, M-MISSION …)
+  amount: number;
+}
+
 export interface Budget {
   year: number;
   code: string; // 수입: 요약표 줄 코드(IncomeCategory.line)

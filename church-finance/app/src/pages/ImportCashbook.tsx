@@ -3,9 +3,13 @@ import { db } from "../data/db";
 import { applyAdjustments } from "../data/actions";
 import { findManualCorrections, planAdjustments, readCashbookTotals, type AdjustmentPlan, type ManualCorrection, type WeekLineTotal } from "../domain/cashbook";
 import { won } from "../domain/weeklyReport";
+import { readCashierWorkbook, type CashierImport } from "../domain/importCashier";
+import { applyCashierImport } from "../data/expenseActions";
 
 // 출납 파일(`기장` 시트)의 주별 총액을 기준으로 '명단 없는 총액'을 채운다.
-export default function ImportCashbook({ grid, formulas, fileName }: { grid: unknown[][]; formulas: (string | null)[][]; fileName: string }) {
+export default function ImportCashbook({ grid, formulas, fileName, data }: { grid: unknown[][]; formulas: (string | null)[][]; fileName: string; data?: Uint8Array }) {
+  const [ci, setCi] = useState<CashierImport | null>(null);
+  const [ciDone, setCiDone] = useState("");
   const [state, setState] = useState<{ totals: WeekLineTotal[]; unknown: string[]; fixes: ManualCorrection[]; plan: AdjustmentPlan } | null>(null);
   const [done, setDone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -17,8 +21,9 @@ export default function ImportCashbook({ grid, formulas, fileName }: { grid: unk
       const fixes = findManualCorrections(grid, formulas, categories);
       const plan = planAdjustments(totals, await db.offerings.toArray(), categories);
       setState({ totals, unknown, fixes, plan });
+      if (data) setCi(readCashierWorkbook(data, await db.expenseItems.toArray()));
     })();
-  }, [grid, formulas]);
+  }, [grid, formulas, data]);
   if (!state) return <p className="muted">{fileName} 읽는 중…</p>;
 
   const { totals, unknown, fixes, plan } = state;
@@ -60,6 +65,31 @@ export default function ImportCashbook({ grid, formulas, fileName }: { grid: unk
           setDone(`명단 없는 총액 ${plan.adds.length}칸을 반영했습니다. 이제 주일헌금현황이 출납 장부와 같습니다${plan.over.length ? " (위 확인 필요한 주 제외)" : ""}.`);
           setBusy(false);
         }}>{busy ? "반영 중…" : `주별 총액 반영 (${plan.adds.length}칸)`}</button>
+      )}
+      {ci && (
+        <div className="cashier">
+          <h3>지출 · 예산 · 고정지출 · 전년 이월</h3>
+          <ul>
+            <li>지출 <b>{ci.expenses.length.toLocaleString()}</b>건 · {won(ci.expenses.reduce((a, e) => a + e.amount, 0))}원 (부서 시트 · 특별헌금 · 해외선교)</li>
+            <li>예산 {ci.budgets.length}항목 · 고정지출 규칙 {ci.rules.length}개 · 전년 이월 {ci.openings.length}개</li>
+          </ul>
+          <table className="list small"><tbody>
+            {ci.sheetTotals.filter((t) => t.key.startsWith("dept:") || t.key.startsWith("pot:") || t.key === "mission:out").map((t) => {
+              const mine = ci.expenses.filter((e) => (t.key.startsWith("dept:") ? e.itemCode.startsWith(t.key.slice(5) + "-") : t.key.startsWith("pot:") ? e.itemCode === "X-" + t.key.slice(4) : e.itemCode.startsWith("X-M-"))).reduce((a, e) => a + e.amount, 0);
+              return <tr key={t.key}><td>{t.label}</td><td className="num">{won(t.amount)}</td><td className={mine === t.amount ? "ok" : "warn"}>{mine === t.amount ? "✔" : `✘ 읽음 ${won(mine)}`}</td></tr>;
+            })}
+          </tbody></table>
+          {ci.unknown.length > 0 && <p className="warn">확인 필요: {ci.unknown.join(" · ")}</p>}
+          {ciDone ? <p className="ok">✔ {ciDone}</p> : (
+            <button className="primary" disabled={busy} onClick={async () => {
+              setBusy(true);
+              const year = Number((state.totals[0]?.date ?? String(new Date().getFullYear())).slice(0, 4));
+              const r = await applyCashierImport(ci, year);
+              setCiDone(`지출 ${r.expenses}건${r.skipped ? ` (이미 있던 ${r.skipped}건 건너뜀)` : ""}, 고정지출 규칙 ${r.rules}개, 예산 ${r.budgets}항목, 전년 이월 ${r.openings}개를 가져왔습니다.`);
+              setBusy(false);
+            }}>{`지출·예산·규칙 가져오기 (${ci.expenses.length}건)`}</button>
+          )}
+        </div>
       )}
     </div>
   );

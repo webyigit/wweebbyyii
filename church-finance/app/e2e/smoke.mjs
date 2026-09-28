@@ -44,6 +44,22 @@ const BOOK = join(tmpdir(), "cf-e2e-book.xlsx");
     [null, null, null, "해외선교비", "수입", "지출"]];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), "기장");
+  // 고정지출 · 부서 시트(관리부) · 총 시트 (가짜 값)
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[], [], [],
+    [null, "구 분", "내  용", " 금  액", "부  서", " 항  목", "비  고"],
+    [null, "첫째주", "담임목사 사례비", 3000000, "재정부", " 담임목사사례비", "가짜 받는 분"],
+    [null, null, "매월 고정지출 총액", 3000000]]), "고정지출");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[], [null, "관리부"],
+    [null, "구분", "2026년도 예산", "지출", "잔액", "집행률(%)", "비고"],
+    [null, null, 1000000, 53030, 946970],
+    [1, "공공요금", 1000000, 53030, 946970],
+    [], [],
+    [1, "공공요금", 1000000, 53030, 946970],
+    [null, "일자", "내  용", "지출", "잔액", "비   고"],
+    [null, d(6), "전기요금", 53030, 946970, "자동출금"]], { cellDates: true }), "관리부");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[], [], [],
+    [null, "구      분", null, "2026년예산", "전년이월", "2026년헌금", "헌금총합계", "지  출", "잔  액"],
+    [null, "일반헌금", null, 1, 500000, 0, 0, 53030, 0]]), "총");
   writeFileSync(BOOK, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
 
@@ -70,7 +86,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { entry: "헌금 입력", report: "주일헌금현황", people: "교인·가정", budget: "예산", import: "엑셀 가져오기" };
+const TAB = { entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -247,8 +263,43 @@ for (let round = 1; round <= ROUNDS; round++) {
       eq(await tithe.getByText("(명단 없는 총액)").count(), 0, "명단 없는 총액 (이제 없어야 함)");
     });
 
+    await check("출납 파일에서 지출·고정지출 규칙·전년 이월 가져오기 (다시 넣어도 겹치지 않음)", async () => {
+      for (let k = 0; k < 2; k++) {
+        await go(page, "import");
+        await page.locator('input[type="file"]').setInputFiles([]);
+        await page.locator('input[type="file"]').setInputFiles(asFile(BOOK, "★ 01-04_수입지출내역.xlsx"));
+        await page.getByRole("button", { name: /지출·예산·규칙 가져오기/ }).click();
+        await page.getByText(k === 0 ? "지출 1건, 고정지출 규칙 1개" : "지출 0건 (이미 있던 1건 건너뜀), 고정지출 규칙 0개").waitFor();
+      }
+    });
+
+    await check("수입지출 보고(주간): 전년 이월 + 수입 − 지출 = 잔액, 검산 ✔", async () => {
+      await go(page, "cashbook");
+      await page.locator(".sunday input").fill("2026-01-04");
+      const row = page.locator("table.grid tr", { hasText: "일반 헌금" }).first();
+      await row.waitFor();
+      const c = await row.locator("td").allInnerTexts();
+      eq(c.slice(1).join(" / "), "500,000 / 630,000 / 53,030 / 1,076,970", "일반 헌금 줄");
+      await page.getByText("✔ 검산 이상 없음").waitFor();
+      await page.locator("table.grid td", { hasText: "전기요금" }).waitFor();
+    });
+
+    await check("지출 입력: 첫째 주 고정지출이 미리 뜨고 한 번에 추가, 추가 지출 입력", async () => {
+      await go(page, "expense");
+      await page.locator(".sunday input").fill("2026-02-01");
+      await page.getByText("1째 주 고정지출 — 1건 중 0건 추가됨").waitFor();
+      await page.getByRole("button", { name: /남은 고정지출 1건 추가/ }).click();
+      await page.locator(".this-week-exp td", { hasText: "3,000,000" }).waitFor();
+      await page.getByPlaceholder("예: 주일식사비").fill("주일식사비");
+      await page.getByPlaceholder("예: 53030, 5만").fill("100만");
+      await page.locator(".entry select").selectOption({ label: "주일식사" });
+      await page.getByRole("button", { name: "추가", exact: true }).click();
+      await page.locator(".this-week-exp td", { hasText: "1,000,000" }).waitFor();
+      await page.getByText("이번 주 지출 2건 — 일반 4,000,000").waitFor();
+    });
+
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "people", "budget", "import"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "people", "budget", "import"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

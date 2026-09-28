@@ -16,7 +16,7 @@ export default function ImportExcel() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState("");
   const [err, setErr] = useState("");
-  const [book, setBook] = useState<{ grid: unknown[][]; formulas: (string | null)[][] } | null>(null);
+  const [book, setBook] = useState<{ grid: unknown[][]; formulas: (string | null)[][]; data: Uint8Array } | null>(null);
   const [weekly, setWeekly] = useState<WeeklyNamesResult[]>([]);
   const [kinds, setKinds] = useState<{ name: string; kind: string }[]>([]);
 
@@ -33,7 +33,7 @@ export default function ImportExcel() {
       for (const f of files) {
         const data = new Uint8Array(await f.arrayBuffer());
         const cb = readCashbookGrid(data);
-        if (cb) { setBook(cb); found.push({ name: f.name, kind: "출납 장부(기장)" }); continue; }
+        if (cb) { setBook({ ...cb, data }); found.push({ name: f.name, kind: "출납 장부(기장)" }); continue; }
         const personal = readOfferingWorkbook(data);
         if (personal.sheets.length) {
           all.rows.push(...personal.rows); all.sheets.push(...personal.sheets);
@@ -99,7 +99,7 @@ export default function ImportExcel() {
       {err && <p className="warn">{err}</p>}
       {done && <p className="ok">✔ {done}</p>}
 
-      {book && <ImportCashbook key={fileName} grid={book.grid} formulas={book.formulas} fileName={fileName} />}
+      {book && <ImportCashbook key={fileName} grid={book.grid} formulas={book.formulas} data={book.data} fileName={fileName} />}
 
       {kinds.length > 1 && (
         <ul className="muted files">{kinds.map((k) => <li key={k.name}>{k.name} → <span className={k.kind.startsWith("알 수 없는") ? "warn" : ""}>{k.kind}</span></li>)}</ul>

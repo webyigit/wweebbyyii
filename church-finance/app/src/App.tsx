@@ -10,6 +10,7 @@ import Expenses from "./pages/Expenses";
 import CashbookReportView from "./pages/CashbookReportView";
 import BankImport from "./pages/BankImport";
 import Account from "./pages/Account";
+import Receipts from "./pages/Receipts";
 import { useSync } from "./data/useSync";
 
 const TABS = [
@@ -20,6 +21,7 @@ const TABS = [
   { key: "bank", label: "통장 내역" },
   { key: "people", label: "교인·가정" },
   { key: "budget", label: "예산·이월" },
+  { key: "receipt", label: "기부금영수증" },
   { key: "import", label: "엑셀 가져오기" },
   { key: "account", label: "계정" },
 ] as const;
@@ -75,6 +77,7 @@ export default function App() {
         {tab === "bank" && <BankImport />}
         {tab === "people" && <Households />}
         {tab === "budget" && <Budgets year={Number(date.slice(0, 4))} />}
+        {tab === "receipt" && <Receipts />}
         {tab === "import" && <ImportExcel />}
         {tab === "account" && <Account sync={sync} syncNow={syncNow} />}
       </main>

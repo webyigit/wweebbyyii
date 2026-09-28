@@ -15,17 +15,20 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 ## 지금 어디까지 왔나 (2026-09-28 기준)
 
 - 0단계 설계 완료(`docs/04`, `docs/05`), **1단계 앱 첫 동작판 완료** (`app/`, 기기 저장만)
-- 앱 실행: `cd church-finance/app && npm install && npm run dev` · 검사: `npm test` (단위), `npm run e2e` (브라우저 48번)
+- 앱 실행: `cd church-finance/app && npm install && npm run dev` · 검사: `npm test` (단위), `npm run e2e` (브라우저 28항목 × 화면 2종 × 2회 = 112번)
 - 2단계 진행 중: **엑셀 가져오기 완료** (개인별 헌금집계 1~6월, 실제 파일로 원 단위 검증)
   - 실제 파일 검증: `REAL_XLSX=/경로/파일.xlsx npx vitest run src/domain/importReal.test.ts` (파일은 저장소에 두지 않음)
 - **앱 공개 주소**: https://webyigit.github.io/wweebbyyii/church-finance/ (다시 올리기: `church-finance/deploy.sh` → 커밋 → main 반영)
 - 클라우드: Supabase 프로젝트 있음, 동기화 코드 완료, **SQL 실행 완료(표 생성 확인, 로그인 안 한 접근은 막힘 확인)**
   - 남은 고객 할 일: `docs/06-클라우드설정.md` 6~7번 (Site URL, 각자 가입)
-  - 이 작업 환경에서 실제 서버 시험을 하려면 환경 설정의 허용 도메인에 `evyiupygrwczfctryqlq.supabase.co` 추가 필요
+  - 이 작업 환경에서 Supabase 접속 허용됨 (네트워크 설정 완료)
+- **4단계 기부금영수증 완료** (앱 '기부금영수증' 탭): 발급·법정 서식·발급대장·신청자·예전 대장 가져오기·주민번호 금고
+  - 클라우드 가입할 때 `supabase/update-001-receipts.sql` 도 실행해야 영수증 기록이 올라감
+  - 남은 것: 온라인 신청서(Q16), 가중치 열(Q14), 포함 과목(Q15)
 - **바로 다음 할 일**
-  1. 4단계 기부금영수증 (가정별 합계, 온라인 신청서, 법정 양식, 발행대장)
+  1. 5단계 예결산·제직회 보고
   2. 3단계 남은 것: 과목 이동(Q10) 기록, 계좌 잔액 대사(통장 잔액 vs 장부), 차입 현황
-  3. 실제 Supabase 서버와 동기화 시험 (네트워크 허용 후)
+  3. 실제 Supabase 서버와 동기화 시험 (고객이 가입한 뒤)
 - 3단계 지출·출납 보고서 완료, 실제 출납 파일과 원 단위 일치
 - 주간 명단 가져오기 완료 (8~9월 7주). 7월 명단 파일은 없음 (Q13)
 - 실제 파일 검증 환경변수: `REAL_XLSX`, `REAL_CASHBOOK`, `REAL_WEEKLY_DIR`

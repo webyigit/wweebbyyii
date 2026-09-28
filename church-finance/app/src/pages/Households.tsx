@@ -4,13 +4,15 @@ import { db, newId, softDelete, touch } from "../data/db";
 import { createHouseholdFromText } from "../data/actions";
 import { chosung } from "../domain/donors";
 import { won } from "../domain/weeklyReport";
-import type { Household, Member } from "../domain/types";
+import type { Applicant, Household, Member } from "../domain/types";
+import { ShareEditor } from "./Receipts";
 
-// 교인·가정 명부. 가정마다 '영수증 신청자' 1명을 정하면 가족 헌금이 그 사람 영수증으로 합산된다.
+// 교인·가정 명부. 가정마다 '영수증 신청자'를 정하면 가족 헌금이 그 사람 영수증으로 합산된다 (여럿이면 비율로).
 export default function Households() {
   const households = useLiveQuery(() => db.households.filter((h) => !h.deleted).toArray(), []) ?? [];
   const members = useLiveQuery(() => db.members.filter((m) => !m.deleted).toArray(), []) ?? [];
   const offerings = useLiveQuery(() => db.offerings.filter((o) => !o.deleted).toArray(), []) ?? [];
+  const applicants = useLiveQuery(() => db.applicants.filter((a) => !a.deleted).toArray(), []) ?? [];
   const [q, setQ] = useState("");
   const [newText, setNewText] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -49,16 +51,16 @@ export default function Households() {
         <tbody>
           {shown.map((h) => {
             const ms = members.filter((m) => m.householdId === h.id);
-            const receipt = ms.find((m) => m.id === h.receiptMemberId);
+            const shares = (h.receiptShares ?? []).map((x) => `${applicants.find((a) => a.id === x.applicantId)?.name ?? "?"}${x.pct !== 100 ? ` ${x.pct}%` : ""}`);
             return [
               <tr key={h.id}>
                 <td>{h.name}{h.needsReview && <span className="badge" title={h.needsReview}>확인 필요</span>}</td>
                 <td>{ms.map((m) => m.name + (m.tag ?? "")).join(", ")}</td>
-                <td>{receipt ? receipt.name + (receipt.tag ?? "") : <span className="warn">미지정</span>}</td>
+                <td>{shares.length ? shares.join(", ") : <span className="muted">없음</span>}</td>
                 <td className="num">{won(yearSum(h.id))}</td>
                 <td><button onClick={() => setOpen(open === h.id ? null : h.id)}>{open === h.id ? "닫기" : "고치기"}</button></td>
               </tr>,
-              open === h.id && <tr key={h.id + "-edit"}><td colSpan={5}><EditHousehold h={h} ms={ms} /></td></tr>,
+              open === h.id && <tr key={h.id + "-edit"}><td colSpan={5}><EditHousehold h={h} ms={ms} applicants={applicants} /></td></tr>,
             ];
           })}
         </tbody>
@@ -67,7 +69,7 @@ export default function Households() {
   );
 }
 
-function EditHousehold({ h, ms }: { h: Household; ms: Member[] }) {
+function EditHousehold({ h, ms, applicants }: { h: Household; ms: Member[]; applicants: Applicant[] }) {
   const [name, setName] = useState("");
   const saveH = (patch: Partial<Household>) => db.households.put(touch({ ...h, ...patch }));
   const saveM = (m: Member, patch: Partial<Member>) => db.members.put(touch({ ...m, ...patch }));
@@ -85,9 +87,6 @@ function EditHousehold({ h, ms }: { h: Household; ms: Member[] }) {
             <tr key={m.id}>
               <td><input defaultValue={m.name} onBlur={(e) => e.target.value !== m.name && saveM(m, { name: e.target.value })} /></td>
               <td><input className="tag" placeholder="구분(A)" defaultValue={m.tag} onBlur={(e) => saveM(m, { tag: e.target.value || undefined })} /></td>
-              <td>
-                <label><input type="radio" name={`r-${h.id}`} checked={h.receiptMemberId === m.id} onChange={() => saveH({ receiptMemberId: m.id })} /> 영수증 신청자</label>
-              </td>
               <td><button className="x" onClick={() => softDelete(db.members as never, m.id)}>×</button></td>
             </tr>
           ))}
@@ -97,6 +96,8 @@ function EditHousehold({ h, ms }: { h: Household; ms: Member[] }) {
         <input placeholder="가족 추가" value={name} onChange={(e) => setName(e.target.value)} />
         <button disabled={!name.trim()} onClick={async () => { await db.members.put(touch({ id: newId(), updatedAt: 0, householdId: h.id, name: name.trim() })); setName(""); }}>추가</button>
       </div>
+      <h3 style={{ marginTop: 12 }}>기부금영수증 신청자</h3>
+      <ShareEditor key={JSON.stringify(h.receiptShares ?? [])} household={h} members={ms} applicants={applicants} />
     </div>
   );
 }

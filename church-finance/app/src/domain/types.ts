@@ -25,8 +25,45 @@ export interface IncomeCategory {
 
 export interface Household extends Row {
   name: string; // 표시 이름 (예: "홍길동 가정")
-  receiptMemberId?: string; // 기부금영수증 신청자
+  receiptMemberId?: string; // (예전 칸, 쓰지 않음 — receiptShares 로 바뀜)
+  /** 이 가정 헌금을 누구 영수증으로 보내나. 여러 명이면 비율(%)로 나눔. 해마다 그대로 이어짐 */
+  receiptShares?: ReceiptShare[];
   needsReview?: string; // 엑셀 가져오기에서 자동으로 판단하지 못한 이유 (사람이 확인하면 지움)
+}
+
+// ── 기부금영수증 ─────────────────────────────────────
+export interface ReceiptShare { applicantId: string; pct: number }
+
+/** 영수증 신청자 (개인 또는 법인). 해마다 거의 같으므로 한 번 넣으면 계속 씀 */
+export interface Applicant extends Row {
+  kind: "person" | "corp";
+  name: string;
+  idSealed?: string; // 개인: 주민등록번호 (금고로 잠금, vault.ts). 원문은 어디에도 저장하지 않음
+  idMasked?: string; // 화면용 앞부분만 (예: 751114-2******)
+  bizNo?: string; // 법인: 사업자등록번호 (공개 정보라 그대로)
+  phone?: string;
+  address?: string;
+  note?: string;
+}
+
+/** 발급한 영수증 한 장. 발급 순간의 내용을 그대로 남긴다 (나중에 헌금·주소가 바뀌어도 재인쇄는 같게) */
+export interface Receipt extends Row {
+  year: number; // 기부 연도 (2026년 헌금 → 2027년 초에 발급)
+  serial: string; // 일련번호 "2027-001" (발급 연도-번호)
+  applicantId: string;
+  kind: "person" | "corp";
+  name: string;
+  idSealed?: string;
+  idMasked?: string;
+  bizNo?: string;
+  address?: string;
+  months: number[]; // 1~12월 금액
+  amount: number;
+  issuedAt: string; // YYYY-MM-DD
+  status: "issued" | "void";
+  voidReason?: string;
+  sources?: string[]; // 어느 가정 헌금이 들어갔나 (가정 이름·비율, 확인용)
+  imported?: boolean; // 예전 발급대장에서 가져온 기록
 }
 
 export interface Member extends Row {

@@ -78,6 +78,18 @@ const BOOK = join(tmpdir(), "cf-e2e-book.xlsx");
   writeFileSync(BOOK, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
 }
 
+// 예전 기부금영수증 발급대장 흉내 (가짜 이름·가짜 번호): 개인 1명(가정 명부에 있는 이름) + 법인 1곳(명부에 없음) + 폐기 1건
+const LEDGER = join(tmpdir(), "cf-e2e-ledger.xlsx");
+{
+  const aoa = [["2026년도 기부금 영수증 발급표"], ["NO", "구분", "일련번호", "이름", "생년월일", "주 소", "금액", "발급일자"],
+    [1, "개인", "2026-001", "정도령", "800202-1234567", "서울시 가짜로 1", "1,200,000", "2025년 12월 28일"],
+    [2, "개인", "2026-002", "정도령", "800202-1234567", "서울시 가짜로 1", "", "2025년 12월 28일", "재발급으로 폐기처리"],
+    [3, "법인", "2026-003", "주식회사 가나다", "124-81-00998", "경기도 가짜로 2", 3000000, "2026년 1월 4일"]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "2026발행본");
+  writeFileSync(LEDGER, XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+}
+
 const ROUNDS = Number(process.argv[2] ?? 1);
 const PORT = 4179;
 const URL = `http://127.0.0.1:${PORT}/`;
@@ -101,7 +113,7 @@ async function check(name, fn) {
   try { await fn(); pass++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; failures.push(name); console.log(`  ✘ ${name}\n      ${String(e.message ?? e).split("\n")[0]}`); }
 }
-const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기" };
+const TAB = { account: "계정", entry: "헌금 입력", report: "주일헌금현황", expense: "지출 입력", cashbook: "수입지출 보고", bank: "통장 내역", people: "교인·가정", budget: "예산·이월", import: "엑셀 가져오기", receipt: "기부금영수증" };
 const go = async (page, tab) => {
   await page.locator(".top nav a", { hasText: TAB[tab] }).click();
   await page.locator(`section[data-page="${tab}"]`).waitFor();
@@ -123,6 +135,7 @@ for (let round = 1; round <= ROUNDS; round++) {
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("dialog", (d) => d.accept());
     await page.goto(URL + "#entry");
     const donor = page.getByPlaceholder("이름 앞글자나 초성 (예: ㅎㄱㄷ)");
     const amount = page.getByPlaceholder("예: 50000, 5만");
@@ -342,6 +355,97 @@ for (let round = 1; round <= ROUNDS; round++) {
       if (!(await row.innerText()).includes("온라인")) throw new Error(await row.innerText());
     });
 
+    // ── 기부금영수증 ──
+    const sub = (name) => page.locator(".subtabs").getByRole("button", { name, exact: true }).click();
+    let hhAmount = "";
+    await check("기부금영수증: 비밀번호 정하고, 가정에 신청자를 정하면 영수증 금액 = 가정 헌금 합계", async () => {
+      await go(page, "receipt");
+      await page.getByPlaceholder("비밀번호 (6자 이상)").fill("test-pass-1");
+      await page.getByPlaceholder("한 번 더").fill("test-pass-1");
+      await page.getByRole("button", { name: "정하기", exact: true }).click();
+      await page.locator(".vault-open", { hasText: "주민번호 열림" }).waitFor();
+      const row = page.locator(".unassigned tr", { hasText: "박민수" }).first();
+      hhAmount = (await row.locator("td.num").innerText()).trim();
+      await row.getByRole("button", { name: "신청자 정하기" }).click();
+      await page.locator(".share-editor button", { hasText: "+ 박민수" }).click();
+      await page.locator(".share-editor .row", { hasText: "박민수" }).locator("input").first().waitFor();
+      await page.locator(".share-editor").getByRole("button", { name: "저장" }).click();
+      const got = (await page.locator('.receipt-list tr[data-name="박민수"] td.amount').innerText()).trim();
+      eq(got, hhAmount, "영수증 금액");
+      await page.locator(".totals", { hasText: "영수증 대상" }).waitFor();
+      if ((await page.locator(".totals").first().innerText()).includes("맞지 않습니다")) throw new Error("합계 검산 실패");
+    });
+
+    await check("신청자 주민번호: 틀린 번호는 거절, 맞으면 앞자리만 보임", async () => {
+      await sub("신청자");
+      await page.locator("tr", { hasText: "박민수" }).getByRole("button", { name: "고치기" }).click();
+      const form = page.locator(".applicant-form");
+      await form.locator('input[name="idText"]').fill("900101-123456");
+      await form.getByRole("button", { name: "저장" }).click();
+      await form.locator(".warn", { hasText: "주민등록번호가 맞지 않습니다" }).waitFor();
+      await form.locator('input[name="idText"]').fill("9001011234567");
+      await form.locator('input[name="address"]').fill("서울시 가짜구 가짜로 3");
+      await form.getByRole("button", { name: "저장" }).click();
+      await page.locator("td", { hasText: "900101-1******" }).waitFor();
+      if (await page.locator("text=9001011234567").count()) throw new Error("주민번호 원문이 화면에 보임");
+    });
+
+    await check("교회 정보 넣고 발급 → 일련번호 2027-001, 법정 서식에 주민번호 전체와 금액", async () => {
+      await sub("설정·가져오기");
+      await page.locator('input[name="churchName"]').fill("가짜교회");
+      await page.locator('input[name="regNo"]').fill("124-81-00998");
+      await page.locator('input[name="churchAddress"]').fill("서울시 가짜구 교회로 1");
+      await page.locator(".church-form").getByRole("button", { name: "저장" }).click();
+      await page.locator(".church-form .ok").waitFor();
+      await sub("발급");
+      await page.locator('.receipt-list tr[data-name="박민수"] input[type="checkbox"]').check();
+      await page.getByRole("button", { name: /고른 1명 발급/ }).click();
+      const form = page.locator('.receipt-page[data-serial="2027-001"]');
+      await form.waitFor();
+      eq((await form.locator(".donor-id").innerText()).trim(), "900101-1234567", "주민번호");
+      eq((await form.locator(".receipt-amount").innerText()).trim(), hhAmount, "영수증 합계");
+      if (!(await form.innerText()).includes("가짜교회")) throw new Error("교회 이름 없음");
+      if (process.env.SHOT && vp.name === "PC") await form.screenshot({ path: process.env.SHOT }); // 서식 눈으로 확인용
+      await page.getByRole("button", { name: "닫기" }).click();
+      await page.locator('.receipt-list tr[data-name="박민수"] .status', { hasText: "발급 2027-001" }).waitFor();
+    });
+
+    await check("잠그면 주민번호가 가려져 인쇄, 폐기 후 다시 발급하면 새 번호 2027-002", async () => {
+      await page.getByRole("button", { name: "잠그기" }).click();
+      await sub("발급대장");
+      const row = page.locator('tr[data-serial="2027-001"]');
+      await row.getByRole("button", { name: "인쇄" }).click();
+      eq((await page.locator('.receipt-page .donor-id').innerText()).trim(), "900101-1******", "잠긴 주민번호");
+      await page.getByRole("button", { name: "닫기" }).click();
+      await sub("발급대장");
+      await page.locator('tr[data-serial="2027-001"]').getByRole("button", { name: "폐기" }).click();
+      await page.getByPlaceholder(/폐기 사유/).fill("주소 변경");
+      await page.locator("tr", { has: page.getByPlaceholder(/폐기 사유/) }).getByRole("button", { name: "폐기", exact: true }).click();
+      await page.locator('tr.void[data-serial="2027-001"]').waitFor();
+      await sub("발급");
+      await page.locator('.receipt-list tr[data-name="박민수"] .status', { hasText: "발급 전" }).waitFor();
+      await page.locator('.receipt-list tr[data-name="박민수"] input[type="checkbox"]').check();
+      await page.getByRole("button", { name: /고른 1명 발급/ }).click();
+      await page.locator('.receipt-page[data-serial="2027-002"]').waitFor();
+      await page.getByRole("button", { name: "닫기" }).click();
+    });
+
+    await check("예전 발급대장 가져오기: 잠긴 채로도 됨, 신청자·기록·가정 자동 연결, 다시 넣으면 건너뜀", async () => {
+      await sub("설정·가져오기");
+      await page.locator('.ledger-import input[type="file"]').setInputFiles(asFile(LEDGER, "2027년도 발급 _ 기부금영수증 발급 현황표.xlsx"));
+      await page.locator(".ledger-import", { hasText: "가져올 것: 3건 (폐기 1건) · 합계 4,200,000원" }).waitFor();
+      await page.locator(".ledger-import").getByRole("button", { name: "가져오기" }).click();
+      const res = await page.locator(".import-result").innerText();
+      for (const t of ["신청자 새로 2명", "발급 기록 3건", "가정 자동 연결 1곳", "주식회사 가나다"]) if (!res.includes(t)) throw new Error(res);
+      await page.locator('.ledger-import input[type="file"]').setInputFiles(asFile(LEDGER, "2027년도 발급 _ 기부금영수증 발급 현황표.xlsx"));
+      await page.locator(".ledger-import").getByRole("button", { name: "가져오기" }).click();
+      await page.locator(".import-result", { hasText: "겹쳐서 건너뜀 3" }).waitFor();
+      await page.locator('section[data-page="receipt"] .row button', { hasText: "◀" }).click();
+      await sub("발급대장");
+      await page.locator(".ledger-totals", { hasText: "합계 2건 4,200,000원" }).waitFor();
+      await page.locator('section[data-page="receipt"] .row button', { hasText: "▶" }).click();
+    });
+
     await check("로그인 전: '이 기기에만 저장' 표시, 계정 화면에 로그인 칸", async () => {
       await page.locator(".top .sync", { hasText: "이 기기에만 저장" }).waitFor();
       await go(page, "account");
@@ -350,7 +454,7 @@ for (let round = 1; round <= ROUNDS; round++) {
     });
 
     await check("가로 스크롤이 생기지 않는다", async () => {
-      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "import", "account"]) {
+      for (const tab of ["entry", "report", "expense", "cashbook", "bank", "people", "budget", "receipt", "import", "account"]) {
         await go(page, tab);
         await page.waitForTimeout(150);
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

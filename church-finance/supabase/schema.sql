@@ -64,7 +64,7 @@ language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.app_users
     where lower(email) = lower(auth.jwt() ->> 'email')
-      and ((role = 'bookkeeper' and col in ('offerings', 'households', 'members', 'aliases', 'categories', 'budgets', 'meta'))
+      and ((role = 'bookkeeper' and col in ('offerings', 'households', 'members', 'aliases', 'categories', 'budgets', 'meta', 'applicants', 'receipts', 'settings'))
         or (role = 'cashier' and col in ('expenses', 'fixedRules', 'budgets', 'openings', 'bankTxns', 'bankRules', 'expenseItems', 'meta', 'offerings')))
   )
 $$;

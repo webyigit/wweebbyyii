@@ -2,7 +2,7 @@
 // 클라우드 동기화(sync.ts)가 dirty=1 인 행을 올려 보낸다.
 import Dexie, { type Table } from "dexie";
 import { DEFAULT_CATEGORIES } from "../domain/categories";
-import type { Budget, DonorAlias, Expense, ExpenseItem, FixedRule, Household, IncomeCategory, Member, Offering, OpeningBalance, Row } from "../domain/types";
+import type { Applicant, Budget, DonorAlias, Receipt, Expense, ExpenseItem, FixedRule, Household, IncomeCategory, Member, Offering, OpeningBalance, Row } from "../domain/types";
 import { DEFAULT_EXPENSE_ITEMS } from "../domain/expenseCategories";
 import type { BankTxn } from "../domain/bank";
 
@@ -20,6 +20,9 @@ export class FinanceDB extends Dexie {
   openings!: Table<OpeningBalance, [number, string]>;
   bankTxns!: Table<BankTxn & { appliedAs?: string }, string>;
   bankRules!: Table<{ content: string; itemCode: string }, string>;
+  applicants!: Table<Applicant, string>;
+  receipts!: Table<Receipt, string>;
+  settings!: Table<{ key: string; value: unknown }, string>;
 
   constructor(name = "church-finance") {
     super(name);
@@ -43,6 +46,12 @@ export class FinanceDB extends Dexie {
     this.version(3).stores({
       bankTxns: "key, sunday",
       bankRules: "content",
+    });
+    // 4판: 기부금영수증 (신청자·발급대장) + 기기끼리 맞추는 설정(교회 정보, 주민번호 금고 공개 열쇠)
+    this.version(4).stores({
+      applicants: "id, name, dirty",
+      receipts: "id, year, serial, applicantId, dirty",
+      settings: "key",
     });
   }
 }

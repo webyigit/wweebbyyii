@@ -127,3 +127,27 @@ describe("예산 조정 근거", async () => {
     ]);
   });
 });
+
+describe("12월 말 예상 결산", async () => {
+  const { projectYearEnd } = await import("./settlement");
+  it("수입: 작년 남은 기간 × 올해 증가율, 지출: 매달 나가면 월평균, 아니면 작년 남은 기간", () => {
+    const monthly = Array.from({ length: 9 }, (_, m) => exp(`2026-${String(m + 1).padStart(2, "0")}-05`, "FINANCE-2", 100_000));
+    const p = projectYearEnd(2026, "2026-09-30", {
+      ...inp,
+      offerings: [off("2026-03-01", "G-TITHE", 1_200), off("2025-03-02", "G-TITHE", 1_000), off("2025-11-16", "G-HARVEST2", 500), off("2025-12-07", "G-TITHE", 100)],
+      expenses: [...monthly, exp("2025-11-16", "SERVICE-3", 700), exp("2026-03-01", "SERVICE-3", 0)],
+    }, depts);
+    expect(p.incomeRatio).toBeCloseTo(1.2);
+    expect(p.income.find((l) => l.code === "G-HARVEST2")!.projected).toBe(600); // 추수감사: 올해 0 + 작년 500 × 1.2
+    expect(p.income.find((l) => l.code === "G-TITHE")!.projected).toBe(1_320);
+    const fin = p.depts.find((d) => d.dept === "FINANCE")!.items.find((i) => i.code === "FINANCE-2")!;
+    expect(fin.method).toBe("monthly");
+    expect(fin.projected).toBe(1_200_000); // 1~9월 매달 10만 → 10~12월 30만 더해 120만
+    const kimjang = p.depts.find((d) => d.dept === "SERVICE")!.items.find((i) => i.code === "SERVICE-3")!;
+    expect(kimjang).toMatchObject({ method: "none", projected: 0 }); // 작년 700 이지만 올해 예산이 없으면 0 (남은 예산과 작은 쪽)
+    // 매달 조금씩 + 한 달에 큰 일회성(공사) → 매달 항목으로 보지 않음
+    const lumpy = [...Array.from({ length: 9 }, (_, m) => exp(`2026-${String(m + 1).padStart(2, "0")}-05`, "FINANCE-7", 10_000)), exp("2026-08-09", "FINANCE-7", 5_000_000)];
+    const q = projectYearEnd(2026, "2026-09-30", { ...inp, expenses: [...lumpy, exp("2025-11-02", "FINANCE-7", 30_000)], budgets: [...inp.budgets, { year: 2026, code: "FINANCE-7", amount: 9_000_000 }] }, depts);
+    expect(q.depts.find((d) => d.dept === "FINANCE")!.items.find((i) => i.code === "FINANCE-7")).toMatchObject({ method: "lastYear", projected: 5_090_000 + 30_000 });
+  });
+});

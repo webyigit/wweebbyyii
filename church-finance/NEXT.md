@@ -12,7 +12,7 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 브랜치는 claude/jolly-edison-hynxn7 이야.
 ```
 
-## 지금 어디까지 왔나 (2026-09-28 기준)
+## 지금 어디까지 왔나 (2026-10-07 기준)
 
 **0~6단계 앱 개발 완료.** 이제 고객 쪽 준비 → 4주 병행 운영 → 엑셀 중단 (`docs/07-엑셀중단계획.md`).
 
@@ -24,7 +24,9 @@ church-finance 폴더의 NEXT.md, PLAN.md, HISTORY.md 를 읽고 교회 재정�
 - **검사**
   - `cd church-finance/app && npm test` (단위) · `npm run e2e` (브라우저 2회) · `npm run typecheck`
   - 실제 파일 대조 (저장소 밖 파일): `REAL_XLSX=개인별헌금집계 REAL_CASHBOOK=주간출납파일 REAL_WEEKLY_DIR=주간명단폴더 REAL_LEDGER_2025=총계정원장_2025 npx vitest run src/domain/importReal.test.ts`
+- **2026 결산·2027 예산(안)**: 12월 말 예상 계산(`projectYearEnd`) 추가, 예결산 PPT 고객에게 전달 (실금액이라 저장소 밖)
 - **남은 일**
+  0. 예결산위원회 협의 5가지 결정 → 앱 결산·예산(안)에 입력 / (선택) 결산 화면에 '12월 말 예상' 칸
   1. 고객: 4명 가입 → 자료 가져오기 → 4주 병행 운영 (대조표는 `docs/07`)
   2. 고객 답변 기다리는 것: Q10(과목 이동 날짜·이유), Q11·Q12(엑셀 불일치), Q13, Q14~Q16(영수증), Q18(작년 대비 기준), Q19(선교 송금)
   3. 개발(선택): 온라인 영수증 신청서(Q16 답에 따라), 실제 Supabase 로 동기화 시험(가입 후)

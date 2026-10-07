@@ -222,3 +222,63 @@ export function adjustHints(s: Settlement): AdjustHint[] {
   const order = { over: 0, noBudget: 1, pace: 2 };
   return out.sort((a, b) => order[a.kind] - order[b.kind] || (b.actual - b.budget) - (a.actual - a.budget));
 }
+
+// ── 12월 말 예상 결산 ───────────────────────────────────
+
+export interface Projection {
+  cutoff: string;
+  incomeRatio: number | null; // 올해 수입 ÷ 작년 같은 기간 (일반회계)
+  income: (SettleLine & { projected: number; lastYear: number })[];
+  depts: (Omit<SettleDept, "items"> & { projected: number; items: (SettleLine & { projected: number; method: "monthly" | "lastYear" | "none" })[] })[];
+  incomeTotal: number;
+  expenseTotal: number;
+}
+
+/**
+ * 기준일까지의 실적 + 남은 기간 예상 = 12월 말 예상.
+ * - 수입: 줄마다 '작년 남은 기간 실적 × 올해 증가율(일반회계 전체)' — 추수감사·성탄처럼 계절 헌금도 작년 모양을 따름
+ * - 지출: 달마다 나가는 항목(지난 달의 2/3 이상에서 지출)은 지출한 달 평균 × 남은 달,
+ *         나머지(행사·김장 등)는 작년 남은 기간 실적과 올해 남은 예산 중 작은 쪽
+ */
+export function projectYearEnd(year: number, cutoff: string, inp: SettleInput, depts: { code: string; name: string }[]): Projection {
+  const c = ctx(inp);
+  const ytd: Period = { from: `${year}-01-01`, to: cutoff };
+  const prevSame = shiftYear(ytd, -1);
+  const prevRest: Period = { from: `${year - 1}${cutoff.slice(4)}`, to: `${year - 1}-12-31` };
+  const restFrom = prevRest.from; // 기준일 당일은 올해 실적에 들어 있음 → 작년은 다음 날부터
+  const after = (d: string) => d > restFrom && d <= prevRest.to;
+  const s = buildSettlement(year, ytd, inp, depts);
+  const gIn = (p: Period) => sum(c.offs.filter((o) => within(o.date, p) && c.cat.get(o.categoryCode)?.fund === "G"), (o) => o.amount);
+  const ratio = rate(gIn(ytd), gIn(prevSame));
+  const r = ratio ?? 1;
+  const income = s.income.map((l) => {
+    const lastYear = sum(c.offs.filter((o) => after(o.date) && c.cat.get(o.categoryCode)?.line === l.code), (o) => o.amount);
+    return { ...l, lastYear, projected: Math.round(l.actual + lastYear * r) };
+  });
+  const [, cm, cd] = cutoff.split("-").map(Number);
+  const monthsPassed = cm - 1 + cd / 31;
+  const monthTotals = (code: string) => {
+    const m = new Map<number, number>();
+    for (const e of c.exps) if (e.itemCode === code && within(e.date, ytd)) m.set(Number(e.date.slice(5, 7)), (m.get(Number(e.date.slice(5, 7))) ?? 0) + e.amount);
+    return m;
+  };
+  const outDepts = s.depts.map((d) => {
+    const items = d.items.map((i) => {
+      const mt = monthTotals(i.code);
+      const months = [...mt.keys()];
+      const vals = [...mt.values()].sort((x, y) => x - y);
+      const median = vals.length ? vals[Math.floor(vals.length / 2)] : 0;
+      // 매달 비슷하게 나가야 '매달 항목' (한 달에 평소의 3배 넘게 나간 달이 있으면 공사·퇴직금 같은 일회성이 섞인 것)
+      const regular = months.length >= Math.max(3, Math.floor(monthsPassed * 2 / 3)) && vals[vals.length - 1] <= median * 3;
+      const lastRest = sum(c.exps.filter((e) => e.itemCode === i.code && after(e.date)), (e) => e.amount);
+      // 매달 나가는 항목: (지출한 달 평균) × (마지막으로 지출한 달 뒤로 남은 달) — 사례비처럼 매달 첫 주에 나가는 것도 정확히
+      // 그 밖(행사·김장 등): 작년 남은 기간 실적과 올해 남은 예산 중 작은 쪽 (작년의 한 번뿐인 행사를 그대로 옮기지 않게)
+      const rest = regular
+        ? Math.round((i.actual / months.length) * (12 - Math.max(...months)))
+        : Math.min(lastRest, Math.max(0, i.budget - i.actual));
+      return { ...i, projected: i.actual + rest, method: (regular ? "monthly" : rest ? "lastYear" : "none") as "monthly" | "lastYear" | "none" };
+    });
+    return { ...d, items, projected: sum(items, (i) => i.projected) };
+  });
+  return { cutoff, incomeRatio: ratio, income, depts: outDepts, incomeTotal: sum(income, (l) => l.projected), expenseTotal: sum(outDepts, (d) => d.projected) };
+}

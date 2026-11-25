@@ -49,19 +49,19 @@ export default function TaskSheet({
   return (
     <>
       <Sheet visible={!!task && !picking} onClose={onClose} title="업무 수정" testID="task-sheet">
-        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 520 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 360, width: '100%' }}>
           <Field label="내용" value={title} onChangeText={setTitle} multiline testID="edit-title" />
           <Text style={s.label}>날짜 · {relDay(task.date, today)}{task.originalDate ? ` (처음 ${relDay(task.originalDate, today)})` : ''}</Text>
           <View style={s.row}>
-            <Button title="내일로" kind="grey" size="m" style={s.flex} onPress={() => moveTo(addDays(base, base === today ? 1 : 1))} testID="pp-tomorrow" />
+            <Button title="내일로" kind="grey" size="m" style={s.flex} onPress={() => moveTo(addDays(base, 1))} testID="pp-tomorrow" />
             <Button title="다음 주 월요일" kind="grey" size="m" style={s.flex} onPress={() => moveTo(nextMon)} testID="pp-nextweek" />
           </View>
           <Button title="날짜 골라 옮기기" kind="grey" size="m" onPress={() => setPicking(true)} style={{ marginTop: 8 }} testID="pp-pick" />
-          <View style={[s.row, { marginTop: 20 }]}>
-            <Button title="삭제" kind="danger" style={{ width: 96 }} onPress={del} testID="edit-delete" />
-            <Button title="저장" style={s.flex} onPress={save} testID="edit-save" />
-          </View>
         </ScrollView>
+        <View style={[s.row, { marginTop: 20 }]}>
+          <Button title="삭제" kind="danger" style={{ width: 96 }} onPress={del} testID="edit-delete" />
+          <Button title="저장" style={s.flex} onPress={save} testID="edit-save" />
+        </View>
       </Sheet>
       <DatePickerSheet
         visible={picking}

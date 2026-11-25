@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { taskStore } from '../data/taskStore';
@@ -11,11 +11,13 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
   const [text, setText] = useState('');
   const [target, setTarget] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
   const date = target ?? day;
   const today = toDayKey(new Date());
 
-  const add = async () => {
-    const t = text.trim();
+  // 엔터는 입력 직후 바로 올 수 있어 상태(text)가 아직 안 바뀌었을 수 있음 → 이벤트의 값을 우선
+  const add = async (raw?: string) => {
+    const t = (raw ?? text).trim();
     if (!t) return;
     try {
       await taskStore.add({ title: t, date });
@@ -34,12 +36,13 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
         <Text style={s.dateText}>{date > today ? `${relDay(date, today)} 예약` : relDay(date, today)}</Text>
       </Pressable>
       <TextInput
+        ref={input}
         value={text}
         onChangeText={setText}
         placeholder="할 일을 적어 주세요"
         placeholderTextColor={C.grey600}
         style={s.input}
-        onSubmitEditing={add}
+        onSubmitEditing={(e) => add(e.nativeEvent.text)}
         returnKeyType="done"
         blurOnSubmit={false}
         accessibilityLabel="새 업무 내용"
@@ -47,7 +50,7 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
         testID="add-input"
       />
       <Pressable
-        onPress={add}
+        onPress={() => add()}
         disabled={!text.trim()}
         style={[s.btn, !text.trim() && { opacity: 0.3 }]}
         accessibilityRole="button"
@@ -57,7 +60,11 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
       >
         <Ionicons name="arrow-up" size={22} color="#fff" />
       </Pressable>
-      <DatePickerSheet visible={picking} value={date} title="언제 할 일인가요" onClose={() => setPicking(false)} onPick={setTarget} />
+      <DatePickerSheet visible={picking} value={date} title="언제 할 일인가요" onClose={() => setPicking(false)} onPick={(d) => {
+        setTarget(d);
+        // 시트가 닫히는 애니메이션이 끝난 뒤 입력칸으로 커서를 돌려줌(바로 적을 수 있게)
+        setTimeout(() => input.current?.focus(), 400);
+      }} />
     </View>
   );
 }
@@ -66,6 +73,6 @@ const s = StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: C.line },
   date: { flexDirection: 'row', alignItems: 'center', gap: 4, height: HIT, paddingHorizontal: 10, borderRadius: R.m, backgroundColor: C.blue50 },
   dateText: { fontSize: 14, fontWeight: '600', color: C.blueText },
-  input: { flex: 1, height: HIT, borderRadius: R.m, backgroundColor: C.greyBg, paddingHorizontal: 14, fontSize: 16, color: C.text },
+  input: { flex: 1, minWidth: 0, height: HIT, borderRadius: R.m, backgroundColor: C.greyBg, paddingHorizontal: 14, fontSize: 16, color: C.text },
   btn: { width: HIT, height: HIT, borderRadius: R.m, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center' },
 });

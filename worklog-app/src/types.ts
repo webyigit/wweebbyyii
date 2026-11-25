@@ -89,13 +89,5 @@ export interface TaskRepository {
   ready(): Promise<void>;
 }
 
-// ---- v1(첫 판) 타입: 기존 동기화 코드(src/lib/github.ts·merge.ts)가 v2 로 옮겨지면 지움 ----
-/** @deprecated v1 */
-export type Period = ViewMode;
-/** @deprecated v1 */
-export interface Entry {
-  id: string; period: Period; key: string; done: string; todo: string; memo: string; updatedAt: string; deletedAt?: string;
-}
-/** @deprecated v1 */
-export interface SyncFile { app: 'worklog'; version: 1; exportedAt: string; entries: Entry[] }
-export const PERIOD_LABEL: Record<ViewMode, string> = { daily: '일간', weekly: '주간', monthly: '월간' };
+
+export const MODE_LABEL: Record<ViewMode, string> = { daily: '일간', weekly: '주간', monthly: '월간' };

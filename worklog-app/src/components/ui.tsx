@@ -182,7 +182,7 @@ export function Field({ label, style, onFocus, onBlur, ...props }: TextInputProp
 
 export const st = StyleSheet.create({
   fieldLabel: { fontSize: 14, fontWeight: '600', color: C.grey700, marginBottom: 8 },
-  input: { minHeight: 48, borderRadius: R.m, backgroundColor: C.greyBg, borderWidth: 1, borderColor: C.grey400, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text },
+  input: { width: '100%', minWidth: 0, minHeight: 48, borderRadius: R.m, backgroundColor: C.greyBg, borderWidth: 1, borderColor: C.grey400, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text },
   inputFocus: { backgroundColor: C.bg, borderColor: C.blue, borderWidth: 1.5 },
   seg: { flexDirection: 'row', backgroundColor: C.greyBg, borderRadius: R.l, padding: 3 },
   segItem: { flex: 1, minHeight: HIT, alignItems: 'center', justifyContent: 'center', borderRadius: R.m },

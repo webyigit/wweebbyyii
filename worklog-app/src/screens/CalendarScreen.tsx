@@ -48,7 +48,7 @@ export default function CalendarScreen(p: CalendarProps) {
         ? (() => {
             const s = weekStart(d);
             const e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
-            return `${s.getFullYear()}년 ${Number(toWeekKey(d).split('-W')[1])}주차 · ${s.getMonth() + 1}/${s.getDate()}~${e.getMonth() + 1}/${e.getDate()}`;
+            return `${Number(toWeekKey(d).split('-W')[1])}주차 · ${s.getMonth() + 1}/${s.getDate()}~${e.getMonth() + 1}/${e.getDate()}`;
           })()
         : `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
 

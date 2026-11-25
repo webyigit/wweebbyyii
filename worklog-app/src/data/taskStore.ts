@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mergeTasks } from '../lib/merge';
 import type { DayKey, NewTask, Task, TaskPatch, TaskRepository } from '../types';
 
 const K_TASKS = 'worklog.tasks.v2';
@@ -32,15 +33,8 @@ function commit(next: Task[]): Promise<void> {
   return p;
 }
 
-/** id 별로 updatedAt 늦은 쪽(같으면 삭제 표시 우선)을 남긴다 */
-export function mergeTasks(a: Task[], b: Task[]): Task[] {
-  const map = new Map<string, Task>();
-  for (const t of [...a, ...b]) {
-    const cur = map.get(t.id);
-    if (!cur || t.updatedAt > cur.updatedAt || (t.updatedAt === cur.updatedAt && !!t.deletedAt && !cur.deletedAt)) map.set(t.id, t);
-  }
-  return [...map.values()];
-}
+// 합치기 규칙의 정본은 src/lib/merge.ts (동기화 모듈과 같은 함수)
+export { mergeTasks };
 
 const now = () => new Date().toISOString();
 

@@ -1,4 +1,4 @@
-import type { Period } from '../types';
+import type { ViewMode as Period } from '../types';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 

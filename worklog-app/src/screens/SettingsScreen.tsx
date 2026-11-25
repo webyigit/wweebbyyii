@@ -1,32 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useStore } from '../lib/store';
 import { clearToken, getToken, setToken, tokenPersists } from '../lib/secure';
-import { GitHubError, sync, testConnection, validateConfig } from '../lib/github';
-import { fmtTime } from '../lib/dates';
+import { GitHubError, testConnection, validateConfig } from '../lib/github';
+import { DEFAULT_CONFIG, loadConfig, loadLastSync, saveConfig, syncNow } from '../lib/syncService';
+import { useTasks } from '../data/useTasks';
 import { Button, Field } from '../components/ui';
 import { C, R } from '../theme';
 import type { GitHubConfig } from '../types';
 
 type Msg = { kind: 'ok' | 'err' | 'info'; text: string } | null;
 
+const pad = (n: number) => String(n).padStart(2, '0');
+const fmtTime = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export default function SettingsScreen() {
-  const store = useStore();
-  const [cfg, setCfg] = useState(store.config);
+  const tasks = useTasks();
+  const [cfg, setCfg] = useState<GitHubConfig>(DEFAULT_CONFIG);
+  const [lastSync, setLastSync] = useState<string | null>(null);
   const [token, setTokenInput] = useState('');
   const [hasToken, setHasToken] = useState(false);
   const [busy, setBusy] = useState<null | 'test' | 'sync'>(null);
   const [msg, setMsg] = useState<Msg>(null);
 
-  useEffect(() => { setCfg(store.config); }, [store.config]);
-  useEffect(() => { getToken().then((t) => setHasToken(!!t)); }, []);
+  useEffect(() => {
+    loadConfig().then(setCfg);
+    loadLastSync().then(setLastSync);
+    getToken().then((t) => setHasToken(!!t));
+  }, []);
 
   /** 입력값 검사·저장 + 토큰 확보. 문제 있으면 null. 검사한 값(c)만 이후에 쓴다 */
   const prepare = async (): Promise<{ c: GitHubConfig; t: string; isNew: boolean } | null> => {
     const c = { owner: cfg.owner.trim(), repo: cfg.repo.trim(), branch: cfg.branch.trim(), path: cfg.path.trim() };
     const bad = validateConfig(c);
     if (bad) { setMsg({ kind: 'err', text: bad }); return null; }
-    await store.setConfig(c);
+    await saveConfig(c);
     const typed = token.trim();
     const t = typed || (await getToken()) || '';
     if (!t) { setMsg({ kind: 'err', text: 'GitHub 토큰을 넣어 주세요.' }); return null; }
@@ -59,9 +69,8 @@ export default function SettingsScreen() {
         setMsg({ kind: 'ok', text: '연결됨 · 비공개 저장소, 쓰기 권한 확인.' });
         return;
       }
-      const r = await sync(c, t, store.all);
-      await store.replaceAll(r.entries);
-      await store.setLastSync(new Date().toISOString());
+      const r = await syncNow(c, t);
+      setLastSync(await loadLastSync());
       setMsg({ kind: 'ok', text: `동기화 완료 · 받아온 변경 ${r.pulled}건${r.pushed ? ' · 저장소에 올림' : ' · 올릴 변경 없음'}` });
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof GitHubError ? e.message : '알 수 없는 오류가 났습니다. 다시 시도하세요.' });
@@ -83,12 +92,12 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
         <Text style={st.h1} accessibilityRole="header">GitHub 저장</Text>
         <Text style={st.p}>
-          기록은 이 기기에 먼저 저장됩니다. 아래를 채우고 '지금 동기화'를 누르면 GitHub 저장소의 JSON 파일과 합쳐서 양쪽을 같게 맞춥니다.
-          같은 기록은 나중에 고친 쪽이 남습니다.
+          업무는 이 기기에 먼저 저장돼요. 아래를 채우고 '지금 동기화'를 누르면 GitHub 비공개 저장소의 JSON 파일과 합쳐서 양쪽을 같게 맞춰요.
+          새 기기에서는 같은 설정으로 동기화하면 그대로 불러와요. 같은 업무를 두 기기에서 고쳤다면 나중에 고친 쪽이 남아요.
         </Text>
 
         <Field label="소유자 (GitHub 계정)" value={cfg.owner} onChangeText={set('owner')} autoCapitalize="none" autoCorrect={false} placeholder="예: my-account" testID="g-owner" />
-        <Field label="저장소" value={cfg.repo} onChangeText={set('repo')} autoCapitalize="none" autoCorrect={false} placeholder="예: worklog-data (비공개 권장)" testID="g-repo" />
+        <Field label="저장소" value={cfg.repo} onChangeText={set('repo')} autoCapitalize="none" autoCorrect={false} placeholder="예: worklog-data (비공개 저장소)" testID="g-repo" />
         <Field label="브랜치" value={cfg.branch} onChangeText={set('branch')} autoCapitalize="none" autoCorrect={false} testID="g-branch" />
         <Field label="파일 경로" value={cfg.path} onChangeText={set('path')} autoCapitalize="none" autoCorrect={false} testID="g-path" />
         <Field
@@ -126,7 +135,7 @@ export default function SettingsScreen() {
           </View>
         )}
         <Text style={[st.small, { marginTop: 12 }]} testID="g-last">
-          마지막 동기화: {store.lastSync ? fmtTime(store.lastSync) : '아직 없음'} · 기록 {store.entries.length}개
+          마지막 동기화: {lastSync ? fmtTime(lastSync) : '아직 없음'} · 업무 {tasks.length}개
         </Text>
         {hasToken && <Button title="이 기기에서 토큰 지우기" kind="danger" onPress={forget} style={{ marginTop: 20 }} testID="g-forget" />}
       </ScrollView>
@@ -135,13 +144,14 @@ export default function SettingsScreen() {
 }
 
 const st = StyleSheet.create({
-  h1: { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8 },
+  h1: { fontSize: 22, fontWeight: '700', color: C.text, marginBottom: 8, letterSpacing: -0.3 },
   p: { fontSize: 15, color: C.sub, lineHeight: 22, marginBottom: 16 },
   small: { fontSize: 13, color: C.sub, lineHeight: 19 },
   link: { fontSize: 14, color: C.primary, marginTop: 8, textDecorationLine: 'underline', paddingVertical: 6 },
   btns: { flexDirection: 'row', gap: 10, marginTop: 16 },
   msg: { marginTop: 14, padding: 12, borderRadius: R.m, borderWidth: 1 },
-  ok: { backgroundColor: '#EAF6EE', borderColor: '#B7E0C3' },
-  err: { backgroundColor: '#FDECEC', borderColor: '#F3B9B9' },
-  info: { backgroundColor: '#FFF6E0', borderColor: '#F0D58A' },
+  // 토스 톤: 옅은 면 + 테두리 없음에 가깝게
+  ok: { backgroundColor: '#E8F3FF', borderColor: '#E8F3FF' },
+  err: { backgroundColor: '#FFEEEE', borderColor: '#FFEEEE' },
+  info: { backgroundColor: '#F2F4F6', borderColor: '#F2F4F6' },
 });

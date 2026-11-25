@@ -3,7 +3,6 @@ import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Platform, Pressab
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { StoreProvider } from './src/lib/store';
 import { taskStore } from './src/data/taskStore';
 import { useTasks, useTasksReady } from './src/data/useTasks';
 import { useToday } from './src/lib/useToday';
@@ -134,18 +133,15 @@ function Main() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      {/* StoreProvider: 설정(동기화) 화면이 쓰는 v1 저장소. 동기화 모듈이 v2 로 옮기면 뺌 */}
-      <StoreProvider>
-        <StatusBar style="dark" />
-        <Main />
-      </StoreProvider>
+      <StatusBar style="dark" />
+      <Main />
     </SafeAreaProvider>
   );
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  col: { flex: 1, width: '100%', maxWidth: MAX_W, alignSelf: 'center' },
+  root: { flex: 1, backgroundColor: C.grey50 },
+  col: { flex: 1, width: '100%', maxWidth: MAX_W, alignSelf: 'center', backgroundColor: C.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
   warn: { color: C.redText, paddingHorizontal: 16, paddingBottom: 8, fontSize: 14 },

@@ -140,7 +140,7 @@ const st = StyleSheet.create({
   small: { fontSize: 13, color: C.sub, lineHeight: 19 },
   link: { fontSize: 14, color: C.primary, marginTop: 8, textDecorationLine: 'underline', paddingVertical: 6 },
   btns: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  msg: { marginTop: 14, padding: 12, borderRadius: R, borderWidth: 1 },
+  msg: { marginTop: 14, padding: 12, borderRadius: R.m, borderWidth: 1 },
   ok: { backgroundColor: '#EAF6EE', borderColor: '#B7E0C3' },
   err: { backgroundColor: '#FDECEC', borderColor: '#F3B9B9' },
   info: { backgroundColor: '#FFF6E0', borderColor: '#F0D58A' },

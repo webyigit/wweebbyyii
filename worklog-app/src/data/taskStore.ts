@@ -18,13 +18,28 @@ function emit() {
   for (const l of listeners) l(visible);
 }
 
+/** 읽기에 실패했으면 원본을 덮어쓰지 않도록 쓰기를 막는다 */
+let loadFailed = false;
+
 function commit(next: Task[]): Promise<void> {
   all = next;
   emit();
-  // 쓰기는 순서대로(겹쳐 쓰다 앞선 값이 뒤에 저장되는 일 방지)
+  if (loadFailed) return Promise.reject(new Error('저장된 데이터를 읽지 못해 쓰기를 멈췄어요'));
+  // 쓰기는 순서대로(겹쳐 쓰다 앞선 값이 뒤에 저장되는 일 방지). 실패는 호출한 쪽에 알림
   const snapshot = JSON.stringify(next);
-  writeChain = writeChain.then(() => AsyncStorage.setItem(K_TASKS, snapshot)).catch(() => {});
-  return writeChain;
+  const p = writeChain.then(() => AsyncStorage.setItem(K_TASKS, snapshot));
+  writeChain = p.catch(() => {});
+  return p;
+}
+
+/** id 별로 updatedAt 늦은 쪽(같으면 삭제 표시 우선)을 남긴다 */
+export function mergeTasks(a: Task[], b: Task[]): Task[] {
+  const map = new Map<string, Task>();
+  for (const t of [...a, ...b]) {
+    const cur = map.get(t.id);
+    if (!cur || t.updatedAt > cur.updatedAt || (t.updatedAt === cur.updatedAt && !!t.deletedAt && !cur.deletedAt)) map.set(t.id, t);
+  }
+  return [...map.values()];
 }
 
 const now = () => new Date().toISOString();
@@ -41,12 +56,17 @@ export const taskStore: TaskRepository = {
   ready() {
     if (!loaded) {
       loaded = (async () => {
+        let raw: string | null = null;
         try {
-          const raw = await AsyncStorage.getItem(K_TASKS);
+          raw = await AsyncStorage.getItem(K_TASKS);
           const parsed = raw ? JSON.parse(raw) : [];
-          all = Array.isArray(parsed) ? parsed : [];
+          if (!Array.isArray(parsed)) throw new Error('bad');
+          all = parsed;
         } catch {
           all = [];
+          // 깨진 원본은 따로 보관하고, 덮어쓰지 않도록 쓰기를 막는다
+          loadFailed = true;
+          if (raw) AsyncStorage.setItem(`${K_TASKS}.corrupt.${Date.now()}`, raw).catch(() => {});
         }
         emit();
       })();
@@ -56,6 +76,9 @@ export const taskStore: TaskRepository = {
   getTasks: () => visible,
   getAllIncludingDeleted: () => all,
   replaceAll: (tasks) => commit(tasks),
+  /** 동기화 결과를 '지금' 기기 데이터와 합쳐 넣는다(동기화 도중 입력한 것도 살림) */
+  applyRemote: (remote) => commit(mergeTasks(all, remote)),
+  loadFailed: () => loadFailed,
   async add(input: NewTask) {
     const t: Task = {
       id: newId(),

@@ -70,8 +70,12 @@ export interface TaskRepository {
   getTasks(): Task[];
   /** 동기화용: 삭제 표시 포함 전체 */
   getAllIncludingDeleted(): Task[];
-  /** 동기화 결과로 통째로 바꾸기 (updatedAt 은 건드리지 않음) */
+  /** 통째로 바꾸기 (updatedAt 은 건드리지 않음). 동기화에는 applyRemote 를 쓰세요 */
   replaceAll(tasks: Task[]): Promise<void>;
+  /** 원격 목록을 '호출 시점의 최신' 기기 데이터와 합쳐 넣음(id 별 updatedAt 늦은 쪽). 동기화는 이걸로 */
+  applyRemote(remote: Task[]): Promise<void>;
+  /** 저장 데이터를 읽지 못해 쓰기를 막은 상태인지 */
+  loadFailed(): boolean;
   add(input: NewTask): Promise<Task>;
   update(id: string, patch: TaskPatch): Promise<void>;
   toggleDone(id: string): Promise<void>;

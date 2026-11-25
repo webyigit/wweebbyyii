@@ -99,3 +99,34 @@ export function fmtTime(iso: string): string {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+export function parseDay(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function addDays(key: string, n: number): string {
+  const d = parseDay(key);
+  return toDayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n));
+}
+
+export const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** 11월 25일 (수) */
+export function shortDay(key: string): string {
+  const d = parseDay(key);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY[d.getDay()]})`;
+}
+
+/** 오늘/내일/어제 같은 상대 표현, 아니면 shortDay */
+export function relDay(key: string, today: string): string {
+  if (key === today) return '오늘';
+  if (key === addDays(today, 1)) return '내일';
+  if (key === addDays(today, -1)) return '어제';
+  return shortDay(key);
+}
+
+export function hhmm(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}

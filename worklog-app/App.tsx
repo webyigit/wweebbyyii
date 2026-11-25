@@ -12,7 +12,7 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AddTaskBar from './src/components/AddTaskBar';
 import TaskSheet from './src/components/TaskSheet';
-import ReminderSheet from './src/components/ReminderSlot';
+import { ReminderSheet, startReminderBridge, subscribeOpenRequests } from './src/reminders';
 import DatePickerSheet from './src/components/DatePickerSheet';
 import { Toast } from './src/components/ui';
 import { C, HIT, MAX_W, T } from './src/theme';
@@ -46,6 +46,11 @@ function Main() {
   const onError = useCallback((m: string) => setToast({ text: m }), []);
   const onDeleted = useCallback((t: Task) => setToast({ text: '삭제했어요', undo: () => taskStore.restore(t.id) }), []);
   const goDay = useCallback((d: string) => { setDay(d); setMode('daily'); setTab('calendar'); }, []);
+
+  // 기기 알림·위젯을 업무 변경에 맞춰 둠(웹에서는 아무것도 안 함)
+  useEffect(() => startReminderBridge(), []);
+  // 위젯·알림을 누르면 그날 일간 보기로
+  useEffect(() => subscribeOpenRequests((r) => { goDay(r.date); }), [goDay]);
 
   // 안드로이드 뒤로가기: 홈이 아니면 홈으로
   useEffect(() => {
@@ -118,7 +123,7 @@ function Main() {
       </SafeAreaView>
 
       <TaskSheet task={openTask} onClose={() => setOpenId(null)} onDeleted={onDeleted} onError={onError} />
-      <ReminderSheet task={bellTask} visible={!!bellTask} onClose={() => setBellId(null)} />
+      {bellTask && <ReminderSheet task={bellTask} visible onClose={() => setBellId(null)} />}
       <DatePickerSheet visible={picking} value={day} onClose={() => setPicking(false)} onPick={setDay} countByDay={countByDay} title="날짜로 이동" />
       <Toast
         text={toast?.text ?? null}

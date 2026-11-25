@@ -103,7 +103,7 @@ export default function CalendarScreen(p: CalendarProps) {
           const all = byDay[k] ?? [];
           if (p.mode === 'daily') {
             return (
-              <View key={k} testID={`day-${k}`}>
+              <View key={k} testID={`section-${k}`}>
                 {list.length === 0 ? (
                   <Text style={s.empty} testID="day-empty">
                     {all.length === 0 ? '이 날은 업무가 없어요.\n아래에서 할 일을 추가할 수 있어요.' : p.filter === 'done' ? '완료한 업무가 없어요.' : '남은 업무가 없어요.'}
@@ -117,7 +117,7 @@ export default function CalendarScreen(p: CalendarProps) {
           const dd = parseDay(k);
           const doneN = all.filter((t) => t.done).length;
           return (
-            <View key={k} style={[s.section, list.length === 0 && s.sectionEmpty]} testID={`day-${k}`}>
+            <View key={k} style={[s.section, list.length === 0 && s.sectionEmpty]} testID={`section-${k}`}>
               <Pressable
                 onPress={() => { p.setDay(k); p.setMode('daily'); }}
                 style={s.secHead}

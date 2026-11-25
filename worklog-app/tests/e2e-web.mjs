@@ -126,18 +126,18 @@ check('23 오늘 버튼', (await tid(page, 'period-label').innerText()).includes
 // 알림
 const longId = (await stored(page)).find((t) => t.title === long).id;
 await tid(page, `bell-${longId}`).click();
-await tid(page, 'rm-input').fill('23:59');
-await tid(page, 'rm-save').click();
-await page.waitForTimeout(150);
+await tid(page, 'reminder-save').click();
+await page.waitForTimeout(200);
 const rem = (await stored(page)).find((t) => t.id === longId).remindAt;
-check('24 알림 시각 저장', !!rem && new Date(rem).getHours() === 23 || now.getHours() === 23, rem);
+check('24 알림 시각 저장', !!rem && Date.parse(rem) > Date.now(), rem);
+check('25 알림 표시', (await tid(page, `bell-${longId}`).getAttribute('aria-label')).includes('바꾸기'));
 await tid(page, `bell-${firstId}`).click();
-await tid(page, 'rm-input').fill('99:99');
-await tid(page, 'rm-save').click();
-check('25 잘못된 시각 안내', await tid(page, 'rm-err').isVisible());
-await page.keyboard.press('Escape');
-await page.mouse.click(10, 10);
-await page.waitForTimeout(300);
+await tid(page, 'reminder-save').click();
+await page.waitForTimeout(200);
+await tid(page, `bell-${firstId}`).click();
+await tid(page, 'reminder-off').click();
+await page.waitForTimeout(200);
+check('25b 알림 끄기', !(await stored(page)).find((t) => t.id === firstId).remindAt);
 
 // 주간·월간: 날짜는 다 보이고, 업무 없는 날은 날짜만
 await tid(page, 'mode-weekly').click();

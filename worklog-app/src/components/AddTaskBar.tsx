@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { taskStore } from '../data/taskStore';
@@ -12,6 +12,8 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
   const [target, setTarget] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  // 보는 날이 바뀌면 고른 예약 날짜는 풀고, 쓰던 글은 그대로 둠
+  useEffect(() => setTarget(null), [day]);
   const date = target ?? day;
   const today = toDayKey(new Date());
 
@@ -19,12 +21,14 @@ export default function AddTaskBar({ day, onAdded, onError }: { day: string; onA
   const add = async (raw?: string) => {
     const t = (raw ?? text).trim();
     if (!t) return;
+    // 엔터가 연달아 와도 두 번 넣지 않도록 먼저 비움. 실패하면 되돌려 놓음
+    setText('');
     try {
       await taskStore.add({ title: t, date });
-      setText('');
       setTarget(null);
       onAdded?.(date);
     } catch {
+      setText(t);
       onError('저장하지 못했어요. 다시 눌러 주세요.');
     }
   };
@@ -73,6 +77,6 @@ const s = StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: C.line },
   date: { flexDirection: 'row', alignItems: 'center', gap: 4, height: HIT, paddingHorizontal: 10, borderRadius: R.m, backgroundColor: C.blue50 },
   dateText: { fontSize: 14, fontWeight: '600', color: C.blueText },
-  input: { flex: 1, minWidth: 0, height: HIT, borderRadius: R.m, backgroundColor: C.greyBg, paddingHorizontal: 14, fontSize: 16, color: C.text },
+  input: { flex: 1, minWidth: 0, minHeight: HIT, borderRadius: R.m, backgroundColor: C.greyBg, paddingHorizontal: 14, fontSize: 16, color: C.text },
   btn: { width: HIT, height: HIT, borderRadius: R.m, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center' },
 });

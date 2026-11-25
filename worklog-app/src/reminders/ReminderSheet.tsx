@@ -95,14 +95,20 @@ export default function ReminderSheet({ task, visible, onClose }: Props) {
       setPerm(p);
       await taskStore.update(task.id, { remindAt: sel.toISOString() });
       onClose();
+    } catch {
+      setError('알림을 저장하지 못했어요. 다시 눌러 주세요.');
     } finally {
       setSaving(false);
     }
   }
 
   async function turnOff() {
-    await taskStore.update(task.id, { remindAt: undefined });
-    onClose();
+    try {
+      await taskStore.update(task.id, { remindAt: undefined });
+      onClose();
+    } catch {
+      setError('알림을 끄지 못했어요. 다시 눌러 주세요.');
+    }
   }
 
   const h = sel.getHours();
@@ -187,7 +193,7 @@ export default function ReminderSheet({ task, visible, onClose }: Props) {
 function Chip({ label, on, onPress, testID }: { label: string; on: boolean; onPress: () => void; testID?: string }) {
   return (
     <Pressable onPress={onPress} style={[st.chip, on && st.chipOn]} accessibilityRole="radio"
-      accessibilityState={{ selected: on }} testID={testID}>
+      accessibilityState={{ checked: on }} aria-checked={on} testID={testID}>
       <Text style={[st.chipText, on && st.chipTextOn]}>{label}</Text>
     </Pressable>
   );
@@ -198,11 +204,11 @@ function Stepper({ value, unit, onMinus, onPlus, testID }: { value: string; unit
     <View style={st.stepper} accessibilityRole="adjustable" accessibilityLabel={`${value}${unit}`}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => (e.nativeEvent.actionName === 'increment' ? onPlus() : onMinus())}>
-      <Pressable onPress={onMinus} style={st.stepBtn} accessibilityLabel={`${unit} 줄이기`} testID={`${testID}-minus`}>
+      <Pressable onPress={onMinus} style={st.stepBtn} accessibilityRole="button" accessibilityLabel={`${unit} 줄이기`} testID={`${testID}-minus`}>
         <Text style={st.stepBtnText}>−</Text>
       </Pressable>
       <Text style={st.stepValue} testID={`${testID}-value`}>{value}<Text style={st.stepUnit}>{unit}</Text></Text>
-      <Pressable onPress={onPlus} style={st.stepBtn} accessibilityLabel={`${unit} 늘리기`} testID={`${testID}-plus`}>
+      <Pressable onPress={onPlus} style={st.stepBtn} accessibilityRole="button" accessibilityLabel={`${unit} 늘리기`} testID={`${testID}-plus`}>
         <Text style={st.stepBtnText}>+</Text>
       </Pressable>
     </View>
@@ -217,30 +223,30 @@ const st = StyleSheet.create({
   body: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
   h: { fontSize: 22, fontWeight: '700', color: C.text, letterSpacing: -0.3 },
   taskTitle: { fontSize: 15, color: C.sub, marginTop: 6, lineHeight: 22 },
-  status: { fontSize: 15, color: C.primary, fontWeight: '600', marginTop: 12 },
+  status: { fontSize: 15, color: C.blueText, fontWeight: '600', marginTop: 12 },
   section: { fontSize: 13, fontWeight: '600', color: C.sub, marginTop: 24, marginBottom: 4 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  chip: { minHeight: HIT - 4, paddingHorizontal: 16, borderRadius: 999, backgroundColor: C.bg, justifyContent: 'center' },
-  chipOn: { backgroundColor: C.primarySoft },
+  chip: { minHeight: HIT, paddingHorizontal: 16, borderRadius: 999, backgroundColor: C.greyBg, borderWidth: 1, borderColor: C.grey300, justifyContent: 'center' },
+  chipOn: { backgroundColor: C.blue50, borderColor: C.blue },
   chipText: { fontSize: 15, fontWeight: '600', color: C.text },
-  chipTextOn: { color: C.primary },
+  chipTextOn: { color: C.blueText },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
-  ampm: { minHeight: HIT + 4, minWidth: 64, borderRadius: 14, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  ampm: { minHeight: HIT + 4, minWidth: 64, borderRadius: 14, backgroundColor: C.greyBg, alignItems: 'center', justifyContent: 'center' },
   ampmText: { fontSize: 17, fontWeight: '700', color: C.text },
-  stepper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.bg, borderRadius: 14, minHeight: HIT + 4 },
+  stepper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.greyBg, borderRadius: 14, minHeight: HIT + 4 },
   stepBtn: { width: HIT, height: HIT, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { fontSize: 22, color: C.primary, fontWeight: '600' },
+  stepBtnText: { fontSize: 22, color: C.blueText, fontWeight: '600' },
   stepValue: { fontSize: 20, fontWeight: '700', color: C.text, fontVariant: ['tabular-nums'] },
   stepUnit: { fontSize: 15, fontWeight: '600', color: C.sub },
   preview: { fontSize: 15, color: C.sub, marginTop: 12 },
   error: { fontSize: 14, color: C.danger, marginTop: 12 },
-  notice: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: C.bg },
+  notice: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: C.greyBg },
   noticeText: { fontSize: 14, color: C.sub, lineHeight: 20, marginTop: 12 },
   noticeBtn: { minHeight: HIT, justifyContent: 'center' },
-  noticeLink: { fontSize: 15, fontWeight: '700', color: C.primary },
+  noticeLink: { fontSize: 15, fontWeight: '700', color: C.blueText },
   footer: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   cta: { flex: 1, minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ctaPrimary: { backgroundColor: C.primary, flex: 2 },
-  ctaGhost: { backgroundColor: C.bg },
+  ctaGhost: { backgroundColor: C.greyBg },
   ctaText: { fontSize: 17, fontWeight: '700' },
 });

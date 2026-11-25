@@ -21,16 +21,34 @@ function emit() {
 
 /** 읽기에 실패했으면 원본을 덮어쓰지 않도록 쓰기를 막는다 */
 let loadFailed = false;
+/** 읽은 데이터 중 모양이 이상해 빼 둔 항목 수(원본은 따로 보관) */
+let skipped = 0;
 
-function commit(next: Task[]): Promise<void> {
-  all = next;
-  emit();
-  if (loadFailed) return Promise.reject(new Error('저장된 데이터를 읽지 못해 쓰기를 멈췄어요'));
-  // 쓰기는 순서대로(겹쳐 쓰다 앞선 값이 뒤에 저장되는 일 방지). 실패는 호출한 쪽에 알림
-  const snapshot = JSON.stringify(next);
-  const p = writeChain.then(() => AsyncStorage.setItem(K_TASKS, snapshot));
+/**
+ * 모든 변경은 한 줄로 세워 처리한다: (최신 all 로 다음 상태 계산) → 디스크에 쓰기 → 성공하면 화면 반영.
+ * - 빠르게 연달아 눌러도 앞 변경을 덮어쓰지 않음
+ * - 쓰기가 실패하면 화면도 그대로라, '다시 눌러 주세요' 대로 해도 중복·반전이 생기지 않음
+ * - 리스너 안에서 다시 고쳐도(알림 모듈의 미루기 따라가기) 그 변경이 뒤에 쓰여 디스크가 최신으로 남음
+ */
+function mutate(fn: (cur: Task[]) => Task[]): Promise<void> {
+  const p = writeChain.then(async () => {
+    if (loadFailed) throw new Error('저장된 데이터를 읽지 못해 쓰기를 멈췄어요');
+    const next = fn(all);
+    if (next === all) return;
+    await AsyncStorage.setItem(K_TASKS, JSON.stringify(next));
+    all = next;
+    emit();
+  });
   writeChain = p.catch(() => {});
   return p;
+}
+const commit = (next: Task[]) => mutate(() => next);
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function isTask(t: any): t is Task {
+  return !!t && typeof t === 'object' && typeof t.id === 'string' && typeof t.title === 'string' &&
+    typeof t.date === 'string' && DAY_RE.test(t.date) && typeof t.done === 'boolean' &&
+    typeof t.updatedAt === 'string' && typeof t.createdAt === 'string';
 }
 
 // 합치기 규칙의 정본은 src/lib/merge.ts (동기화 모듈과 같은 함수)
@@ -39,11 +57,11 @@ export { mergeTasks };
 const now = () => new Date().toISOString();
 
 function patchOne(id: string, fn: (t: Task) => Task): Promise<void> {
-  return commit(all.map((t) => (t.id === id ? fn(t) : t)));
+  return mutate((cur) => cur.map((t) => (t.id === id ? fn(t) : t)));
 }
 
-function maxOrder(date: DayKey): number {
-  return all.filter((t) => t.date === date && !t.deletedAt).reduce((m, t) => Math.max(m, t.order), 0);
+function maxOrder(date: DayKey, cur: Task[] = all): number {
+  return cur.filter((t) => t.date === date && !t.deletedAt).reduce((m, t) => Math.max(m, t.order), 0);
 }
 
 export const taskStore: TaskRepository = {
@@ -55,7 +73,10 @@ export const taskStore: TaskRepository = {
           raw = await AsyncStorage.getItem(K_TASKS);
           const parsed = raw ? JSON.parse(raw) : [];
           if (!Array.isArray(parsed)) throw new Error('bad');
-          all = parsed;
+          all = parsed.filter(isTask).map((t: Task) => ({ ...t, order: Number.isFinite(t.order) ? t.order : 0 }));
+          skipped = parsed.length - all.length;
+          // 이상한 항목은 빼고 쓰되, 원본은 지우기 전에 따로 보관
+          if (skipped && raw) await AsyncStorage.setItem(`${K_TASKS}.corrupt.${Date.now()}`, raw).catch(() => {});
         } catch {
           all = [];
           // 깨진 원본은 따로 보관하고, 덮어쓰지 않도록 쓰기를 막는다
@@ -71,20 +92,24 @@ export const taskStore: TaskRepository = {
   getAllIncludingDeleted: () => all,
   replaceAll: (tasks) => commit(tasks),
   /** 동기화 결과를 '지금' 기기 데이터와 합쳐 넣는다(동기화 도중 입력한 것도 살림) */
-  applyRemote: (remote) => commit(mergeTasks(all, remote)),
+  applyRemote: (remote) => mutate((cur) => mergeTasks(cur, remote)),
   loadFailed: () => loadFailed,
+  skippedOnLoad: () => skipped,
   async add(input: NewTask) {
-    const t: Task = {
-      id: newId(),
-      title: input.title.trim(),
-      date: input.date,
-      done: false,
-      order: maxOrder(input.date) + 1,
-      ...(input.remindAt ? { remindAt: input.remindAt } : {}),
-      createdAt: now(),
-      updatedAt: now(),
-    };
-    await commit([...all, t]);
+    let t!: Task;
+    await mutate((cur) => {
+      t = {
+        id: newId(),
+        title: input.title.trim(),
+        date: input.date,
+        done: false,
+        order: maxOrder(input.date, cur) + 1,
+        ...(input.remindAt ? { remindAt: input.remindAt } : {}),
+        createdAt: now(),
+        updatedAt: now(),
+      };
+      return [...cur, t];
+    });
     return t;
   },
   update(id: string, patch: TaskPatch) {
@@ -128,6 +153,9 @@ export const taskStore: TaskRepository = {
   remove(id: string) {
     const ts = now();
     return patchOne(id, (t) => ({ ...t, deletedAt: ts, updatedAt: ts }));
+  },
+  revert(prev: Task) {
+    return patchOne(prev.id, () => ({ ...prev, updatedAt: now() }));
   },
   restore(id: string) {
     return patchOne(id, (t) => {

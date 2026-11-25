@@ -76,12 +76,16 @@ export interface TaskRepository {
   applyRemote(remote: Task[]): Promise<void>;
   /** 저장 데이터를 읽지 못해 쓰기를 막은 상태인지 */
   loadFailed(): boolean;
+  /** 읽을 때 모양이 이상해 빼 둔 항목 수(원본은 따로 보관됨) */
+  skippedOnLoad(): number;
   add(input: NewTask): Promise<Task>;
   update(id: string, patch: TaskPatch): Promise<void>;
   toggleDone(id: string): Promise<void>;
   /** 다른 날로 미루기(예약 포함: 미래 날짜로 옮기기) */
   postpone(id: string, to: DayKey): Promise<void>;
   remove(id: string): Promise<void>;
+  /** 미루기 등 직후 되돌리기: 바꾸기 전 업무로 돌려놓음(updatedAt 만 새로) */
+  revert(prev: Task): Promise<void>;
   /** 삭제 직후 되돌리기 */
   restore(id: string): Promise<void>;
   /** 변경될 때마다 호출. 해제 함수를 돌려줌 */

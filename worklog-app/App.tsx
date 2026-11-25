@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { taskStore } from './src/data/taskStore';
 import { useTasks, useTasksReady } from './src/data/useTasks';
 import { useToday } from './src/lib/useToday';
+import { shortDay } from './src/lib/dates';
 import type { Task, TaskFilter, ViewMode } from './src/types';
 import HomeScreen from './src/screens/HomeScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
@@ -44,8 +45,20 @@ function Main() {
   const bellTask = tasks.find((t) => t.id === bellId) ?? null;
 
   const onError = useCallback((m: string) => setToast({ text: m }), []);
-  const onDeleted = useCallback((t: Task) => setToast({ text: '삭제했어요', undo: () => taskStore.restore(t.id) }), []);
+  const undoFail = useCallback(() => setToast({ text: '되돌리지 못했어요. 다시 해 주세요.' }), []);
+  const onDeleted = useCallback((t: Task) => setToast({ text: '삭제했어요', undo: () => { taskStore.restore(t.id).catch(undoFail); } }), [undoFail]);
+  const onMoved = useCallback(
+    (prev: Task, to: string) => setToast({ text: `${shortDay(to)}로 옮겼어요`, undo: () => { taskStore.revert(prev).catch(undoFail); } }),
+    [undoFail],
+  );
   const goDay = useCallback((d: string) => { setDay(d); setMode('daily'); setTab('calendar'); }, []);
+
+  // 자정이 지나면: 오늘을 보고 있었으면 새 오늘로 따라감
+  const prevToday = useRef(today);
+  useEffect(() => {
+    if (prevToday.current !== today) setDay((d) => (d === prevToday.current ? today : d));
+    prevToday.current = today;
+  }, [today]);
 
   // 기기 알림·위젯을 업무 변경에 맞춰 둠(웹에서는 아무것도 안 함)
   useEffect(() => startReminderBridge(), []);
@@ -73,6 +86,9 @@ function Main() {
         <View style={st.header}>
           <Text style={T.h1} accessibilityRole="header">{tab === 'home' ? '할 일' : tab === 'calendar' ? '업무 기록' : '설정'}</Text>
         </View>
+        {taskStore.skippedOnLoad() > 0 && !taskStore.loadFailed() && (
+          <Text style={st.warn} testID="load-skipped">읽을 수 없는 업무 {taskStore.skippedOnLoad()}개는 빼고 열었어요. 원본은 따로 보관했어요.</Text>
+        )}
         {taskStore.loadFailed() && (
           <Text style={st.warn} testID="load-failed">저장된 업무를 읽지 못했어요. 원본은 따로 보관했고, 지금은 새로 적은 내용이 저장되지 않아요. 앱을 다시 열어 주세요.</Text>
         )}
@@ -91,7 +107,6 @@ function Main() {
           </View>
           {tab !== 'settings' && (
             <AddTaskBar
-              key={addDay}
               day={addDay}
               onError={onError}
               onAdded={(d) => { if (d !== addDay) setToast({ text: `${d.slice(5).replace('-', '/')}에 예약했어요` }); }}
@@ -122,7 +137,7 @@ function Main() {
         </View>
       </SafeAreaView>
 
-      <TaskSheet task={openTask} onClose={() => setOpenId(null)} onDeleted={onDeleted} onError={onError} />
+      <TaskSheet task={openTask} onClose={() => setOpenId(null)} onDeleted={onDeleted} onMoved={onMoved} onError={onError} />
       {bellTask && <ReminderSheet task={bellTask} visible onClose={() => setBellId(null)} />}
       <DatePickerSheet visible={picking} value={day} onClose={() => setPicking(false)} onPick={setDay} countByDay={countByDay} title="날짜로 이동" />
       <Toast

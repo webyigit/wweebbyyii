@@ -81,13 +81,13 @@ export default function CalendarScreen(p: CalendarProps) {
           </Pressable>
           <Pressable
             onPress={() => p.setDay(p.today)}
-            style={[s.todayBtn, isCurrent && { opacity: 0.3 }]}
+            style={[s.todayHit, isCurrent && { opacity: 0.3 }]}
             disabled={isCurrent}
             accessibilityRole="button"
             accessibilityState={{ disabled: isCurrent }}
             testID="today"
           >
-            <Text style={s.todayText}>오늘</Text>
+            <View style={s.todayBtn}><Text style={s.todayText}>오늘</Text></View>
           </Pressable>
         </View>
         {p.mode === 'daily' && <WeekStrip day={p.day} today={p.today} byDay={byDay} onPick={p.setDay} />}
@@ -179,12 +179,13 @@ const s = StyleSheet.create({
   arrow: { width: HIT, height: HIT, alignItems: 'center', justifyContent: 'center' },
   labelBtn: { flex: 1, minHeight: HIT, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   label: { fontSize: 17, fontWeight: '700', color: C.text, textAlign: 'center', flexShrink: 1 },
-  todayBtn: { height: 34, paddingHorizontal: 12, borderRadius: R.full, backgroundColor: C.greyBg, justifyContent: 'center', marginLeft: 4 },
+  todayHit: { minHeight: HIT, minWidth: HIT, justifyContent: 'center', marginLeft: 4 },
+  todayBtn: { minHeight: 34, paddingHorizontal: 12, borderRadius: R.full, backgroundColor: C.greyBg, justifyContent: 'center' },
   todayText: { fontSize: 14, fontWeight: '700', color: C.grey700 },
   strip: { flexDirection: 'row' },
   stripCell: { flex: 1, alignItems: 'center', paddingVertical: 4, minHeight: HIT },
   stripWd: { fontSize: 12, color: C.grey600, marginBottom: 4 },
-  stripDay: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  stripDay: { minWidth: 36, minHeight: 36, paddingHorizontal: 4, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   stripDayOn: { backgroundColor: C.blue },
   stripToday: { borderWidth: 1.5, borderColor: C.blue },
   stripNum: { fontSize: 16, color: C.text },

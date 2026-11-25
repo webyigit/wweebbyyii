@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated, KeyboardAvoidingView, TextInput, type TextInputProps, Modal, Platform, Pressable, StyleSheet, Text, View,
+  AccessibilityInfo, Animated, KeyboardAvoidingView, TextInput, type TextInputProps, Modal, Platform, Pressable, StyleSheet, Text, View,
   type StyleProp, type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,10 +77,12 @@ export function Chip({ label, on, onPress, testID }: { label: string; on: boolea
       accessibilityState={{ checked: on }}
       aria-checked={on}
       testID={testID}
-      hitSlop={{ top: 5, bottom: 5 }}
-      style={[st.chip, on && st.chipOn]}
+      style={st.chipHit}
     >
-      <Text style={[st.chipText, on && { color: '#fff' }]}>{label}</Text>
+      {/* 보이는 칩은 토스 규격 34, 누르는 영역은 44 */}
+      <View style={[st.chip, on && st.chipOn]}>
+        <Text style={[st.chipText, on && { color: '#fff' }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -140,11 +142,15 @@ export function Sheet({
 export function Toast({
   text, actionLabel, onAction, onHide, ms = 4000,
 }: { text: string | null; actionLabel?: string; onAction?: () => void; onHide: () => void; ms?: number }) {
+  // 되돌리기가 있으면 넉넉히(WCAG 2.2.1)
+  const life = actionLabel ? Math.max(ms, 8000) : ms;
   const op = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!text) return;
+    // VoiceOver 는 accessibilityLiveRegion 을 모르므로 직접 읽어 줌
+    AccessibilityInfo.announceForAccessibility(text + (actionLabel ? `, ${actionLabel} 가능` : ''));
     Animated.timing(op, { toValue: 1, duration: 200, useNativeDriver: Platform.OS !== 'web' }).start();
-    const t = setTimeout(onHide, ms);
+    const t = setTimeout(onHide, life);
     return () => clearTimeout(t);
   }, [text]);
   if (!text) return null;
@@ -189,7 +195,8 @@ export const st = StyleSheet.create({
   segOn: { backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, ...(Platform.OS === 'android' ? { elevation: 1 } : { shadowColor: '#0A1A3A', shadowOpacity: 0.06, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }) },
   segText: { fontSize: 15, fontWeight: '500', color: C.grey600 },
   segTextOn: { color: C.text, fontWeight: '700' },
-  chip: { height: 34, paddingHorizontal: 14, borderRadius: R.full, borderWidth: 1, borderColor: C.grey300, backgroundColor: C.bg, justifyContent: 'center' },
+  chipHit: { minHeight: HIT, justifyContent: 'center' },
+  chip: { minHeight: 34, paddingHorizontal: 14, borderRadius: R.full, borderWidth: 1, borderColor: C.grey300, backgroundColor: C.bg, justifyContent: 'center' },
   chipOn: { backgroundColor: C.text, borderColor: C.text },
   chipText: { fontSize: 14, fontWeight: '600', color: C.grey700 },
   checkHit: { width: HIT, height: HIT, alignItems: 'center', justifyContent: 'center' },
@@ -200,7 +207,7 @@ export const st = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: C.scrim },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 10, width: '100%', maxWidth: MAX_W, alignSelf: 'center' },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.grey300, marginBottom: 14 },
-  toastWrap: { position: 'absolute', left: 0, right: 0, bottom: 96, alignItems: 'center', paddingHorizontal: 16 },
+  toastWrap: { position: 'absolute', left: 0, right: 0, bottom: 150, alignItems: 'center', paddingHorizontal: 16 },
   toast: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.text, borderRadius: R.l, paddingLeft: 18, paddingRight: 6, minHeight: 52, maxWidth: MAX_W - 32, width: '100%' },
   toastText: { color: '#fff', fontSize: 15, flex: 1, paddingVertical: 12 },
   toastBtn: { minHeight: HIT, paddingHorizontal: 12, justifyContent: 'center' },

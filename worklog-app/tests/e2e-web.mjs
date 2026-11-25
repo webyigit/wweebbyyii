@@ -67,8 +67,10 @@ const order = await titles(page);
 check('07 체크하면 맨 아래로', order[order.length - 1] === '회의 자료 준비', order.join('|'));
 const deco = await page.locator(`[data-testid="open-${firstId}"] >> text=회의 자료 준비`).evaluate((e) => getComputedStyle(e).textDecorationLine);
 check('08 체크하면 취소선', deco.includes('line-through'));
-const op = await tid(page, `task-${firstId}`).evaluate((e) => getComputedStyle(e).opacity);
-check('09 체크하면 흐리게', Number(op) < 1, op);
+const col = await page.locator(`[data-testid="open-${firstId}"] >> text=회의 자료 준비`).evaluate((e) => getComputedStyle(e).color);
+check('09 체크하면 흐린 회색(투명도 대신, 대비 4.5 이상 유지)', col === 'rgb(107, 118, 132)', col);
+const chipH = (await tid(page, 'filter-all').boundingBox()).height;
+check('09b 필터 칩 누르는 영역 44 이상', chipH >= 44, chipH);
 await shot('e1-daily');
 
 await tid(page, 'filter-done').click();
@@ -97,6 +99,15 @@ await page.waitForTimeout(100);
 if (plus(1) !== today && !(await titles(page)).length) { await tid(page, 'next').click(); }
 check('15 내일에서 보임', (await titles(page)).includes('경비 정산 (11월분)'));
 check('16 미룸 표시', (await page.locator(`[data-testid="open-${gyeongbi}"]`).innerText()).includes('1번 미룸'));
+// 미루면 안내 + 되돌리기
+await tid(page, `open-${gyeongbi}`).click();
+await tid(page, 'pp-tomorrow').click();
+await page.waitForTimeout(150);
+check('16b 미루면 안내', (await tid(page, 'toast').innerText()).includes('옮겼어요'));
+await tid(page, 'toast-action').click();
+await page.waitForTimeout(150);
+const back = (await stored(page)).find((t) => t.id === gyeongbi);
+check('16c 미루기 되돌리기', back.date === plus(1) && back.postponedCount === 1, JSON.stringify(back));
 await tid(page, 'today').click();
 
 // 예약: 날짜 골라 미래에 추가
@@ -203,7 +214,23 @@ const raw = await broken.evaluate(() => localStorage.getItem('worklog.tasks.v2')
 check('41 깨진 원본을 덮어쓰지 않음', raw === '{깨진 데이터');
 check('42 원본 사본 보관', await broken.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('worklog.tasks.v2.corrupt.'))));
 
-check('43 화면 오류 없음', errors.length === 0, errors.join(' / '));
+// ---------- 저장 항목 일부가 이상할 때 ----------
+const nul = await open({ ...devices['iPhone 15'] }, JSON.stringify([null, { id: 'x' }, { id: 'ok', title: '정상 업무', date: today, done: false, order: 1, createdAt: now.toISOString(), updatedAt: now.toISOString() }]));
+check('43 이상한 항목 빼고 열림', await tid(nul, 'load-skipped').isVisible());
+check('44 정상 업무는 보임', (await tid(nul, 'home').innerText()).includes('정상 업무'));
+
+// ---------- 저장이 실패할 때: 화면에 거짓 반영·중복 없음 ----------
+const ro = await open({ ...devices['iPhone 15'] });
+await ro.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('full'); }; });
+await add(ro, '보고서');
+check('45 저장 실패 안내', (await tid(ro, 'toast').innerText()).includes('저장하지 못했어요'));
+check('46 실패한 업무는 화면에 안 생김', !(await tid(ro, 'home').innerText()).includes('보고서'));
+check('47 입력한 글은 남아 다시 누를 수 있음', (await tid(ro, 'add-input').inputValue()) === '보고서');
+await tid(ro, 'add-btn').click();
+await ro.waitForTimeout(150);
+check('48 다시 눌러도 중복 없음', (await ro.locator('[data-testid^="open-"]').count()) === 0);
+
+check('49 화면 오류 없음', errors.length === 0, errors.join(' / '));
 console.log(`\n${pass} 통과 / ${fail} 실패`);
 await browser.close();
 server.close();

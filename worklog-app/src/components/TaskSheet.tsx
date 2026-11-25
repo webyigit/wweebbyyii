@@ -9,8 +9,8 @@ import { C } from '../theme';
 
 /** 업무 수정·미루기·삭제 */
 export default function TaskSheet({
-  task, onClose, onDeleted, onError,
-}: { task: Task | null; onClose: () => void; onDeleted: (t: Task) => void; onError: (msg: string) => void }) {
+  task, onClose, onDeleted, onMoved, onError,
+}: { task: Task | null; onClose: () => void; onDeleted: (t: Task) => void; onMoved: (prev: Task, to: string) => void; onError: (msg: string) => void }) {
   const [title, setTitle] = useState('');
   const [picking, setPicking] = useState(false);
   useEffect(() => { if (task) setTitle(task.title); }, [task?.id]);
@@ -34,8 +34,10 @@ export default function TaskSheet({
     try {
       const t = title.trim();
       if (t && t !== task.title) await taskStore.update(task.id, { title: t });
+      const prev = task;
       await taskStore.postpone(task.id, day);
       onClose();
+      if (day !== prev.date) onMoved(prev, day);
     } catch { onError('옮기지 못했어요. 다시 눌러 주세요.'); }
   };
   const del = async () => {

@@ -17,7 +17,7 @@ export function useTasks(): Task[] {
 export function useTasksReady(): boolean {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    taskStore.ready().then(() => setReady(true));
+    taskStore.ready().catch(() => {}).finally(() => setReady(true));
   }, []);
   return ready;
 }

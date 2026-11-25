@@ -8,7 +8,7 @@ import { taskStore } from '../data/taskStore';
 
 /**
  * 업무 한 줄: [체크] 내용(말줄임 없음) [알림]
- * 완료하면 취소선 + 흐리게. 줄을 누르면 수정·미루기·삭제 시트.
+ * 완료하면 취소선 + 흐린 회색 글자(투명도는 대비가 무너져 안 씀). 줄을 누르면 수정·미루기·삭제 시트.
  */
 export default function TaskRow({
   task, onOpen, onBell, showDate, onError,
@@ -18,7 +18,7 @@ export default function TaskRow({
   if (task.remindAt) meta.push(`${hhmm(task.remindAt)} 알림`);
   if (task.postponedCount) meta.push(`${task.postponedCount}번 미룸`);
   return (
-    <View style={[s.row, task.done && { opacity: 0.45 }]} testID={`task-${task.id}`}>
+    <View style={s.row} testID={`task-${task.id}`}>
       <Checkbox
         checked={task.done}
         label={`${task.title} ${task.done ? '완료됨' : '완료하기'}`}

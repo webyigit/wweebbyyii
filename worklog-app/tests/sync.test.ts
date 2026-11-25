@@ -50,8 +50,8 @@ test('파일 검사: 다른 JSON·v1·더 새 버전은 거부(덮어쓰지 않�
   assert.throws(() => parseSyncFile('not json'));
   assert.throws(() => parseSyncFile(JSON.stringify({ app: 'worklog', version: 1, entries: [] })), /v1/);
   assert.throws(() => parseSyncFile(JSON.stringify({ app: 'worklog', version: 3, tasks: [] })), /업데이트/);
-  const f = parseSyncFile(file([T('ok', '2026-11-25T10:00:00Z'), { id: 1 }, null]));
-  assert.equal(f.tasks.length, 1);
+  assert.throws(() => parseSyncFile(file([T('ok', '2026-11-25T10:00:00Z'), { id: 1 }, null])), /2개/);
+  assert.equal(parseSyncFile(file([T('ok', '2026-11-25T10:00:00Z')])).tasks.length, 1);
 });
 
 test('보안: 원격 항목 위조 차단(먼 미래 시각·형식 오류·이상한 id)', () => {
@@ -65,7 +65,8 @@ test('보안: 원격 항목 위조 차단(먼 미래 시각·형식 오류·이�
     { ...T('e', '2026-11-22T10:00:00Z'), done: 'yes' },
     { ...T('f', '2026-11-22T10:00:00Z'), order: 'NaN' },
   ];
-  assert.equal(parseSyncFile(file(bad), now).tasks.length, 0);
+  // 위조·형식 오류 항목은 받아들이지도, 버린 채 덮어쓰지도 않고 멈춘다
+  for (const b of bad) assert.throws(() => parseSyncFile(file([T('ok', '2026-11-25T10:00:00Z'), b]), now), /읽을 수 없는 업무가 1개/);
   const long = parseSyncFile(file([T('g', '2026-11-25T10:00:00Z', { title: 'x'.repeat(50000) })]), now);
   assert.equal(long.tasks[0].title.length, 5000);
 });

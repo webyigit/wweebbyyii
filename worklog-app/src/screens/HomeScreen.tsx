@@ -48,7 +48,7 @@ export default function HomeScreen({
         <View style={s.block} testID="home-overdue">
           <View style={s.head}>
             <Text style={[s.h, { color: C.redText }]}>밀린 일</Text>
-            <Button title="모두 오늘로" kind="weak" size="m" onPress={moveAllToToday} style={{ height: 36 }} testID="move-all" />
+            <Button title="모두 오늘로" kind="weak" size="m" onPress={moveAllToToday} testID="move-all" />
           </View>
           {overdue.map((t) => row(t, true))}
         </View>
@@ -89,6 +89,6 @@ const s = StyleSheet.create({
   h: { fontSize: 18, fontWeight: '700', color: C.text },
   more: { fontSize: 14, fontWeight: '600', color: C.blueText },
   empty: { ...T.body2, paddingVertical: 12 },
-  sub: { minHeight: 36, justifyContent: 'center' },
+  sub: { minHeight: HIT, justifyContent: 'center' },
   subText: { fontSize: 14, fontWeight: '700', color: C.grey700 },
 });

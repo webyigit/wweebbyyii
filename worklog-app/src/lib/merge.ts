@@ -97,7 +97,12 @@ export function parseSyncFile(text: string, now = Date.now()): SyncFileV2 {
     (t.remindAt === undefined || (typeof t.remindAt === 'string' && ISO_RE.test(t.remindAt))) &&
     (t.originalDate === undefined || (typeof t.originalDate === 'string' && DAY_RE.test(t.originalDate))) &&
     (t.postponedCount === undefined || (Number.isInteger(t.postponedCount) && t.postponedCount >= 0));
-  const tasks: Task[] = data.tasks.filter(ok).map((t: Task) => {
+  // 읽을 수 없는 항목이 하나라도 있으면 버리고 덮어쓰지 않는다(버리면 저장소에서 영구 삭제됨)
+  const bad = data.tasks.filter((t: unknown) => !ok(t)).length;
+  if (bad) {
+    throw new SyncFileError(`저장소 파일에 이 앱이 읽을 수 없는 업무가 ${bad}개 있어요. 지우지 않도록 동기화를 멈췄어요. 다른 기기의 시계나 앱 버전을 확인해 주세요.`);
+  }
+  const tasks: Task[] = data.tasks.map((t: Task) => {
     // 다른 기기의 새 앱이 추가한 필드는 잃지 않게 단순 값(글·숫자·참거짓)만 그대로 옮긴다.
     // 객체·배열·긴 글은 버린다(끼워 넣기 차단).
     const extra: Record<string, string | number | boolean> = {};

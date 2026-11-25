@@ -75,8 +75,24 @@ test('합치기: 나중에 고친 쪽, 삭제 전달', () => {
 test('파일 검사: 다른 JSON 은 거부, 이상한 항목은 버림', () => {
   assert.throws(() => parseSyncFile('{"foo":1}'));
   assert.throws(() => parseSyncFile('not json'));
-  const f = parseSyncFile(JSON.stringify({ app: 'worklog', entries: [E('daily:2026-11-25', 'x'), { id: 1 }, null] }));
+  const f = parseSyncFile(JSON.stringify({ app: 'worklog', entries: [E('daily:2026-11-25', '2026-11-25T10:00:00Z'), { id: 1 }, null] }));
   assert.equal(f.entries.length, 1);
+});
+
+test('보안: 원격 항목 위조 차단(id 불일치·먼 미래 시각·형식 오류)', () => {
+  const bad = [
+    { ...E('daily:2026-11-25', '2026-11-25T10:00:00Z'), period: 'weekly', key: 'garbage' }, // id 와 period·key 불일치
+    E('daily:2026-11-24', '9999'), // 문자열 비교로 항상 이기는 값
+    E('daily:2026-11-23', '9999-01-01T00:00:00Z'), // 먼 미래
+    E('daily:2026-11-22', '2026-11-22T10:00:00Z', { deletedAt: '9999-01-01T00:00:00Z' }), // 영구 삭제 시도
+    E('daily:2026-13-01', '2026-11-22T10:00:00Z'), // 없는 날짜 키
+    E('weekly:2026-W60', '2026-11-22T10:00:00Z'),
+  ];
+  const f = parseSyncFile(JSON.stringify({ app: 'worklog', entries: bad }));
+  assert.equal(f.entries.length, 0);
+  // 정상 항목의 긴 글은 잘라서 받음
+  const long = parseSyncFile(JSON.stringify({ app: 'worklog', entries: [E('monthly:2026-11', '2026-11-25T10:00:00Z', { memo: 'x'.repeat(50000) })] }));
+  assert.equal(long.entries[0].memo.length, 20000);
 });
 
 test('설정 검사: 경로 조작 차단', () => {

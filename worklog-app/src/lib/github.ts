@@ -3,6 +3,7 @@ import { decodeBase64, encodeBase64 } from './base64';
 import { mergeEntries, parseSyncFile } from './merge';
 
 const API = 'https://api.github.com';
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const NAME_RE = /^[A-Za-z0-9_.-]{1,100}$/;
 
 export class GitHubError extends Error {}
@@ -85,6 +86,9 @@ export async function readRemote(c: GitHubConfig, token: string): Promise<Remote
   if (!r.ok) throw explain(r.status, '파일');
   const j = await r.json();
   if (Array.isArray(j) || j.type !== 'file') throw new GitHubError('파일 경로가 폴더를 가리킵니다. 파일 이름까지 적어 주세요.');
+  if (typeof j.size === 'number' && j.size > MAX_FILE_BYTES) {
+    throw new GitHubError('저장소 파일이 너무 큽니다(5MB 초과). 파일 경로를 확인하세요.');
+  }
   let content: string = j.content ?? '';
   if (!content && j.sha) {
     // 1MB 넘는 파일은 contents API 가 본문을 안 줌 → blob 으로 받기

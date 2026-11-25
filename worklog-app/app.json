@@ -21,7 +21,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.webyigit.worklog"
+      "package": "com.webyigit.worklog",
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/favicon.png",

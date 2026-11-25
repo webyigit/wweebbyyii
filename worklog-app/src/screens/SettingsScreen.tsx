@@ -6,6 +6,7 @@ import { GitHubError, sync, testConnection, validateConfig } from '../lib/github
 import { fmtTime } from '../lib/dates';
 import { Button, Field } from '../components/ui';
 import { C, R } from '../theme';
+import type { GitHubConfig } from '../types';
 
 type Msg = { kind: 'ok' | 'err' | 'info'; text: string } | null;
 
@@ -20,22 +21,16 @@ export default function SettingsScreen() {
   useEffect(() => { setCfg(store.config); }, [store.config]);
   useEffect(() => { getToken().then((t) => setHasToken(!!t)); }, []);
 
-  /** 입력값 저장 + 토큰 확보. 문제 있으면 null */
-  const prepare = async (): Promise<string | null> => {
+  /** 입력값 검사·저장 + 토큰 확보. 문제 있으면 null. 검사한 값(c)만 이후에 쓴다 */
+  const prepare = async (): Promise<{ c: GitHubConfig; t: string; isNew: boolean } | null> => {
     const c = { owner: cfg.owner.trim(), repo: cfg.repo.trim(), branch: cfg.branch.trim(), path: cfg.path.trim() };
     const bad = validateConfig(c);
     if (bad) { setMsg({ kind: 'err', text: bad }); return null; }
     await store.setConfig(c);
-    let t = token.trim();
-    if (t) {
-      await setToken(t);
-      setTokenInput('');
-      setHasToken(true);
-    } else {
-      t = (await getToken()) ?? '';
-    }
+    const typed = token.trim();
+    const t = typed || (await getToken()) || '';
     if (!t) { setMsg({ kind: 'err', text: 'GitHub 토큰을 넣어 주세요.' }); return null; }
-    return t;
+    return { c, t, isNew: !!typed };
   };
 
   const run = async (kind: 'test' | 'sync') => {
@@ -43,20 +38,31 @@ export default function SettingsScreen() {
     setMsg(null);
     setBusy(kind);
     try {
-      const t = await prepare();
-      if (!t) return;
-      if (kind === 'test') {
-        const info = await testConnection(cfg, t);
-        if (!info.canWrite) setMsg({ kind: 'err', text: '저장소는 보이지만 쓰기 권한이 없습니다. 토큰에 Contents 읽기/쓰기를 주세요.' });
-        else if (!info.branchExists) setMsg({ kind: 'err', text: `브랜치 '${cfg.branch}' 가 없습니다.` });
-        else setMsg({ kind: info.isPrivate ? 'ok' : 'info', text: info.isPrivate ? '연결됨 · 비공개 저장소입니다.' : '연결됨 · 단, 공개 저장소라 누구나 기록을 볼 수 있습니다. 비공개 저장소를 권장합니다.' });
-      } else {
-        const r = await sync(cfg, t, store.all);
-        await store.replaceAll(r.entries);
-        const now = new Date().toISOString();
-        await store.setLastSync(now);
-        setMsg({ kind: 'ok', text: `동기화 완료 · 받아온 변경 ${r.pulled}건${r.pushed ? ' · 저장소에 올림' : ' · 올릴 변경 없음'}` });
+      const p = await prepare();
+      if (!p) return;
+      const { c, t } = p;
+      // 연결부터 확인: 권한·브랜치·공개 여부. 공개 저장소면 기록이 누구에게나 보이므로 동기화를 막는다
+      const info = await testConnection(c, t);
+      // 토큰은 GitHub 가 받아 준 뒤에만 보안 저장소에 넣는다(틀린 토큰이 '저장됨'으로 남지 않게)
+      if (p.isNew) {
+        await setToken(t);
+        setTokenInput('');
+        setHasToken(true);
       }
+      if (!info.canWrite) { setMsg({ kind: 'err', text: '저장소는 보이지만 쓰기 권한이 없습니다. 토큰에 Contents 읽기/쓰기를 주세요.' }); return; }
+      if (!info.branchExists) { setMsg({ kind: 'err', text: `브랜치 '${c.branch}' 가 없습니다.` }); return; }
+      if (!info.isPrivate) {
+        setMsg({ kind: 'err', text: '공개 저장소입니다. 업무 기록이 누구에게나 보이므로 동기화하지 않았습니다. 비공개(private) 저장소를 지정하세요.' });
+        return;
+      }
+      if (kind === 'test') {
+        setMsg({ kind: 'ok', text: '연결됨 · 비공개 저장소, 쓰기 권한 확인.' });
+        return;
+      }
+      const r = await sync(c, t, store.all);
+      await store.replaceAll(r.entries);
+      await store.setLastSync(new Date().toISOString());
+      setMsg({ kind: 'ok', text: `동기화 완료 · 받아온 변경 ${r.pulled}건${r.pushed ? ' · 저장소에 올림' : ' · 올릴 변경 없음'}` });
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof GitHubError ? e.message : '알 수 없는 오류가 났습니다. 다시 시도하세요.' });
     } finally {
@@ -106,7 +112,7 @@ export default function SettingsScreen() {
           accessibilityRole="link"
           onPress={() => Linking.openURL('https://github.com/settings/personal-access-tokens/new')}
         >
-          토큰 만들기: Fine-grained 토큰 → 그 저장소만 선택 → Contents 읽기/쓰기
+          토큰 만들기: Fine-grained 토큰 → 그 저장소만 선택 → Contents 읽기/쓰기 · 만료는 90일 이내 권장
         </Text>
 
         <View style={st.btns}>
